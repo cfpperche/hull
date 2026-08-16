@@ -30,10 +30,10 @@ This workstation: Hull binds `127.0.0.1:80` and `:443`. Postgres is published on
 - Windows + WSL hosts/CA (`setup-windows-from-wsl.sh`)
 - `scripts/prune.sh` — no leftover migrate/testdb in the compose group
 - Agent files + visual harness (agent-browser)
+- First visual pass: `@source` for `@hull/ui`, desktop rail, auth frame, quiet empty home
 
 ## Next (not started)
 
-- First visual pass on the three hosts (capture + judgment)
 - Dogfood skill (browser signup) if the visual loop is stable
 - Product module in `modules/` when there is a sold job
 

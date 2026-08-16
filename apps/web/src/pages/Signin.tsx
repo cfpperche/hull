@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Button, Input, Label } from "@hull/ui";
+import { AuthScreen, Button, Input, Label, useBrand } from "@hull/ui";
 import { errMsg } from "@hull/api-client";
 import { originFor } from "@hull/config";
 import { api } from "../lib/api";
@@ -33,12 +33,22 @@ export function SigninPage() {
     }
   }
 
+  const { brand, mark } = useBrand();
   return (
-    <div className="mx-auto grid w-full max-w-sm gap-6 px-6 py-16">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Sign in</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Email and password.</p>
-      </div>
+    <AuthScreen
+      brand={brand}
+      mark={mark}
+      title="Sign in"
+      description="Email and password."
+      footer={
+        <>
+          No account?{" "}
+          <Link to="/signup" className="text-foreground underline" data-testid="auth-to-signup">
+            Create one
+          </Link>
+        </>
+      }
+    >
       <form className="grid gap-4" onSubmit={(e) => void onSubmit(e)}>
         <div className="grid gap-1.5">
           <Label htmlFor="email">Email</Label>
@@ -53,12 +63,6 @@ export function SigninPage() {
           {pending ? "Signing in…" : "Sign in"}
         </Button>
       </form>
-      <p className="text-muted-foreground text-sm">
-        No account?{" "}
-        <Link to="/signup" className="text-foreground underline" data-testid="auth-to-signup">
-          Create one
-        </Link>
-      </p>
-    </div>
+    </AuthScreen>
   );
 }

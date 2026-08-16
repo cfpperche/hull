@@ -7,3 +7,4 @@ export { ProductShell, Page, type ShellNavItem, type ShellNavGroup } from "./com
 export { AppErrorBoundary } from "./components/AppErrorBoundary";
 export { ThemePreference } from "./components/ThemePreference";
 export { BrandGate, useBrand } from "./components/BrandGate";
+export { BrandMark, AuthScreen } from "./components/BrandMark";

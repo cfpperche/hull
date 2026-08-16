@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Input, Label } from "@hull/ui";
+import { AuthScreen, Button, Input, Label, useBrand } from "@hull/ui";
 import { errMsg } from "@hull/api-client";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
@@ -25,12 +25,9 @@ export function SigninPage() {
     }
   }
 
+  const { brand, mark } = useBrand();
   return (
-    <div className="mx-auto grid w-full max-w-sm gap-6 px-6 py-16">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Admin</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Platform operators only.</p>
-      </div>
+    <AuthScreen brand={brand} mark={mark} title="Admin" description="Platform operators only.">
       <form className="grid gap-4" onSubmit={(e) => void onSubmit(e)}>
         <div className="grid gap-1.5">
           <Label htmlFor="email">Email</Label>
@@ -45,6 +42,6 @@ export function SigninPage() {
           {pending ? "Signing in…" : "Sign in"}
         </Button>
       </form>
-    </div>
+    </AuthScreen>
   );
 }

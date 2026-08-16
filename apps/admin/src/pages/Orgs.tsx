@@ -27,7 +27,7 @@ export function OrgsPage() {
           </thead>
           <tbody>
             {(q.data?.orgs ?? []).map((o) => (
-              <tr key={o.id} className="border-t" data-testid={`org-${o.id}`}>
+              <tr key={o.id} className="hover:bg-muted/40 border-t" data-testid={`org-${o.id}`}>
                 <td className="px-4 py-2">{o.name}</td>
                 <td className="px-4 py-2 text-right">
                   <Button size="sm" variant="outline" data-testid={`view-as-${o.id}`} onClick={() => void viewAs(o.id)}>

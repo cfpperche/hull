@@ -32,9 +32,12 @@ Writes `harness/visual/current/` (overwritten every run):
 |---|---|
 | `www-desktop.png` / `www-mobile.png` | Marketing |
 | `web-signin-desktop.png` / `web-signin-mobile.png` | App, logged out |
+| `web-signup-desktop.png` | Signup |
 | `web-home-desktop.png` / `web-home-desktop-ann.png` | App, Ada signed in |
+| `web-account-desktop.png` | Account |
 | `admin-signin-desktop.png` | Admin door |
 | `admin-home-desktop.png` | Admin, signed in |
+| `admin-users-desktop.png` / `admin-orgs-desktop.png` | Admin lists |
 
 Then **`read_file` each PNG**. A list of paths is not a review.
 

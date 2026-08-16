@@ -54,8 +54,17 @@ agent-browser batch --bail \
   "set viewport 390 844" \
   "screenshot ${OUT}/web-signin-mobile.png"
 
+echo "capture web signup"
+agent-browser batch --bail \
+  "open https://app.${HOST}/signup" \
+  "wait --load networkidle" \
+  "set viewport 1440 900" \
+  "screenshot ${OUT}/web-signup-desktop.png"
+
 echo "capture web home (ada)"
 agent-browser batch --bail \
+  "open https://app.${HOST}/signin" \
+  "wait --load networkidle" \
   "set viewport 1440 900" \
   "find testid auth-email fill ada@${HOST}" \
   "find testid auth-password fill demodemo1" \
@@ -63,6 +72,12 @@ agent-browser batch --bail \
   "wait --load networkidle" \
   "screenshot ${OUT}/web-home-desktop.png"
 agent-browser screenshot --annotate "${OUT}/web-home-desktop-ann.png"
+
+echo "capture web account"
+agent-browser batch --bail \
+  "open https://app.${HOST}/account" \
+  "wait --load networkidle" \
+  "screenshot ${OUT}/web-account-desktop.png"
 
 echo "capture admin"
 # Cookie is on .${HOST}; Ada's session would bounce admin → app.
@@ -77,6 +92,15 @@ agent-browser batch --bail \
   "find testid auth-submit click" \
   "wait --load networkidle" \
   "screenshot ${OUT}/admin-home-desktop.png"
+
+echo "capture admin users + orgs"
+agent-browser batch --bail \
+  "open https://admin.${HOST}/users" \
+  "wait --load networkidle" \
+  "screenshot ${OUT}/admin-users-desktop.png" \
+  "open https://admin.${HOST}/orgs" \
+  "wait --load networkidle" \
+  "screenshot ${OUT}/admin-orgs-desktop.png"
 
 agent-browser close --all >/dev/null 2>&1 || true
 

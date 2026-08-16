@@ -86,8 +86,17 @@ export function AccountPage() {
       <div className="grid max-w-md gap-10">
         <form className="grid gap-4" onSubmit={(e) => void saveProfile(e)}>
           <div className="grid gap-1.5">
-            <Label htmlFor="photo">Photo</Label>
-            <Input id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => void onAvatar(e)} disabled={avatarPending} />
+            <Label>Photo</Label>
+            <label className="border-input hover:bg-muted inline-flex h-8 w-fit cursor-pointer items-center rounded-lg border px-2.5 text-sm">
+              {avatarPending ? "Uploading…" : "Upload photo"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={avatarPending}
+                onChange={(e) => void onAvatar(e)}
+              />
+            </label>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="email">Email</Label>
@@ -102,17 +111,17 @@ export function AccountPage() {
             <Input id="username" data-testid="profile-username" value={username} onChange={(e) => setUsername(e.target.value)} />
           </div>
           {profileError ? <p className="text-destructive text-sm">{profileError}</p> : null}
-          <Button type="submit" data-testid="profile-save" disabled={profilePending}>
+          <Button type="submit" className="w-fit" data-testid="profile-save" disabled={profilePending}>
             {profilePending ? "Saving…" : "Save profile"}
           </Button>
         </form>
 
-        <div className="grid gap-2">
+        <div className="grid gap-2 border-t pt-8">
           <h2 className="text-sm font-medium">Appearance</h2>
           <ThemePreference />
         </div>
 
-        <form className="grid gap-4" onSubmit={(e) => void savePassword(e)}>
+        <form className="grid gap-4 border-t pt-8" onSubmit={(e) => void savePassword(e)}>
           <h2 className="text-sm font-medium">Password</h2>
           <div className="grid gap-1.5">
             <Label htmlFor="current">Current</Label>
@@ -123,17 +132,17 @@ export function AccountPage() {
             <Input id="next" type="password" value={next} onChange={(e) => setNext(e.target.value)} />
           </div>
           {pwError ? <p className="text-destructive text-sm">{pwError}</p> : null}
-          <Button type="submit" disabled={pwPending}>
+          <Button type="submit" className="w-fit" disabled={pwPending}>
             {pwPending ? "Updating…" : "Update password"}
           </Button>
         </form>
 
-        <form className="grid gap-4" onSubmit={(e) => void closeAccount(e)}>
+        <form className="grid gap-4 border-t pt-8" onSubmit={(e) => void closeAccount(e)}>
           <h2 className="text-sm font-medium">Close account</h2>
           <p className="text-muted-foreground text-sm">Deletes this login and workspaces only you own.</p>
           <Input type="password" data-testid="close-password" placeholder="Password" value={closePw} onChange={(e) => setClosePw(e.target.value)} />
           {closeError ? <p className="text-destructive text-sm">{closeError}</p> : null}
-          <Button type="submit" variant="destructive" data-testid="close-account" disabled={closing}>
+          <Button type="submit" variant="destructive" className="w-fit" data-testid="close-account" disabled={closing}>
             {closing ? "Closing…" : "Close account"}
           </Button>
         </form>

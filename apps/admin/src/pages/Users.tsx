@@ -18,10 +18,10 @@ export function UsersPage() {
           </thead>
           <tbody>
             {(q.data?.users ?? []).map((u) => (
-              <tr key={u.id} className="border-t" data-testid={`user-${u.id}`}>
+              <tr key={u.id} className="hover:bg-muted/40 border-t" data-testid={`user-${u.id}`}>
                 <td className="px-4 py-2">{u.email}</td>
                 <td className="px-4 py-2">{u.username ?? "—"}</td>
-                <td className="px-4 py-2">{u.platform_role ?? "member"}</td>
+                <td className="px-4 py-2">{u.platform_role === "platform_admin" ? "Admin" : "Member"}</td>
               </tr>
             ))}
           </tbody>

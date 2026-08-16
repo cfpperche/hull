@@ -3,6 +3,7 @@ import { Menu } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import { AppErrorBoundary } from "./AppErrorBoundary";
+import { BrandMark } from "./BrandMark";
 import { cn } from "../lib/utils";
 
 export type ShellNavItem = {
@@ -58,23 +59,16 @@ export function ProductShell({
       ) : null}
       <aside
         className={cn(
-          "bg-sidebar text-sidebar-foreground z-50 flex h-svh w-56 shrink-0 flex-col border-r",
+          "bg-sidebar text-sidebar-foreground z-50 flex h-svh w-60 shrink-0 flex-col border-r",
           "fixed inset-y-0 left-0 transition-transform md:static md:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
       >
         <div className="shrink-0 px-3 py-3">
           {lead ?? (
-            <div className="flex items-center gap-2.5 px-1">
-              <div className="bg-foreground text-background flex size-7 items-center justify-center rounded-md text-xs font-semibold">
-                {mark}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold tracking-tight">{brand}</p>
-                {brandHint ? (
-                  <div className="text-muted-foreground truncate text-xs">{brandHint}</div>
-                ) : null}
-              </div>
+            <div className="px-1">
+              <BrandMark brand={brand} mark={mark} hint={typeof brandHint === "string" ? brandHint : undefined} />
+              {brandHint && typeof brandHint !== "string" ? brandHint : null}
             </div>
           )}
         </div>
@@ -154,7 +148,7 @@ export function Page({
   title: ReactNode;
   description?: string;
   actions?: ReactNode;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-8 py-7">

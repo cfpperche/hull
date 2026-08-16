@@ -1,7 +1,7 @@
 import { Building2, LayoutDashboard, Users } from "lucide-react";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { originFor } from "@hull/config";
-import { ProductShell, useBrand } from "@hull/ui";
+import { Button, ProductShell, useBrand } from "@hull/ui";
 import { useSession } from "./lib/session";
 import { OverviewPage } from "./pages/Overview";
 import { OrgsPage } from "./pages/Orgs";
@@ -39,9 +39,9 @@ function AdminApp() {
               { to: "/orgs", label: "Workspaces", icon: Building2 },
             ]}
             footer={
-              <button type="button" className="text-muted-foreground text-sm underline" data-testid="sign-out" onClick={() => void signOut()}>
+              <Button type="button" variant="ghost" className="w-full justify-start" data-testid="sign-out" onClick={() => void signOut()}>
                 Sign out
-              </button>
+              </Button>
             }
           />
         }

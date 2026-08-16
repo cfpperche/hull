@@ -1,16 +1,5 @@
 import { originFor } from "@hull/config";
-import { useBrand } from "@hull/ui";
-
-function Mark({ brand, mark }: { brand: string; mark: string }) {
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span className="bg-foreground text-background flex size-7 items-center justify-center rounded-md text-xs font-semibold">
-        {mark}
-      </span>
-      <span className="text-sm font-semibold tracking-tight">{brand}</span>
-    </span>
-  );
-}
+import { BrandMark, useBrand } from "@hull/ui";
 
 export function App() {
   const { brand, mark } = useBrand();
@@ -21,7 +10,7 @@ export function App() {
       <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1120px] items-center justify-between gap-4 px-6">
           <a href="#top" aria-label={brand}>
-            <Mark brand={brand} mark={mark} />
+            <BrandMark brand={brand} mark={mark} />
           </a>
           <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
             <a href="#product" className="hover:text-foreground">
@@ -95,12 +84,12 @@ export function App() {
         <section id="surfaces" className="border-t">
           <div className="mx-auto max-w-[1120px] px-6 py-20">
             <h2 className="text-xl font-semibold tracking-tight">Three hosts</h2>
-            <ul className="mt-6 grid gap-4 md:grid-cols-3">
-              <li className="rounded-xl border p-5">
+            <ul className="mt-8 grid gap-8 md:grid-cols-3">
+              <li>
                 <p className="text-sm font-medium">www</p>
                 <p className="text-muted-foreground mt-1 text-sm">This page. No cookie.</p>
               </li>
-              <li className="rounded-xl border p-5">
+              <li>
                 <p className="text-sm font-medium">app</p>
                 <p className="text-muted-foreground mt-1 text-sm">
                   Product shell.{" "}
@@ -109,7 +98,7 @@ export function App() {
                   </a>
                 </p>
               </li>
-              <li className="rounded-xl border p-5">
+              <li>
                 <p className="text-sm font-medium">admin</p>
                 <p className="text-muted-foreground mt-1 text-sm">
                   Install operators.{" "}
@@ -125,7 +114,7 @@ export function App() {
 
       <footer className="border-t">
         <div className="text-muted-foreground mx-auto flex max-w-[1120px] items-center justify-between px-6 py-8 text-sm">
-          <Mark brand={brand} mark={mark} />
+          <BrandMark brand={brand} mark={mark} />
           <p>MIT</p>
         </div>
       </footer>
