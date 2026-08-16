@@ -204,7 +204,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         send_mail(
             settings,
             to=payload.email.strip().lower(),
-            subject="Welcome to Hull",
+            subject=settings.welcome_subject(),
             text="Your account is ready. Name a workspace to continue.\n",
         )
         _set_cookie(request, response, token)

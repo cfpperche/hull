@@ -11,7 +11,7 @@ log = logging.getLogger("hull_api.mail")
 
 def send_mail(settings: Settings, *, to: str, subject: str, text: str) -> str:
     msg = EmailMessage()
-    msg["From"] = settings.mail_from
+    msg["From"] = settings.resolved_mail_from()
     msg["To"] = to
     msg["Subject"] = subject
     msg.set_content(text)

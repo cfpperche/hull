@@ -10,6 +10,8 @@ else
 fi
 
 SEED="${HULL_SEED_DEMO:-1}"
+SEED_HOST="${HULL_HOST:-hull.dev}"
+SEED_HOST_SQL="$(printf '%s' "$SEED_HOST" | sed "s/'/''/g")"
 
 psql_exec() {
   if [[ -n "${HULL_PG_CONTAINER:-}" ]]; then
@@ -50,58 +52,62 @@ CREATE TABLE IF NOT EXISTS schema_seeds (
 );
 SQL
 
-apply_dir() {
-  local dir="$1"
-  local table="$2"
-  local f base
+already_applied() {
+  local table="$1" id="$2"
+  psql_exec -tAc "SELECT 1 FROM ${table} WHERE id = '${id}'" | tr -d '[:space:]'
+}
+
+pipe_sql() {
+  if [[ -n "${HULL_PG_CONTAINER:-}" ]]; then
+    docker exec -i \
+      -e PGUSER="${PGUSER}" \
+      -e PGPASSWORD="${PGPASSWORD}" \
+      -e PGDATABASE="${PGDATABASE}" \
+      -e PGHOST=127.0.0.1 \
+      "$HULL_PG_CONTAINER" \
+      psql -v ON_ERROR_STOP=1 -X -q
+  elif [[ -n "${HULL_DATABASE_URL:-}" ]]; then
+    psql -v ON_ERROR_STOP=1 -X -q "$HULL_DATABASE_URL"
+  else
+    psql -v ON_ERROR_STOP=1 -X -q
+  fi
+}
+
+apply_sql_file() {
+  local table="$1" id="$2" file="$3"
+  if [[ "$(already_applied "$table" "$id")" == "1" ]]; then
+    echo "skip  ${id}"
+    return
+  fi
+  echo "apply ${id}"
+  pipe_sql <"$file"
+  psql_exec -c "INSERT INTO ${table} (id) VALUES ('${id}')"
+}
+
+apply_sql_dir() {
+  local dir="$1" table="$2" f base
   for f in "$dir"/*.sql; do
     [[ -e "$f" ]] || continue
-    base="$(basename "$f")"
-    already="$(psql_exec -tAc "SELECT 1 FROM ${table} WHERE id = '${base}'" | tr -d '[:space:]')"
-    if [[ "$already" == "1" ]]; then
-      echo "skip  ${base}"
-      continue
-    fi
-    echo "apply ${base}"
-    psql_exec -f "$f"
-    psql_exec -c "INSERT INTO ${table} (id) VALUES ('${base}')"
+    apply_sql_file "$table" "$(basename "$f")" "$f"
   done
 }
 
-if [[ -n "${HULL_PG_CONTAINER:-}" ]]; then
-  # Files live on the host; pipe into the container's psql.
-  apply_dir_docker() {
-    local dir="$1"
-    local table="$2"
-    local f base
-    for f in "$dir"/*.sql; do
-      [[ -e "$f" ]] || continue
-      base="$(basename "$f")"
-      already="$(psql_exec -tAc "SELECT 1 FROM ${table} WHERE id = '${base}'" | tr -d '[:space:]')"
-      if [[ "$already" == "1" ]]; then
-        echo "skip  ${base}"
-        continue
-      fi
-      echo "apply ${base}"
-      docker exec -i \
-        -e PGUSER="${PGUSER}" \
-        -e PGPASSWORD="${PGPASSWORD}" \
-        -e PGDATABASE="${PGDATABASE}" \
-        -e PGHOST=127.0.0.1 \
-        "$HULL_PG_CONTAINER" \
-        psql -v ON_ERROR_STOP=1 -X -q <"$f"
-      psql_exec -c "INSERT INTO ${table} (id) VALUES ('${base}')"
-    done
-  }
-  apply_dir_docker "$SCHEMA/migrations" schema_migrations
-  if [[ "$SEED" == "1" ]]; then
-    apply_dir_docker "$SCHEMA/seed" schema_seeds
-  fi
-else
-  apply_dir "$SCHEMA/migrations" schema_migrations
-  if [[ "$SEED" == "1" ]]; then
-    apply_dir "$SCHEMA/seed" schema_seeds
-  fi
+apply_seed_tmpls() {
+  local dir="$SCHEMA/seed" f id tmp
+  for f in "$dir"/*.sql.tmpl; do
+    [[ -e "$f" ]] || continue
+    id="$(basename "$f" .tmpl)"
+    tmp="$(mktemp)"
+    sed "s/__HOST__/${SEED_HOST_SQL}/g" "$f" >"$tmp"
+    apply_sql_file schema_seeds "$id" "$tmp"
+    rm -f "$tmp"
+  done
+}
+
+apply_sql_dir "$SCHEMA/migrations" schema_migrations
+if [[ "$SEED" == "1" ]]; then
+  apply_sql_dir "$SCHEMA/seed" schema_seeds
+  apply_seed_tmpls
 fi
 
-echo "MIGRATE_OK schema=${SCHEMA} seed=${SEED}"
+echo "MIGRATE_OK schema=${SCHEMA} seed=${SEED} host=${SEED_HOST}"

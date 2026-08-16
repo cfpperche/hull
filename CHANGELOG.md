@@ -17,11 +17,15 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
-- Compose `testdb` (`profile: test`) so pytest Postgres lives in the **hull** group in Docker Desktop / VS Code Containers. Raw `docker run` put `hull-test-pg` under Individual Containers.
+- White-label **values** in `.env`: `HULL_BRAND`, `HULL_MARK`, `HULL_COOKIE_NAME`, plus existing `HULL_HOST`. `scripts/render-brand.sh` writes `/config.json` at start (no SPA rebuild). Chrome, mail subject/from, and lab seed emails follow those values.
+- Lab seed template `schema/seed/001_lab.sql.tmpl` (`ada@` + host).
+- Compose `testdb` (`profile: test`) so pytest Postgres lives in the **hull** group in Docker Desktop / VS Code Containers.
 - Labels `hull.project` / `hull.role` on every service, same grouping contract as Opt.
 
 ### Changed
 
+- SPA images no longer bake `VITE_HULL_HOST`. Nginx mounts `deploy/brand/config.json`.
+- Mail from defaults to `{brand} <noreply@{host}>` when `HULL_MAIL_FROM` is empty.
 - `scripts/test.sh` and `scripts/down.sh` go through `docker compose -p hull` (down includes test / studio / dns profiles so the group empties).
 
 ---

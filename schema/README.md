@@ -7,7 +7,7 @@ Any backend (this repo’s FastAPI, or Go / Bun later) reads and writes these ta
 | Path | Role |
 |---|---|
 | `migrations/` | Forward-only SQL. Applied by `scripts/migrate.sh` (psql). |
-| `seed/` | Lab fixtures. Optional. Idempotent. |
+| `seed/*.sql.tmpl` | Lab fixtures. `__HOST__` becomes `HULL_HOST`. Idempotent. |
 
 `scripts/migrate.sh` is the runner. It is bash + `psql`. It does not import the API package.
 

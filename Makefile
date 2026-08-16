@@ -1,7 +1,10 @@
-.PHONY: setup up down dev smoke test images migrate
+.PHONY: setup up down dev smoke test images migrate brand
 
 setup:
 	./scripts/setup-local.sh
+
+brand:
+	./scripts/render-brand.sh
 
 migrate:
 	./scripts/migrate.sh

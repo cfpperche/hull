@@ -1,7 +1,7 @@
 import { Home, UserRound } from "lucide-react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { originFor } from "@hull/config";
-import { ProductShell } from "@hull/ui";
+import { ProductShell, useBrand } from "@hull/ui";
 import { AvatarMenu } from "./components/AvatarMenu";
 import { OrgSwitcher } from "./components/OrgSwitcher";
 import { SupportBanner } from "./components/SupportBanner";
@@ -22,6 +22,7 @@ export function App() {
 }
 
 function ClientApp() {
+  const { brand, mark } = useBrand();
   const { ready, signedIn, me } = useSession();
 
   if (!ready) {
@@ -54,8 +55,9 @@ function ClientApp() {
       <Route
         element={
           <ProductShell
-            brand="Hull"
-            lead={acting ? <ActingChip name={acting.name} /> : <OrgSwitcher />}
+            brand={brand}
+            mark={mark}
+            lead={acting ? <ActingChip brand={brand} name={acting.name} /> : <OrgSwitcher />}
             banner={acting ? <SupportBanner orgName={acting.name} /> : undefined}
             nav={[{ to: "/", label: "Home", icon: Home, end: true }, { to: "/account", label: "Account", icon: UserRound }]}
             footer={<AvatarMenu />}
@@ -72,10 +74,10 @@ function ClientApp() {
   );
 }
 
-function ActingChip({ name }: { name: string }) {
+function ActingChip({ brand, name }: { brand: string; name: string }) {
   return (
     <div className="px-1 py-1">
-      <p className="text-sm font-semibold tracking-tight">Hull</p>
+      <p className="text-sm font-semibold tracking-tight">{brand}</p>
       <p className="text-muted-foreground truncate text-xs">Viewing {name}</p>
     </div>
   );

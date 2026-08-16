@@ -24,7 +24,7 @@ sudo ./scripts/setup-local.sh
 
 Lab logins after seed: `ada@hull.dev` / `demodemo1` (owner of one workspace). `admin@hull.dev` / `demodemo1` (platform admin, no workspace).
 
-Change the apex with `HULL_HOST` in `.env` and re-run setup. Default is **`.dev`**, not `.test`.
+Change the apex and chrome with `.env` (`HULL_HOST`, `HULL_BRAND`, `HULL_MARK`, `HULL_COOKIE_NAME`). Re-run `setup-local.sh` when the host changes. Default TLD is **`.dev`**, not `.test`. SPA images do not bake the host — `scripts/render-brand.sh` writes `/config.json` at start. Compose project stays **`hull`**. Two installs on one daemon need a different `HULL_BIND` / Postgres port (not in this ritual).
 
 ## What this is
 
@@ -57,6 +57,7 @@ No Next.js. No worker. No billing. No SSO.
 | `./scripts/down.sh` | Stop. `./scripts/down.sh -v` wipes volumes |
 | `./scripts/dev.sh` | Data plane + edge; API and Vite stay on the host |
 | `./scripts/test.sh` | Disposable Postgres + pytest |
+| `./scripts/render-brand.sh` | `/config.json` from `.env` (chrome + host) |
 | `./scripts/build-images.sh` | `hull-api` `hull-www` `hull-web` `hull-admin` |
 
 80/443 on loopback must be free (or already owned by `hull-traefik`).

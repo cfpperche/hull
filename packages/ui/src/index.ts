@@ -6,3 +6,4 @@ export { Toaster } from "./components/ui/sonner";
 export { ProductShell, Page, type ShellNavItem, type ShellNavGroup } from "./components/ProductShell";
 export { AppErrorBoundary } from "./components/AppErrorBoundary";
 export { ThemePreference } from "./components/ThemePreference";
+export { BrandGate, useBrand } from "./components/BrandGate";

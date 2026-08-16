@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Button, Input, Label, initial } from "@hull/ui";
+import { Button, Input, Label, initial, useBrand } from "@hull/ui";
 import { errMsg } from "@hull/api-client";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export function CreateOrgPage() {
+  const { brand } = useBrand();
   const { refreshMe, signOut, me } = useSession();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export function CreateOrgPage() {
   return (
     <div className="flex min-h-svh flex-col">
       <header className="flex items-center justify-between px-6 py-4">
-        <p className="text-sm font-semibold tracking-tight">Hull</p>
+        <p className="text-sm font-semibold tracking-tight">{brand}</p>
         <div className="text-muted-foreground flex items-center gap-3 text-sm">
           <span className="truncate">{me?.user.email}</span>
           <button type="button" className="underline" data-testid="sign-out" onClick={() => void signOut()}>

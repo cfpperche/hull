@@ -9,6 +9,7 @@ HOST="${HULL_HOST:-hull.dev}"
 "$ROOT/scripts/check-deps.sh" dev
 "$ROOT/scripts/generate-certs.sh"
 "$ROOT/scripts/render-edge.sh" dev
+"$ROOT/scripts/render-brand.sh"
 "$ROOT/scripts/preflight.sh"
 
 compose() {

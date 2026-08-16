@@ -16,6 +16,7 @@ Update `CHANGELOG.md` under `[Unreleased]` before every push to `main`.
 - Edge: Traefik **inside** `deploy/compose.yaml`. Do not join an external Docker network.
 - Compose project name is **`hull`**. Every container is `docker compose -p hull`. Never `docker run` a Hull process — VS Code files it under Individual Containers.
 - Hosts: `*.dev` (default `hull.dev`). Not `.test`.
+- White-label **values** live in `.env` (`HULL_HOST`, `HULL_BRAND`, `HULL_MARK`, `HULL_COOKIE_NAME`). Chrome reads `/config.json` from `scripts/render-brand.sh`. Do not bake `VITE_HULL_HOST`.
 - Signup: username + email + password. Then one workspace name. No long wizard.
 - Chrome: Vercel / Linear / Supabase density. Confirm writes (toast, destination, or control state). No Inter+purple.
 

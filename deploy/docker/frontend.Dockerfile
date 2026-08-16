@@ -15,8 +15,6 @@ COPY packages/tsconfig/package.json packages/tsconfig/package.json
 RUN pnpm install --frozen-lockfile
 COPY . .
 ARG SHELL=web
-ARG VITE_HULL_HOST=hull.dev
-ENV VITE_HULL_HOST=${VITE_HULL_HOST}
 RUN pnpm --filter @hull/${SHELL} build
 
 FROM nginx:1.27-alpine

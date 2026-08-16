@@ -1,7 +1,7 @@
 import { Building2, LayoutDashboard, Users } from "lucide-react";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { originFor } from "@hull/config";
-import { ProductShell } from "@hull/ui";
+import { ProductShell, useBrand } from "@hull/ui";
 import { useSession } from "./lib/session";
 import { OverviewPage } from "./pages/Overview";
 import { OrgsPage } from "./pages/Orgs";
@@ -17,6 +17,7 @@ export function App() {
 }
 
 function AdminApp() {
+  const { brand, mark } = useBrand();
   const { ready, signedIn, me, signOut } = useSession();
   if (!ready) return <div className="text-muted-foreground p-8 text-sm">Loading…</div>;
   if (!signedIn) return <SigninPage />;
@@ -29,8 +30,8 @@ function AdminApp() {
       <Route
         element={
           <ProductShell
-            brand="Hull"
-            mark="A"
+            brand={brand}
+            mark={mark}
             brandHint="Admin"
             nav={[
               { to: "/", label: "Overview", icon: LayoutDashboard, end: true },

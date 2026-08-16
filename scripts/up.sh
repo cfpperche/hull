@@ -9,6 +9,7 @@ HOST="${HULL_HOST:-hull.dev}"
 "$ROOT/scripts/check-deps.sh" up
 "$ROOT/scripts/generate-certs.sh"
 "$ROOT/scripts/render-edge.sh" prod
+"$ROOT/scripts/render-brand.sh"
 "$ROOT/scripts/preflight.sh"
 
 need_build=0
@@ -37,5 +38,5 @@ done
 compose run --rm migrate
 compose up -d --remove-orphans
 echo "UP_OK  https://${HOST}/  https://app.${HOST}/  https://admin.${HOST}/"
-echo "Lab: ada@${HOST} / ${HULL_DEMO_PASSWORD:-demodemo1}   admin@${HOST} / same"
+echo "Lab: ada@${HOST} / demodemo1   admin@${HOST} / same"
 echo "Mail: https://mail.${HOST}/"

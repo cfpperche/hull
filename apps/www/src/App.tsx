@@ -1,25 +1,27 @@
 import { originFor } from "@hull/config";
+import { useBrand } from "@hull/ui";
 
-function Mark() {
+function Mark({ brand, mark }: { brand: string; mark: string }) {
   return (
     <span className="inline-flex items-center gap-2">
       <span className="bg-foreground text-background flex size-7 items-center justify-center rounded-md text-xs font-semibold">
-        H
+        {mark}
       </span>
-      <span className="text-sm font-semibold tracking-tight">Hull</span>
+      <span className="text-sm font-semibold tracking-tight">{brand}</span>
     </span>
   );
 }
 
 export function App() {
+  const { brand, mark } = useBrand();
   const app = originFor("web");
   const admin = originFor("admin");
   return (
     <div className="min-h-svh">
       <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1120px] items-center justify-between gap-4 px-6">
-          <a href="#top" aria-label="Hull">
-            <Mark />
+          <a href="#top" aria-label={brand}>
+            <Mark brand={brand} mark={mark} />
           </a>
           <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
             <a href="#product" className="hover:text-foreground">
@@ -123,7 +125,7 @@ export function App() {
 
       <footer className="border-t">
         <div className="text-muted-foreground mx-auto flex max-w-[1120px] items-center justify-between px-6 py-8 text-sm">
-          <Mark />
+          <Mark brand={brand} mark={mark} />
           <p>MIT</p>
         </div>
       </footer>

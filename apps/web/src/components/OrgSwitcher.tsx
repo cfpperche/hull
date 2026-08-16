@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { Button, Input, cn, initial } from "@hull/ui";
+import { Button, Input, cn, initial, useBrand } from "@hull/ui";
 import { errMsg } from "@hull/api-client";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export function OrgSwitcher() {
+  const { brand } = useBrand();
   const { me, refreshMe } = useSession();
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -77,7 +78,7 @@ export function OrgSwitcher() {
           {initial(current?.name ?? "H")}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold tracking-tight">Hull</span>
+          <span className="block truncate text-sm font-semibold tracking-tight">{brand}</span>
           <span className="text-muted-foreground block truncate text-xs">{current?.name ?? "Workspace"}</span>
         </span>
         <ChevronsUpDown className="text-muted-foreground size-3.5 shrink-0" />

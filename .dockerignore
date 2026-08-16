@@ -6,6 +6,8 @@
 **/.ruff_cache
 **/__pycache__
 deploy/certs
+deploy/brand/config.json
+apps/*/public/config.json
 .env
 *.log
 hull-test-pg
