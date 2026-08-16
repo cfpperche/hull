@@ -5,12 +5,16 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 name="hull-test-pg"
 port="${HULL_TEST_PG_PORT:-55434}"
+compose_env=()
+[[ -f "$ROOT/.env" ]] && compose_env=(--env-file "$ROOT/.env")
+
+compose() {
+  docker compose "${compose_env[@]}" -f "$ROOT/deploy/compose.yaml" -p hull --profile test "$@"
+}
+
 if ! docker ps --format '{{.Names}}' | grep -qx "$name"; then
   docker rm -f "$name" >/dev/null 2>&1 || true
-  docker run -d --name "$name" \
-    -e POSTGRES_USER=hull -e POSTGRES_PASSWORD=hull -e POSTGRES_DB=hull_test \
-    -p "127.0.0.1:${port}:5432" \
-    public.ecr.aws/docker/library/postgres:16 >/dev/null
+  compose up -d testdb
   echo -n "waiting for ${name}"
   ready=0
   for _ in $(seq 1 60); do
