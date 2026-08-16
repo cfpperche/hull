@@ -21,7 +21,5 @@ class Settings(BaseSettings):
     s3_secret_key: str = "hull-s3-lab-secret"
     s3_region: str = "us-east-1"
     s3_bucket_avatars: str = "hull-avatars"
-    migrations_dir: str = ""
-    demo_password: str = "demodemo1"
-    seed_demo: bool = False
+    schema_dir: str = ""
     cookie_name: str = "hull_session"

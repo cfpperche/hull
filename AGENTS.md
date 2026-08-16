@@ -7,7 +7,9 @@ Read `README.md` first. The host ritual is `scripts/setup-local.sh` then `script
 ## Locks
 
 - Frontend: Vite + React + Tailwind 4 + shadcn **default**. No Next.js. No custom token sheet.
-- API: FastAPI. One backend. Do not add a second language.
+- Schema: SQL in `schema/`. Migrate with `scripts/migrate.sh` (psql). Do not put DDL in FastAPI.
+- HTTP contract: `contracts/openapi.yaml`. FastAPI in `api/` is one adapter. A second language implements the same file.
+- Do not add a database microservice. Postgres is the store. The API talks to it.
 - Objects: User (login) and Org (workspace). Do not add Company/Store unless a product module needs a second level.
 - Edge: Traefik **inside** `deploy/compose.yaml`. Do not join an external Docker network.
 - Hosts: `*.dev` (default `hull.dev`). Not `.test`.

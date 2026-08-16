@@ -44,10 +44,12 @@ if ! ss -ltn 2>/dev/null | grep -qE "127\\.0\\.0\\.1:9000\\s"; then
   unset HULL_S3_ENDPOINT || true
 fi
 
-(
-  cd "$ROOT/api"
-  uv run hull-migrate
-)
+HULL_PG_CONTAINER=hull-pg \
+  PGUSER="${HULL_POSTGRES_USER:-hull}" \
+  PGPASSWORD="${HULL_POSTGRES_PASSWORD:-hull}" \
+  PGDATABASE="${HULL_POSTGRES_DB:-hull}" \
+  HULL_SEED_DEMO="${HULL_SEED_DEMO:-1}" \
+  "$ROOT/scripts/migrate.sh"
 
 echo
 echo "DEV_OK  start these in other terminals:"

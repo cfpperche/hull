@@ -38,7 +38,9 @@ Change the apex with `HULL_HOST` in `.env` and re-run setup. Default is **`.dev`
 | Layer | Choice |
 |---|---|
 | Product / admin / www | Vite + React 19 + Tailwind 4 + shadcn default |
-| API | FastAPI (uv), Postgres 16 |
+| Schema | Postgres 16 — SQL in `schema/`, applied by `scripts/migrate.sh` |
+| HTTP contract | `contracts/openapi.yaml` |
+| API adapter | FastAPI (uv) — replaceable |
 | Objects | RustFS (S3) |
 | Mail | Mailpit |
 | Edge | Traefik v3 + project CA |
@@ -62,15 +64,17 @@ No Next.js. No worker. No billing. No SSO.
 ## Layout
 
 ```text
+schema/           Postgres (migrations + lab seed). Not Python.
+contracts/        OpenAPI. The host HTTP contract.
 apps/www          marketing
 apps/web          signed-in product
 apps/admin        platform / support
 packages/ui       ProductShell + shadcn
 packages/api-client
-api/              FastAPI
+api/              FastAPI adapter — implements contracts/ against schema/
 deploy/           compose, Traefik, nginx, certs
 modules/example   empty product slot
-scripts/          the ritual above
+scripts/          setup, migrate, up, smoke
 ```
 
 A future product is a module. The hull does not know what it sells.

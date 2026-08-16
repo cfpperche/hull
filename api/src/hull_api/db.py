@@ -19,23 +19,34 @@ def connection(settings: Settings) -> Iterator[psycopg.Connection]:
         conn.close()
 
 
-def apply_migrations(settings: Settings) -> None:
-    root = Path(settings.migrations_dir) if settings.migrations_dir else Path(__file__).resolve().parents[2] / "migrations"
-    files = sorted(root.glob("*.sql"))
+def schema_root(settings: Settings) -> Path:
+    if settings.schema_dir:
+        return Path(settings.schema_dir)
+    return Path(__file__).resolve().parents[3] / "schema"
+
+
+def _apply_sql_dir(cur, table: str, directory: Path) -> None:
+    cur.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {table} (
+            id TEXT PRIMARY KEY,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+        """
+    )
+    cur.execute(f"SELECT id FROM {table}")
+    done = {row[0] for row in cur.fetchall()}
+    for path in sorted(directory.glob("*.sql")):
+        if path.name in done:
+            continue
+        cur.execute(path.read_text())
+        cur.execute(f"INSERT INTO {table} (id) VALUES (%s)", (path.name,))
+
+
+def apply_migrations(settings: Settings, *, seed: bool = False) -> None:
+    root = schema_root(settings)
     with psycopg.connect(settings.database_url, autocommit=True) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS schema_migrations (
-                    id TEXT PRIMARY KEY,
-                    applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
-                )
-                """
-            )
-            cur.execute("SELECT id FROM schema_migrations")
-            done = {row[0] for row in cur.fetchall()}
-            for path in files:
-                if path.name in done:
-                    continue
-                cur.execute(path.read_text())
-                cur.execute("INSERT INTO schema_migrations (id) VALUES (%s)", (path.name,))
+            _apply_sql_dir(cur, "schema_migrations", root / "migrations")
+            if seed:
+                _apply_sql_dir(cur, "schema_seeds", root / "seed")

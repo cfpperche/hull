@@ -1,0 +1,253 @@
+openapi: 3.1.0
+info:
+  title: Hull host API
+  version: 0.1.0
+  description: |
+    Cookie session. Isolation is org_id. This file is the contract.
+    FastAPI in api/ is one implementation.
+servers:
+  - url: /api
+paths:
+  /health:
+    get:
+      operationId: health
+      responses:
+        "200":
+          description: Process is up
+  /v1/auth/signup:
+    post:
+      operationId: signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password]
+              properties:
+                username: { type: string }
+                email: { type: string }
+                password: { type: string, minLength: 8 }
+      responses:
+        "201":
+          description: User + session cookie. No org yet.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "409":
+          description: email_taken or username_taken
+  /v1/auth/signin:
+    post:
+      operationId: signin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: Session cookie
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "401":
+          description: invalid email or password
+  /v1/auth/signout:
+    post:
+      operationId: signout
+      responses:
+        "204":
+          description: Cookie cleared
+  /v1/me:
+    get:
+      operationId: me
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "401":
+          description: no session
+    patch:
+      operationId: updateMe
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string }
+                name: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+    delete:
+      operationId: closeAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+      responses:
+        "204":
+          description: Login deleted
+  /v1/me/password:
+    post:
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current, password]
+              properties:
+                current: { type: string }
+                password: { type: string, minLength: 8 }
+      responses:
+        "204":
+          description: Other sessions die
+  /v1/me/avatar:
+    get:
+      operationId: getAvatar
+      responses:
+        "200":
+          description: image/webp
+        "404":
+          description: no photo
+    post:
+      operationId: uploadAvatar
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200":
+          description: Stored
+  /v1/orgs:
+    post:
+      operationId: createOrg
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+  /v1/session/org:
+    post:
+      operationId: switchOrg
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: string, format: uuid }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "404":
+          description: not a member
+  /v1/admin/users:
+    get:
+      operationId: adminUsers
+      responses:
+        "200":
+          description: platform_admin only
+        "403":
+          description: forbidden
+  /v1/admin/orgs:
+    get:
+      operationId: adminOrgs
+      responses:
+        "200":
+          description: platform_admin only
+  /v1/admin/support:
+    post:
+      operationId: supportStart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [org_id]
+              properties:
+                org_id: { type: string, format: uuid }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+    delete:
+      operationId: supportStop
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+components:
+  schemas:
+    Org:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+    User:
+      type: object
+      required: [id, email, has_avatar]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        username: { type: string, nullable: true }
+        name: { type: string, nullable: true }
+        has_avatar: { type: boolean }
+    Me:
+      type: object
+      required: [user, org, orgs, platform_role, acting]
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        org: { $ref: "#/components/schemas/Org", nullable: true }
+        orgs:
+          type: array
+          items: { $ref: "#/components/schemas/Org" }
+        platform_role: { type: string, nullable: true }
+        acting:
+          type: object
+          nullable: true
+          properties:
+            org: { $ref: "#/components/schemas/Org" }
+            expires_at: { type: string, format: date-time }
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: hull_session

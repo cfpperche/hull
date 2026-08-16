@@ -1,7 +1,10 @@
-.PHONY: setup up down dev smoke test images
+.PHONY: setup up down dev smoke test images migrate
 
 setup:
 	./scripts/setup-local.sh
+
+migrate:
+	./scripts/migrate.sh
 
 images:
 	./scripts/build-images.sh
