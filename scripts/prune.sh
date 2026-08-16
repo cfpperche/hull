@@ -17,7 +17,9 @@ compose --profile test rm -f testdb >/dev/null 2>&1 || true
 # compose run leftovers (hull-migrate-run-*)
 docker ps -aq --filter name='hull-migrate-run-' | xargs -r docker rm -f >/dev/null 2>&1 || true
 
-# Dangling build layers only
-docker image prune -f >/dev/null
+# Hull's own dangling layers only. A bare `docker image prune -f` is
+# machine-global and contradicts this script's own promise not to touch other
+# projects, so scope it to the label compose already stamps.
+docker image prune -f --filter label=hull.project=hull >/dev/null
 
 echo "PRUNE_OK  hull group should show only running product services"

@@ -45,7 +45,10 @@ async function request<T>(
   init: RequestInit = {},
 ): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.body && !headers.has("Content-Type")) {
+  // Only for string bodies. Setting it for a FormData body suppresses the
+  // multipart boundary fetch would otherwise generate, which made every
+  // avatar upload unparseable on the server.
+  if (typeof init.body === "string" && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
   const res = await fetch(`${prefix}${path}`, {
@@ -55,12 +58,20 @@ async function request<T>(
   });
   if (res.status === 204) return undefined as T;
   const text = await res.text();
-  const data = text ? (JSON.parse(text) as unknown) : null;
+  // An edge 502 or any other non-JSON body must still surface as an ApiError
+  // carrying the real status — a raw SyntaxError escapes the 401 handling in
+  // the session provider and gets rendered to the user verbatim.
+  let data: unknown = null;
+  try {
+    data = text ? (JSON.parse(text) as unknown) : null;
+  } catch {
+    data = null;
+  }
   if (!res.ok) {
-    const p = data as Partial<Problem>;
+    const p = (data && typeof data === "object" ? data : {}) as Partial<Problem>;
     throw new ApiError({
       title: p.title || "Error",
-      detail: p.detail || res.statusText,
+      detail: p.detail || res.statusText || "Request failed",
       status: res.status,
       reason_code: p.reason_code || "http_error",
     });

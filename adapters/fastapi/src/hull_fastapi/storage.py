@@ -5,7 +5,7 @@ import io
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from hull_fastapi.config import Settings
 
@@ -52,13 +52,18 @@ def put_avatar(settings: Settings, *, user_id: str, data: bytes, content_type: s
         raise StorageError("request_validation_error", "photo must be jpeg, png, or webp")
     if len(data) > 5 * 1024 * 1024:
         raise StorageError("request_validation_error", "photo is too large")
-    img = Image.open(io.BytesIO(data))
-    img = img.convert("RGB")
-    img.thumbnail((256, 256))
-    canvas = Image.new("RGB", (256, 256), (255, 255, 255))
-    canvas.paste(img, ((256 - img.width) // 2, (256 - img.height) // 2))
-    out = io.BytesIO()
-    canvas.save(out, format="WEBP", quality=85)
+    # Decode rather than trust the client's content type, and keep Pillow's own
+    # errors inside the StorageError contract so a bad file is a 422, not a 500.
+    try:
+        img = Image.open(io.BytesIO(data))
+        img = img.convert("RGB")
+        img.thumbnail((256, 256))
+        canvas = Image.new("RGB", (256, 256), (255, 255, 255))
+        canvas.paste(img, ((256 - img.width) // 2, (256 - img.height) // 2))
+        out = io.BytesIO()
+        canvas.save(out, format="WEBP", quality=85)
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise StorageError("request_validation_error", "photo could not be read") from exc
     key = f"{user_id}.webp"
     client = s3_client(settings)
     ensure_buckets(settings)

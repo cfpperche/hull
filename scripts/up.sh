@@ -3,7 +3,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 [[ -f .env ]] || cp .env.example .env
-set -a && source .env && set +a
+. "$ROOT/scripts/lib/env.sh"
+hull_load_env "$ROOT/.env"
 HOST="${HULL_HOST:-hull.test}"
 
 "$ROOT/scripts/check-deps.sh" up
@@ -12,30 +13,42 @@ HOST="${HULL_HOST:-hull.test}"
 "$ROOT/scripts/render-brand.sh"
 "$ROOT/scripts/preflight.sh"
 
-need_build=0
-for img in hull-api:0.1.0 hull-www:0.1.0 hull-web:0.1.0 hull-admin:0.1.0; do
-  docker image inspect "$img" >/dev/null 2>&1 || need_build=1
-done
-if [[ "$need_build" == "1" ]]; then
-  "$ROOT/scripts/build-images.sh"
-fi
+# Always rebuild: the tags are pinned at :0.1.0 forever, so "build only when the
+# tag is missing" meant every run after the first served the first build — and
+# the visual harness then judged pixels from stale code. Layer caching keeps a
+# no-op rebuild cheap.
+"$ROOT/scripts/build-images.sh"
 
 compose() {
   docker compose --env-file "$ROOT/.env" -f "$ROOT/deploy/compose.yaml" -p hull "$@"
 }
 
 compose up -d postgres rustfs mailpit
+# Probe over TCP, not the unix socket: initdb runs a socket-only temp server, so
+# a socket probe goes green while nothing is listening on 5432 yet and migrate
+# then fails with "connection refused". Require consecutive successes.
 echo -n "waiting for postgres"
-for _ in $(seq 1 40); do
-  if docker exec hull-pg pg_isready -U "${HULL_POSTGRES_USER:-hull}" >/dev/null 2>&1; then
-    echo " ok"
-    break
+ready=0
+for _ in $(seq 1 60); do
+  if docker exec hull-pg pg_isready -h 127.0.0.1 -U "${HULL_POSTGRES_USER:-hull}" -d "${HULL_POSTGRES_DB:-hull}" >/dev/null 2>&1; then
+    ready=$((ready + 1))
+    if [[ "$ready" -ge 3 ]]; then
+      echo " ok"
+      break
+    fi
+  else
+    ready=0
   fi
   echo -n "."
   sleep 0.5
 done
+if [[ "$ready" -lt 3 ]]; then
+  echo " FAIL"
+  echo "ERROR: postgres did not become ready" >&2
+  exit 1
+fi
 
-compose --profile tools run --rm --no-deps migrate
+compose --profile tools run --rm migrate
 # migrate is profile tools — do not `up` it or it sits Exited in the hull group
 compose up -d --remove-orphans
 echo "UP_OK  https://${HOST}/  https://app.${HOST}/  https://admin.${HOST}/"

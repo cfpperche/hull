@@ -14,6 +14,7 @@ export function OrgSwitcher() {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [switching, setSwitching] = useState<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const orgs = me?.orgs ?? [];
   const current = me?.org;
@@ -34,12 +35,18 @@ export function OrgSwitcher() {
       setOpen(false);
       return;
     }
+    setError(null);
+    setSwitching(id);
     try {
       await api.switchOrg(id);
       await refreshMe();
       setOpen(false);
     } catch (err) {
-      setError(errMsg(err));
+      // The popover collapses on the success path, so a failure has nowhere
+      // on-screen to live — toast it rather than leave an empty click.
+      toast.error(errMsg(err));
+    } finally {
+      setSwitching(null);
     }
   }
 
@@ -72,7 +79,10 @@ export function OrgSwitcher() {
         data-testid="org-switcher"
         aria-expanded={open}
         className="hover:bg-sidebar-accent flex w-full items-center gap-2 rounded-md px-1 py-1 text-left"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setError(null);
+          setOpen((v) => !v);
+        }}
       >
         <span className="bg-foreground text-background flex size-7 items-center justify-center rounded-md text-xs font-semibold">
           {initial(current?.name ?? "H")}
@@ -90,11 +100,16 @@ export function OrgSwitcher() {
               key={org.id}
               type="button"
               data-testid={`org-${org.id}`}
-              className="hover:bg-muted flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm"
+              disabled={switching !== null}
+              className="hover:bg-muted flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm disabled:opacity-60"
               onClick={() => void switchTo(org.id)}
             >
               <span className="flex-1 truncate">{org.name}</span>
-              {org.id === current?.id ? <Check className="size-3.5" /> : null}
+              {switching === org.id ? (
+                <span className="text-muted-foreground text-xs">Switching…</span>
+              ) : org.id === current?.id ? (
+                <Check className="size-3.5" />
+              ) : null}
             </button>
           ))}
           <div className="my-1 border-t" />

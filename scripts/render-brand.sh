@@ -2,7 +2,8 @@
 # Render deploy/brand/config.json + Vite public copies from .env.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-[[ -f "$ROOT/.env" ]] && set -a && source "$ROOT/.env" && set +a
+. "$ROOT/scripts/lib/env.sh"
+hull_load_env "$ROOT/.env"
 
 HOST="${HULL_HOST:-hull.test}"
 BRAND="${HULL_BRAND:-Hull}"

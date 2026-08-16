@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import { originFor } from "@hull/config";
 import { Button, ProductShell, useBrand } from "@hull/ui";
 import { useSession } from "./lib/session";
+import { NotFoundPage } from "./pages/NotFound";
 import { OverviewPage } from "./pages/Overview";
 import { OrgsPage } from "./pages/Orgs";
 import { SigninPage } from "./pages/Signin";
@@ -49,6 +50,7 @@ function AdminApp() {
         <Route index element={<OverviewPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/orgs" element={<OrgsPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   );

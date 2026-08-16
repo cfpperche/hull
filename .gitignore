@@ -1,4 +1,8 @@
 .env
+# Every dotenv variant, not just the bare file — .env.local and .env.<mode> are
+# what Vite auto-loads, and this is a public repo.
+.env.*
+!.env.example
 node_modules/
 dist/
 .venv/

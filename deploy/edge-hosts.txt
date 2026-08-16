@@ -1,8 +1,8 @@
-hull.test
-www.hull.test
-app.hull.test
-admin.hull.test
-mail.hull.test
-s3.hull.test
-rustfs.hull.test
-db.hull.test
+# Extra hostnames for /etc/hosts, one per line.
+#
+# The eight Hull names are DERIVED from HULL_HOST by setup-local.sh and
+# setup-windows.ps1 — apex, www, app, admin, mail, s3, rustfs, db. Do not list
+# them here: hardcoding hull.test wrote eight stale entries on every white-label
+# install where the apex is something else.
+#
+# Add a name here only when it is not derivable from HULL_HOST.

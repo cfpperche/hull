@@ -10,7 +10,9 @@ class Settings(BaseSettings):
     brand: str = "Hull"
     mark: str = ""
     database_url: str = "postgresql://hull:hull@127.0.0.1:5432/hull"
-    api_host: str = "0.0.0.0"
+    # Loopback by default so the host-side dev loop is not published to the LAN.
+    # The container image sets HULL_API_HOST=0.0.0.0, where binding wide is correct.
+    api_host: str = "127.0.0.1"
     api_port: int = 8080
     root_path: str = ""
     public_origin: str = ""

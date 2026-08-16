@@ -12,13 +12,18 @@ DAYS_LEAF="${HULL_CERT_DAYS:-825}"
 command -v openssl >/dev/null || { echo "ERROR: openssl required" >&2; exit 1; }
 mkdir -p "$CA_DIR"
 
+# Name constraints keep a leaked ca.key to *.test + localhost instead of the whole
+# internet. Only applied when the CA is created: an existing unconstrained CA is
+# left alone, since replacing it silently would break an already-trusted store.
+# To adopt them: rm -rf deploy/certs && sudo ./scripts/setup-local.sh
 if [[ ! -f "$CA_DIR/ca.key" || ! -f "$CA_DIR/ca.crt" ]]; then
   openssl req -x509 -newkey rsa:4096 -sha256 -days "$DAYS_CA" -nodes \
     -keyout "$CA_DIR/ca.key" \
     -out "$CA_DIR/ca.crt" \
     -subj "/O=Hull/CN=Hull Local CA" \
     -addext "basicConstraints=critical,CA:TRUE,pathlen:0" \
-    -addext "keyUsage=critical,keyCertSign,cRLSign"
+    -addext "keyUsage=critical,keyCertSign,cRLSign" \
+    -addext "nameConstraints=critical,permitted;DNS:.test,permitted;DNS:localhost,permitted;IP:127.0.0.1/255.255.255.255"
   chmod 600 "$CA_DIR/ca.key"
   echo "CA_OK $CA_DIR/ca.crt"
 fi

@@ -3,7 +3,16 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Read .env like every other script does. Without this the white-label HULL_HOST
+# never reaches /etc/hosts, and up.sh then issues certs and routers for a name
+# that does not resolve. Sourced before the re-exec so --preserve-env has a value,
+# and again after it, because the script restarts from the top as root.
+if [[ -f "$ROOT/.env" ]]; then
+  . "$ROOT/scripts/lib/env.sh"
+  hull_load_env "$ROOT/.env"
+fi
 HOST="${HULL_HOST:-hull.test}"
+export HULL_HOST="$HOST"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Need root for /etc/hosts and the OS trust store."
@@ -23,6 +32,13 @@ if [[ -f "$ROOT/deploy/edge-hosts.txt" ]]; then
     line="${line//$'\r'/}"
     [[ -n "$line" && "$line" != \#* ]] && NAMES+=("$line")
   done <"$ROOT/deploy/edge-hosts.txt"
+fi
+
+# Back the file up once, and make sure it ends in a newline before appending —
+# an unterminated last line would otherwise be fused with our first entry.
+cp -n /etc/hosts /etc/hosts.hull.bak 2>/dev/null || true
+if [[ -s /etc/hosts && -n "$(tail -c1 /etc/hosts)" ]]; then
+  printf '\n' >> /etc/hosts
 fi
 
 declare -A seen=()

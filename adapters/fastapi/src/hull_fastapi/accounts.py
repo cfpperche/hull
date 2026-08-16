@@ -49,6 +49,17 @@ def hash_session(raw: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+_dummy_hash: str | None = None
+
+
+def _dummy_password_hash() -> str:
+    """A throwaway hash so a missing user costs the same as a wrong password."""
+    global _dummy_hash
+    if _dummy_hash is None:
+        _dummy_hash = hash_password(secrets.token_urlsafe(16))
+    return _dummy_hash
+
+
 def new_session_secret() -> str:
     return secrets.token_urlsafe(32)
 
@@ -141,7 +152,12 @@ def _insert_session(
 ) -> str:
     raw = new_session_secret()
     with conn.cursor() as cur:
-        cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
+        # Sessions are per-device. Only sweep the user's expired rows here —
+        # deleting all of them would sign every other device out on each signin.
+        cur.execute(
+            "DELETE FROM sessions WHERE user_id = %s AND expires_at <= now()",
+            (user_id,),
+        )
         cur.execute(
             """
             INSERT INTO sessions (id, session_hash, user_id, org_id, expires_at)
@@ -227,7 +243,10 @@ def signin(conn: psycopg.Connection, *, email: str, password: str) -> tuple[dict
     with conn.cursor() as cur:
         cur.execute("SELECT id, password_hash FROM users WHERE lower(email) = %s", (email_n,))
         row = cur.fetchone()
-    if not row or not verify_password(password, str(row["password_hash"])):
+    # Always spend the scrypt cost, so a missing account is not distinguishable
+    # from a wrong password by response time.
+    stored = str(row["password_hash"]) if row else _dummy_password_hash()
+    if not verify_password(password, stored) or not row:
         raise AccountError("unauthenticated", "invalid email or password")
     user_id = str(row["id"])
     with conn.cursor() as cur:
@@ -294,23 +313,41 @@ def switch_org(conn: psycopg.Connection, *, user_id: str, org_id: str, raw: str)
 
 
 def update_profile(conn: psycopg.Connection, *, user_id: str, username: str | None, name: str | None) -> None:
-    uname = _username(username) if username else None
-    dname = name.strip() if name else None
-    if dname is not None and len(dname) > 80:
-        raise AccountError("request_validation_error", "name is too long")
+    """Update only the fields the caller sent.
+
+    `None` means "not provided, leave alone". An empty `name` clears the column —
+    the old COALESCE form silently discarded that and the UI still reported a save.
+    """
+    sets: list[str] = []
+    params: list[Any] = []
+    if username is not None:
+        sets.append("username = %s")
+        params.append(_username(username))
+    if name is not None:
+        dname = name.strip()
+        if len(dname) > 80:
+            raise AccountError("request_validation_error", "name is too long")
+        sets.append("display_name = %s")
+        params.append(dname or None)
+    if not sets:
+        return
+    params.append(user_id)
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE users SET username = COALESCE(%s, username), display_name = COALESCE(%s, display_name) WHERE id = %s",
-                (uname, dname, user_id),
-            )
+            cur.execute(f"UPDATE users SET {', '.join(sets)} WHERE id = %s", tuple(params))
         conn.commit()
     except UniqueViolation as exc:
         conn.rollback()
         raise AccountError("username_taken", "username is taken") from exc
 
 
-def change_password(conn: psycopg.Connection, *, user_id: str, current: str, password: str, keep_raw: str) -> None:
+def change_password(conn: psycopg.Connection, *, user_id: str, current: str, password: str) -> str:
+    """Change the password and return a fresh session token.
+
+    Every existing session dies, including the caller's own — otherwise a stolen
+    copy of the current cookie survives the very action taken to revoke it. The
+    caller gets a new token so they stay signed in.
+    """
     _require_password(password)
     with conn.cursor() as cur:
         cur.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
@@ -318,12 +355,14 @@ def change_password(conn: psycopg.Connection, *, user_id: str, current: str, pas
     if not row or not verify_password(current, str(row["password_hash"])):
         raise AccountError("unauthenticated", "current password is wrong")
     with conn.cursor() as cur:
+        cur.execute("SELECT org_id FROM sessions WHERE user_id = %s LIMIT 1", (user_id,))
+        prev = cur.fetchone()
+        org_id = str(prev["org_id"]) if prev and prev["org_id"] else None
         cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hash_password(password), user_id))
-        cur.execute(
-            "DELETE FROM sessions WHERE user_id = %s AND session_hash <> %s",
-            (user_id, hash_session(keep_raw)),
-        )
+        cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
+    token = _insert_session(conn, user_id=user_id, org_id=org_id)
     conn.commit()
+    return token
 
 
 def close_account(conn: psycopg.Connection, *, user_id: str, password: str, platform_role: str | None) -> None:

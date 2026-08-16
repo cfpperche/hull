@@ -4,7 +4,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-[[ -f "$ROOT/.env" ]] && set -a && source "$ROOT/.env" && set +a
+. "$ROOT/scripts/lib/env.sh"
+hull_load_env "$ROOT/.env"
 HOST="${HULL_HOST:-hull.test}"
 OUT="${VISUAL_OUT:-$ROOT/harness/visual/current}"
 export AGENT_BROWSER_SESSION="hull-visual-$$"
@@ -26,6 +27,20 @@ probe() {
     "$url" || true)
   if [[ "$code" != "200" && "$code" != "304" ]]; then
     echo "ERROR: $url → HTTP ${code:-000}. Start the stack: ./scripts/up.sh" >&2
+    exit 1
+  fi
+}
+
+# Assert out-of-band, not inside a batch: `agent-browser` exits 0 even when a
+# step fails, so an in-batch check cannot fail this script — and `find` activates
+# what it matches, so asserting on a control has side effects (pointing it at the
+# sign-out button signed the session out and every later PNG was the login page).
+signed_in_or_die() {
+  local label="$1" sel="$2" out
+  out=$(agent-browser eval "!!document.querySelector('${sel}')" 2>/dev/null || true)
+  if [[ "$out" != *true* ]]; then
+    echo "ERROR: ${label} is not signed in (no ${sel} in the page)." >&2
+    echo "       Every later screenshot would be the sign-in page. Is the lab seed applied (HULL_SEED_DEMO=1)?" >&2
     exit 1
   fi
 }
@@ -61,6 +76,10 @@ agent-browser batch --bail \
   "set viewport 1440 900" \
   "screenshot ${OUT}/web-signup-desktop.png"
 
+# The `find testid` steps after each sign-in are assertions, not captures: with
+# --bail they fail the run. Without them a failed sign-in (HULL_SEED_DEMO=0, or a
+# wiped volume) still printed VISUAL_OK over six screenshots of the login page
+# filed under the names of the signed-in surfaces.
 echo "capture web home (ada)"
 agent-browser batch --bail \
   "open https://app.${HOST}/signin" \
@@ -71,6 +90,7 @@ agent-browser batch --bail \
   "find testid auth-submit click" \
   "wait --load networkidle" \
   "screenshot ${OUT}/web-home-desktop.png"
+signed_in_or_die "app.${HOST}" "[data-testid=user-menu]"
 agent-browser screenshot --annotate "${OUT}/web-home-desktop-ann.png"
 
 echo "capture web account"
@@ -92,6 +112,8 @@ agent-browser batch --bail \
   "find testid auth-submit click" \
   "wait --load networkidle" \
   "screenshot ${OUT}/admin-home-desktop.png"
+
+signed_in_or_die "admin.${HOST}" "[data-testid=sign-out]"
 
 echo "capture admin users + orgs"
 agent-browser batch --bail \

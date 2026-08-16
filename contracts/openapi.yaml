@@ -5,18 +5,31 @@ info:
   description: |
     Cookie session. Isolation is org_id. This file is the contract.
     adapters/fastapi is the default implementation.
+
+    Errors are always application/problem+json with the Problem schema below;
+    `reason_code` is the stable, machine-readable member. Clients branch on it,
+    not on the prose in `detail`.
 servers:
   - url: /api
+
+# Everything needs the session cookie unless an operation opts out with
+# `security: []`. Without this the whole surface — including /v1/admin/* — is
+# specified as unauthenticated, and a generated server stub ships with no guard.
+security:
+  - session: []
+
 paths:
   /health:
     get:
       operationId: health
+      security: []
       responses:
         "200":
           description: Process is up
   /v1/auth/signup:
     post:
       operationId: signup
+      security: []
       requestBody:
         required: true
         content:
@@ -25,7 +38,7 @@ paths:
               type: object
               required: [username, email, password]
               properties:
-                username: { type: string }
+                username: { type: string, pattern: "^[a-z0-9_]{3,24}$" }
                 email: { type: string }
                 password: { type: string, minLength: 8 }
       responses:
@@ -35,10 +48,13 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
         "409":
-          description: email_taken or username_taken
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Invalid"
   /v1/auth/signin:
     post:
       operationId: signin
+      security: []
       requestBody:
         required: true
         content:
@@ -56,10 +72,11 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
         "401":
-          description: invalid email or password
+          $ref: "#/components/responses/Unauthenticated"
   /v1/auth/signout:
     post:
       operationId: signout
+      security: []
       responses:
         "204":
           description: Cookie cleared
@@ -68,28 +85,42 @@ paths:
       operationId: me
       responses:
         "200":
+          description: The current principal
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
         "401":
-          description: no session
+          $ref: "#/components/responses/Unauthenticated"
     patch:
       operationId: updateMe
+      description: |
+        Only the members present in the body are written. An omitted member is
+        left alone; an empty `name` clears the stored display name.
       requestBody:
         content:
           application/json:
             schema:
               type: object
               properties:
-                username: { type: string }
+                username: { type: string, pattern: "^[a-z0-9_]{3,24}$" }
                 name: { type: string }
       responses:
         "200":
+          description: The updated principal
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Invalid"
     delete:
       operationId: closeAccount
+      description: |
+        Deletes the login and every org the user is the sole owner of. Orgs with
+        other members survive. Irreversible.
       requestBody:
         required: true
         content:
@@ -101,10 +132,18 @@ paths:
                 password: { type: string }
       responses:
         "204":
-          description: Login deleted
+          description: Login deleted, cookie cleared
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /v1/me/password:
     post:
       operationId: changePassword
+      description: |
+        Every session dies, the caller's included, and the response carries a
+        fresh session cookie so the caller stays signed in. A token captured
+        before the change cannot be used after it.
       requestBody:
         required: true
         content:
@@ -117,17 +156,29 @@ paths:
                 password: { type: string, minLength: 8 }
       responses:
         "204":
-          description: Other sessions die
+          description: Password changed, all sessions revoked, new cookie set
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/Invalid"
   /v1/me/avatar:
     get:
       operationId: getAvatar
       responses:
         "200":
-          description: image/webp
+          description: The stored photo
+          content:
+            image/webp:
+              schema: { type: string, format: binary }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
         "404":
-          description: no photo
+          $ref: "#/components/responses/NotFound"
     post:
       operationId: uploadAvatar
+      description: |
+        jpeg, png or webp, 5 MB maximum. Content-Length is required and is
+        checked before the body is read.
       requestBody:
         content:
           multipart/form-data:
@@ -139,6 +190,26 @@ paths:
       responses:
         "200":
           description: Stored
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "411":
+          $ref: "#/components/responses/Invalid"
+        "413":
+          $ref: "#/components/responses/Invalid"
+        "422":
+          $ref: "#/components/responses/Invalid"
+        "503":
+          description: Object store is not configured
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
   /v1/orgs:
     post:
       operationId: createOrg
@@ -150,12 +221,17 @@ paths:
               type: object
               required: [name]
               properties:
-                name: { type: string }
+                name: { type: string, minLength: 1, maxLength: 80 }
       responses:
         "201":
+          description: Org created and made current
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/Invalid"
   /v1/session/org:
     post:
       operationId: switchOrg
@@ -170,28 +246,62 @@ paths:
                 id: { type: string, format: uuid }
       responses:
         "200":
+          description: Current org switched
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
         "404":
-          description: not a member
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Invalid"
   /v1/admin/users:
     get:
       operationId: adminUsers
+      description: platform_admin only.
       responses:
         "200":
-          description: platform_admin only
+          description: Every user on the install
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [users]
+                properties:
+                  users:
+                    type: array
+                    items: { $ref: "#/components/schemas/AdminUser" }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
         "403":
-          description: forbidden
+          $ref: "#/components/responses/Forbidden"
   /v1/admin/orgs:
     get:
       operationId: adminOrgs
+      description: platform_admin only.
       responses:
         "200":
-          description: platform_admin only
+          description: Every org on the install
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [orgs]
+                properties:
+                  orgs:
+                    type: array
+                    items: { $ref: "#/components/schemas/AdminOrg" }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /v1/admin/support:
     post:
       operationId: supportStart
+      description: |
+        platform_admin only. Marks an acting org on the admin's own session — it
+        does not mint the customer's session.
       requestBody:
         required: true
         content:
@@ -203,51 +313,143 @@ paths:
                 org_id: { type: string, format: uuid }
       responses:
         "200":
+          description: Acting org set
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/Invalid"
     delete:
       operationId: supportStop
+      description: platform_admin only.
       responses:
         "200":
+          description: Acting org cleared
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 components:
+  responses:
+    Unauthenticated:
+      description: No session, or the session has expired
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Forbidden:
+      description: Authenticated, but not allowed
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    NotFound:
+      description: No such object, or not visible to this principal
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Conflict:
+      description: email_taken or username_taken
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Invalid:
+      description: The request did not validate
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
   schemas:
+    Problem:
+      description: RFC 7807. `status` always equals the HTTP status of the response.
+      type: object
+      required: [title, detail, status, reason_code]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        detail: { type: string }
+        status: { type: integer }
+        reason_code:
+          description: The stable member clients branch on.
+          type: string
+          enum:
+            - unauthenticated
+            - forbidden
+            - not_found
+            - email_taken
+            - username_taken
+            - request_validation_error
+            - storage_not_configured
+            - http_error
+            - server_error
     Org:
       type: object
       required: [id, name]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
+    AdminOrg:
+      type: object
+      required: [id, name, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
     User:
       type: object
-      required: [id, email, has_avatar]
+      required: [id, email, username, name, has_avatar]
       properties:
         id: { type: string, format: uuid }
         email: { type: string }
-        username: { type: string, nullable: true }
-        name: { type: string, nullable: true }
+        # 3.1 union types. `nullable: true` is a 3.0 keyword and is ignored here,
+        # which made this schema reject the nulls every signup response returns.
+        username: { type: [string, "null"] }
+        name: { type: [string, "null"] }
         has_avatar: { type: boolean }
+    AdminUser:
+      type: object
+      required: [id, email, username, name, has_avatar, platform_role, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        username: { type: [string, "null"] }
+        name: { type: [string, "null"] }
+        has_avatar: { type: boolean }
+        platform_role: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+    Acting:
+      type: object
+      required: [org, expires_at]
+      properties:
+        org: { $ref: "#/components/schemas/Org" }
+        expires_at: { type: string, format: date-time }
     Me:
       type: object
       required: [user, org, orgs, platform_role, acting]
       properties:
         user: { $ref: "#/components/schemas/User" }
-        org: { $ref: "#/components/schemas/Org", nullable: true }
+        org:
+          oneOf:
+            - $ref: "#/components/schemas/Org"
+            - type: "null"
         orgs:
           type: array
           items: { $ref: "#/components/schemas/Org" }
-        platform_role: { type: string, nullable: true }
+        platform_role: { type: [string, "null"] }
         acting:
-          type: object
-          nullable: true
-          properties:
-            org: { $ref: "#/components/schemas/Org" }
-            expires_at: { type: string, format: date-time }
+          oneOf:
+            - $ref: "#/components/schemas/Acting"
+            - type: "null"
   securitySchemes:
     session:
       type: apiKey
       in: cookie
+      # Install-configurable via HULL_COOKIE_NAME (see AGENTS.md white-label
+      # locks). This is the default, not a constant to hardcode in an adapter.
       name: hull_session

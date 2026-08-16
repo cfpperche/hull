@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-[[ -f "$ROOT/.env" ]] && set -a && source "$ROOT/.env" && set +a
+. "$ROOT/scripts/lib/env.sh"
+hull_load_env "$ROOT/.env"
 HOST="${HULL_HOST:-hull.test}"
 
 hull_owns_http() {
@@ -10,9 +11,11 @@ hull_owns_http() {
 }
 
 port_busy() {
+  # Match the port on any bind address. Checking only 127.0.0.1 and *: missed a
+  # listener on 0.0.0.0:80 or [::]:80, so preflight passed and `compose up` then
+  # died on "address already in use" — exactly what this check exists to prevent.
   local p="$1"
-  ss -ltn 2>/dev/null | grep -qE "127\\.0\\.0\\.1:${p}\\s" \
-    || ss -ltn 2>/dev/null | grep -qE "\\*:${p}\\s"
+  [[ -n "$(ss -ltnH "sport = :${p}" 2>/dev/null)" ]]
 }
 
 fail_port() {

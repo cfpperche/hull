@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { originFor } from "@hull/config";
+import { errMsg } from "@hull/api-client";
 import { Button, Page } from "@hull/ui";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
@@ -7,11 +10,22 @@ import { useSession } from "../lib/session";
 export function OrgsPage() {
   const { refreshMe } = useSession();
   const q = useQuery({ queryKey: ["admin-orgs"], queryFn: () => api.adminOrgs() });
+  const [starting, setStarting] = useState<string | null>(null);
 
+  // A stale row (the workspace was deleted meanwhile) used to reject into `void`
+  // and leave the button idle — an empty click, and a second click would open a
+  // second support session.
   async function viewAs(id: string) {
-    await api.supportStart(id);
-    await refreshMe();
-    window.location.assign(originFor("web"));
+    setStarting(id);
+    try {
+      await api.supportStart(id);
+      await refreshMe();
+      window.location.assign(originFor("web"));
+    } catch (err) {
+      toast.error(errMsg(err));
+      setStarting(null);
+      void q.refetch();
+    }
   }
 
   return (
@@ -30,8 +44,14 @@ export function OrgsPage() {
               <tr key={o.id} className="hover:bg-muted/40 border-t" data-testid={`org-${o.id}`}>
                 <td className="px-4 py-2">{o.name}</td>
                 <td className="px-4 py-2 text-right">
-                  <Button size="sm" variant="outline" data-testid={`view-as-${o.id}`} onClick={() => void viewAs(o.id)}>
-                    View as
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    data-testid={`view-as-${o.id}`}
+                    disabled={starting !== null}
+                    onClick={() => void viewAs(o.id)}
+                  >
+                    {starting === o.id ? "Opening…" : "View as"}
                   </Button>
                 </td>
               </tr>
