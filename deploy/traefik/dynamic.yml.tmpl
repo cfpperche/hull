@@ -16,12 +16,38 @@ http:
         customRequestHeaders:
           X-Forwarded-Prefix: "/api"
 
+    # Credential endpoints only. AGENTS.md forbids adding Redis, so the counter
+    # lives in Traefik's memory — no new service. Default sourceCriterion is the
+    # client IP. Generous for a lab, useless for a password spray.
+    auth-ratelimit:
+      rateLimit:
+        average: 10
+        period: 1m
+        burst: 20
+
+    # Second lock on the studio console. dbgate's own LOGIN/PASSWORD is the first;
+    # this one holds even if that image is swapped or its auth is misconfigured.
+    studio-auth:
+      basicAuth:
+        users:
+          - "__DBGATE_USERS__"
+
   routers:
     hull-www:
       rule: "Host(`__HOST__`) || Host(`www.__HOST__`)"
       entryPoints: [websecure]
       service: hull-www
       priority: 1
+      tls: {}
+
+    # Priority 200, above the catch-all /api routers at 100, so the rate limit
+    # applies before the general API route matches.
+    hull-web-auth:
+      rule: "Host(`app.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`))"
+      entryPoints: [websecure]
+      middlewares: [auth-ratelimit, strip-api, api-headers]
+      service: hull-api
+      priority: 200
       tls: {}
 
     hull-web-api:
@@ -37,6 +63,14 @@ http:
       entryPoints: [websecure]
       service: hull-web
       priority: 1
+      tls: {}
+
+    hull-admin-auth:
+      rule: "Host(`admin.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`))"
+      entryPoints: [websecure]
+      middlewares: [auth-ratelimit, strip-api, api-headers]
+      service: hull-api
+      priority: 200
       tls: {}
 
     hull-admin-api:
@@ -78,6 +112,7 @@ http:
     hull-db:
       rule: "Host(`db.__HOST__`)"
       entryPoints: [websecure]
+      middlewares: [studio-auth]
       service: hull-dbgate
       priority: 1
       tls: {}

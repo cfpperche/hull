@@ -13,10 +13,11 @@ if [[ -f "$ROOT/.env" ]]; then
 fi
 HOST="${HULL_HOST:-hull.test}"
 export HULL_HOST="$HOST"
+export HULL_STUDIO="${HULL_STUDIO:-0}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Need root for /etc/hosts and the OS trust store."
-  exec sudo --preserve-env=HULL_HOST "$0" "$@"
+  exec sudo --preserve-env=HULL_HOST,HULL_STUDIO "$0" "$@"
 fi
 
 OWNER="${SUDO_USER:-root}"
@@ -26,7 +27,12 @@ else
   "$ROOT/scripts/generate-certs.sh"
 fi
 
-NAMES=("$HOST" "www.$HOST" "app.$HOST" "admin.$HOST" "mail.$HOST" "s3.$HOST" "rustfs.$HOST" "db.$HOST")
+NAMES=("$HOST" "www.$HOST" "app.$HOST" "admin.$HOST" "mail.$HOST" "s3.$HOST" "rustfs.$HOST")
+# dbgate is opt-in (`--profile studio`). Do not install a permanent hosts entry
+# for a SQL console that is off by default.
+if [[ "${HULL_STUDIO:-0}" == "1" ]]; then
+  NAMES+=("db.$HOST")
+fi
 if [[ -f "$ROOT/deploy/edge-hosts.txt" ]]; then
   while IFS= read -r line; do
     line="${line//$'\r'/}"
@@ -59,7 +65,7 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
   echo
   echo "WSL: launching Windows hosts + CA (UAC prompt)…"
   if [[ -n "${SUDO_USER:-}" ]]; then
-    sudo -u "$SUDO_USER" --preserve-env=HULL_HOST "$ROOT/scripts/setup-windows-from-wsl.sh" || true
+    sudo -u "$SUDO_USER" --preserve-env=HULL_HOST,HULL_STUDIO "$ROOT/scripts/setup-windows-from-wsl.sh" || true
   else
     "$ROOT/scripts/setup-windows-from-wsl.sh" || true
   fi

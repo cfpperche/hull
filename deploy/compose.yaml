@@ -211,6 +211,13 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      # With LOGIN+PASSWORD set, dbgate's auth provider is "logins". Without them
+      # it is "none" — an owner-level SQL console on the live database, reachable
+      # from any page the developer happens to visit.
+      LOGIN: ${HULL_DBGATE_USER:-hull}
+      # Defaulted, not required: compose interpolates the whole file up front, so
+      # a `:?` here would fail `up.sh` too, on an install that never starts studio.
+      PASSWORD: ${HULL_DBGATE_PASSWORD:-hull-studio-lab-secret}
       CONNECTIONS: hull
       LABEL_hull: Hull Postgres
       SERVER_hull: postgres
