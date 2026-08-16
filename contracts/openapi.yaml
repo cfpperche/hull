@@ -300,8 +300,11 @@ paths:
     post:
       operationId: supportStart
       description: |
-        platform_admin only. Marks an acting org on the admin's own session — it
-        does not mint the customer's session.
+        platform_admin only. Mints a one-time hand-off token; it does not change
+        the caller's session. The session cookie is host-scoped, so the admin
+        console's session does not reach the customer surface — this token does,
+        once, and the console passes it in a URL fragment so it never reaches a
+        server log or a Referer header.
       requestBody:
         required: true
         content:
@@ -313,10 +316,14 @@ paths:
                 org_id: { type: string, format: uuid }
       responses:
         "200":
-          description: Acting org set
+          description: A single-use hand-off token, valid for 60 seconds
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Me" }
+              schema:
+                type: object
+                required: [handoff]
+                properties:
+                  handoff: { type: string }
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -327,10 +334,38 @@ paths:
           $ref: "#/components/responses/Invalid"
     delete:
       operationId: supportStop
-      description: platform_admin only.
+      description: |
+        Ends impersonation by deleting the session it lives on, and clears the
+        cookie. The caller is expected to return to the admin console.
+      responses:
+        "204":
+          description: Impersonating session ended, cookie cleared
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /v1/session/handoff:
+    post:
+      operationId: consumeHandoff
+      security: []
+      description: |
+        Exchange a hand-off token for a session on this host. Unauthenticated by
+        design: the browser arrives with no cookie for this host, which is the
+        reason the hand-off exists. The token is single-use — redemption and
+        consumption happen in one statement — and the platform_admin role is
+        re-checked here, not only when the token was minted. The session it
+        creates belongs to the admin, carries the acting org, and expires in 45
+        minutes rather than the usual 14 days.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
       responses:
         "200":
-          description: Acting org cleared
+          description: Impersonating session created for this host
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Me" }
@@ -338,6 +373,8 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/Invalid"
 components:
   responses:
     Unauthenticated:

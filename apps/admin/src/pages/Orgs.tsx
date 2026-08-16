@@ -18,9 +18,10 @@ export function OrgsPage() {
   async function viewAs(id: string) {
     setStarting(id);
     try {
-      await api.supportStart(id);
-      await refreshMe();
-      window.location.assign(originFor("web"));
+      const { handoff } = await api.supportStart(id);
+      // Fragment, not query string: a fragment is never sent to the server, so
+      // the token stays out of access logs and out of the Referer header.
+      window.location.assign(`${originFor("web")}/handoff#t=${encodeURIComponent(handoff)}`);
     } catch (err) {
       toast.error(errMsg(err));
       setStarting(null);

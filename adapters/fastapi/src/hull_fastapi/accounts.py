@@ -14,6 +14,8 @@ from psycopg.errors import UniqueViolation
 
 SESSION_TTL = timedelta(days=14)
 SUPPORT_TTL = timedelta(minutes=45)
+# The hand-off token only has to survive one redirect.
+HANDOFF_TTL = timedelta(seconds=60)
 _USERNAME_RE = re.compile(r"^[a-z0-9_]{3,24}$")
 
 
@@ -435,36 +437,89 @@ def list_orgs(conn: psycopg.Connection) -> list[dict[str, Any]]:
     ]
 
 
-def support_start(conn: psycopg.Connection, *, raw: str, org_id: str) -> dict[str, Any]:
+def _insert_support_session(conn: psycopg.Connection, *, user_id: str, org_id: str) -> str:
+    """A session that exists only to view one org, on the customer surface.
+
+    org_id stays NULL — the admin is not a member. The org they see comes from
+    acting_org_id, and the row dies with SUPPORT_TTL rather than SESSION_TTL.
+    """
+    raw = new_session_secret()
+    expires = datetime.now(UTC) + SUPPORT_TTL
     with conn.cursor() as cur:
-        cur.execute("SELECT id, name FROM orgs WHERE id = %s", (org_id,))
-        org = cur.fetchone()
-        if not org:
-            raise AccountError("not_found", "workspace not found")
+        cur.execute("DELETE FROM sessions WHERE user_id = %s AND expires_at <= now()", (user_id,))
         cur.execute(
             """
-            UPDATE sessions
-            SET acting_org_id = %s, acting_expires_at = %s
-            WHERE session_hash = %s
+            INSERT INTO sessions (id, session_hash, user_id, org_id, acting_org_id, acting_expires_at, expires_at)
+            VALUES (%s, %s, %s, NULL, %s, %s, %s)
             """,
-            (org_id, datetime.now(UTC) + SUPPORT_TTL, hash_session(raw)),
+            (str(uuid.uuid4()), hash_session(raw), user_id, org_id, expires, expires),
+        )
+    return raw
+
+
+def support_start(conn: psycopg.Connection, *, user_id: str, org_id: str) -> str:
+    """Mint a one-time hand-off token. Does not touch the caller's session.
+
+    Impersonation lives on the customer surface, which is where data is scoped.
+    The admin console stays the admin console.
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM orgs WHERE id = %s", (org_id,))
+        if not cur.fetchone():
+            raise AccountError("not_found", "workspace not found")
+        raw = new_session_secret()
+        cur.execute(
+            """
+            INSERT INTO support_handoffs (id, token_hash, user_id, org_id, expires_at)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (str(uuid.uuid4()), hash_session(raw), user_id, org_id, datetime.now(UTC) + HANDOFF_TTL),
         )
     conn.commit()
-    sess = load_session(conn, raw)
-    assert sess is not None
-    return me_body(conn, sess)
+    return raw
 
 
-def support_stop(conn: psycopg.Connection, *, raw: str) -> dict[str, Any]:
+def consume_handoff(conn: psycopg.Connection, *, raw: str) -> tuple[dict[str, Any], str]:
+    """Exchange a hand-off token for an impersonating session on this host."""
+    if not raw:
+        raise AccountError("unauthenticated", "hand-off link is invalid or expired")
     with conn.cursor() as cur:
+        # Claim and consume in one statement: two concurrent redemptions of the
+        # same token cannot both match `used_at IS NULL`.
         cur.execute(
-            "UPDATE sessions SET acting_org_id = NULL, acting_expires_at = NULL WHERE session_hash = %s",
+            """
+            UPDATE support_handoffs
+            SET used_at = now()
+            WHERE token_hash = %s AND used_at IS NULL AND expires_at > now()
+            RETURNING user_id, org_id
+            """,
             (hash_session(raw),),
         )
+        row = cur.fetchone()
+        if not row:
+            conn.rollback()
+            raise AccountError("unauthenticated", "hand-off link is invalid or expired")
+        user_id = str(row["user_id"])
+        org_id = str(row["org_id"])
+        # Re-check the role at redemption, not only when the token was minted —
+        # the operator may have been demoted in between.
+        cur.execute("SELECT platform_role FROM users WHERE id = %s", (user_id,))
+        actor = cur.fetchone()
+    if not actor or actor["platform_role"] != "platform_admin":
+        conn.rollback()
+        raise AccountError("forbidden", "platform admin required")
+    token = _insert_support_session(conn, user_id=user_id, org_id=org_id)
     conn.commit()
-    sess = load_session(conn, raw)
+    sess = load_session(conn, token)
     assert sess is not None
-    return me_body(conn, sess)
+    return me_body(conn, sess), token
+
+
+def support_stop(conn: psycopg.Connection, *, raw: str) -> None:
+    """End impersonation by ending the session it lives on."""
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM sessions WHERE session_hash = %s", (hash_session(raw),))
+    conn.commit()
 
 
 def effective_org_id(sess: SessionPrincipal) -> str | None:

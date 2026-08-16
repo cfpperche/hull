@@ -43,7 +43,7 @@ http:
     # Priority 200, above the catch-all /api routers at 100, so the rate limit
     # applies before the general API route matches.
     hull-web-auth:
-      rule: "Host(`app.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`))"
+      rule: "Host(`app.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
       entryPoints: [websecure]
       middlewares: [auth-ratelimit, strip-api, api-headers]
       service: hull-api
@@ -66,7 +66,7 @@ http:
       tls: {}
 
     hull-admin-auth:
-      rule: "Host(`admin.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`))"
+      rule: "Host(`admin.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
       entryPoints: [websecure]
       middlewares: [auth-ratelimit, strip-api, api-headers]
       service: hull-api

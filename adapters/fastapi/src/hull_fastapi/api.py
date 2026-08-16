@@ -14,8 +14,10 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from hull_fastapi.accounts import (
     AccountError,
     SESSION_TTL,
+    SUPPORT_TTL,
     change_password,
     close_account,
+    consume_handoff,
     create_org,
     list_orgs,
     list_users,
@@ -84,6 +86,10 @@ class SupportBody(BaseModel):
     org_id: UUID
 
 
+class HandoffBody(BaseModel):
+    token: str
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings()
     # contracts/openapi.yaml is the contract. Do not publish a second, generated
@@ -100,9 +106,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     origins = [o.strip() for o in (settings.cors_origins or "").split(",") if o.strip()]
     if not origins:
+        # Only the two authenticated surfaces. The apex and www have no auth and
+        # never call the API with credentials, and listing them in a credentialed
+        # CORS policy only widened what could reach it with a cookie attached.
         origins = [
-            f"https://{settings.host}",
-            f"https://www.{settings.host}",
             f"https://app.{settings.host}",
             f"https://admin.{settings.host}",
         ]
@@ -173,14 +180,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             status = 503
         return problem(status, "Account error", exc.message, exc.reason_code)
 
-    def _cookie_domain(request: Request) -> str | None:
-        host = (request.url.hostname or "").lower()
-        apex = settings.host.lower()
-        if host == apex or host.endswith(f".{apex}"):
-            return f".{apex}"
-        return None
-
-    def _set_cookie(request: Request, response: Response, raw: str) -> None:
+    # No domain= anywhere below, on purpose. Scoping the cookie to `.<apex>` sent
+    # a live session token to every sibling host — mail., s3., rustfs., db. —
+    # none of which authenticate anyone, and SameSite=lax does not separate
+    # same-site siblings. Host-scoped means app. and admin. hold separate
+    # sessions; "View as" bridges them with a one-time hand-off token.
+    def _set_cookie(request: Request, response: Response, raw: str, *, max_age: int | None = None) -> None:
         response.set_cookie(
             key=settings.cookie_name,
             value=raw,
@@ -191,16 +196,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             # trusts only 127.0.0.1 by default and Traefik dials from a bridge IP,
             # so without it X-Forwarded-Proto was dropped and the flag never set.
             secure=request.url.scheme == "https",
-            max_age=int(SESSION_TTL.total_seconds()),
+            max_age=max_age if max_age is not None else int(SESSION_TTL.total_seconds()),
             path="/",
-            domain=_cookie_domain(request),
         )
 
     def _clear_cookie(request: Request, response: Response) -> None:
         response.delete_cookie(
             settings.cookie_name,
             path="/",
-            domain=_cookie_domain(request),
             httponly=True,
             samesite="lax",
             secure=request.url.scheme == "https",
@@ -416,13 +419,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return {"orgs": list_orgs(conn)}
 
     @app.post("/v1/admin/support")
-    def admin_support_start(payload: SupportBody, request: Request, sess=Depends(require_session)) -> dict[str, Any]:
+    def admin_support_start(payload: SupportBody, sess=Depends(require_session)) -> dict[str, Any]:
+        """Mint a one-time hand-off token for app.<host>.
+
+        The cookie is host-scoped, so the admin's session does not travel to the
+        customer surface. This token does, once, in a URL fragment.
+        """
         try:
             require_admin(sess)
             with connection(settings) as conn:
-                body = support_start(
-                    conn, raw=request.cookies.get(settings.cookie_name) or "", org_id=str(payload.org_id)
-                )
+                token = support_start(conn, user_id=sess.user_id, org_id=str(payload.org_id))
                 record_event(
                     conn,
                     source="api",
@@ -431,20 +437,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     payload={"actor": sess.email},
                 )
                 conn.commit()
-                return body
+                return {"handoff": token}
         except AccountError as exc:
             return _account_http(exc)
 
-    @app.delete("/v1/admin/support")
-    def admin_support_stop(request: Request, sess=Depends(require_session)) -> dict[str, Any]:
+    @app.post("/v1/session/handoff")
+    def session_handoff(payload: HandoffBody, request: Request, response: Response) -> dict[str, Any]:
+        """Exchange a hand-off token for a session on this host.
+
+        Deliberately unauthenticated: the browser arrives here with no cookie for
+        this host — that is the whole point of the hand-off.
+        """
         try:
-            require_admin(sess)
             with connection(settings) as conn:
-                body = support_stop(conn, raw=request.cookies.get(settings.cookie_name) or "")
-                record_event(conn, source="api", event="support.stop", payload={"actor": sess.email})
-                conn.commit()
-                return body
+                body, token = consume_handoff(conn, raw=payload.token)
         except AccountError as exc:
             return _account_http(exc)
+        _set_cookie(request, response, token, max_age=int(SUPPORT_TTL.total_seconds()))
+        return body
+
+    @app.delete("/v1/admin/support", status_code=204)
+    def admin_support_stop(request: Request, response: Response, sess=Depends(require_session)) -> None:
+        """End impersonation by ending the session it lives on."""
+        with connection(settings) as conn:
+            support_stop(conn, raw=request.cookies.get(settings.cookie_name) or "")
+            record_event(conn, source="api", event="support.stop", payload={"actor": sess.email})
+            conn.commit()
+        _clear_cookie(request, response)
 
     return app
