@@ -151,7 +151,7 @@ services:
       <<: *hull_labels
       hull.role: www
     volumes:
-      - ../brand/config.json:/usr/share/nginx/html/config.json:ro
+      - ./brand/config.json:/usr/share/nginx/html/config.json:ro
     networks: [hull]
 
   web:
@@ -162,7 +162,7 @@ services:
       <<: *hull_labels
       hull.role: web
     volumes:
-      - ../brand/config.json:/usr/share/nginx/html/config.json:ro
+      - ./brand/config.json:/usr/share/nginx/html/config.json:ro
     networks: [hull]
 
   admin:
@@ -173,7 +173,7 @@ services:
       <<: *hull_labels
       hull.role: admin
     volumes:
-      - ../brand/config.json:/usr/share/nginx/html/config.json:ro
+      - ./brand/config.json:/usr/share/nginx/html/config.json:ro
     networks: [hull]
 
   traefik:
