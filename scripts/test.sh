@@ -4,7 +4,12 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 "$ROOT/scripts/check-deps.sh" up
 
 name="hull-test-pg"
-port="${HULL_TEST_PG_PORT:-55434}"
+# Take only the port from .env, the same value compose publishes below — loading
+# the whole file would put the operator's HULL_BRAND/HULL_MARK into the pytest
+# process, where pydantic-settings picks them up and the settings tests fail.
+. "$ROOT/scripts/lib/env.sh"
+port="$(hull_env_value "$ROOT/.env" HULL_TEST_PG_PORT)"
+port="${port:-${HULL_TEST_PG_PORT:-55434}}"
 compose_env=()
 [[ -f "$ROOT/.env" ]] && compose_env=(--env-file "$ROOT/.env")
 
@@ -43,6 +48,6 @@ export HULL_DATABASE_URL="postgresql://hull:hull@127.0.0.1:${port}/hull_test"
 HULL_PG_CONTAINER="$name" PGUSER=hull PGPASSWORD=hull PGDATABASE=hull_test HULL_SEED_DEMO=0 \
   "$ROOT/scripts/migrate.sh"
 cd "$ROOT/adapters/fastapi"
-uv sync --extra dev
+uv sync --locked --extra dev
 uv run python -m pytest -q
 echo "TEST_OK"

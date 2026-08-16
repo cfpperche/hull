@@ -6,7 +6,7 @@ import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export function AvatarMenu() {
-  const { me, signOut } = useSession();
+  const { me, signOut, avatarVersion } = useSession();
   const navigate = useNavigate();
   const root = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -34,7 +34,10 @@ export function AvatarMenu() {
       >
         <span className="bg-foreground text-background flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-semibold">
           {has ? (
-            <img src={`${api.avatarUrl()}?t=${me?.user.id}`} alt="" className="size-7 object-cover" />
+            /* Busted on avatarVersion, not the user id: keying the URL on an
+               immutable value meant replacing a photo never changed the src,
+               so the chrome kept the old image while the toast said otherwise. */
+            <img src={`${api.avatarUrl()}?v=${avatarVersion}`} alt="" className="size-7 object-cover" />
           ) : (
             (email[0] ?? "?").toUpperCase()
           )}

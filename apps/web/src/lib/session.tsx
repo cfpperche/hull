@@ -9,6 +9,10 @@ type Ctx = {
   signedIn: boolean;
   refreshMe: () => Promise<HullMe | null>;
   signOut: () => Promise<void>;
+  /** Cache-buster for the avatar URL. The photo key is `<user id>.webp` and is
+   *  overwritten in place, so nothing in `me` changes when a photo is replaced. */
+  avatarVersion: number;
+  bumpAvatar: () => void;
 };
 
 const Session = createContext<Ctx | null>(null);
@@ -16,6 +20,9 @@ const Session = createContext<Ctx | null>(null);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [me, setMe] = useState<HullMe | null>(null);
+  const [avatarVersion, setAvatarVersion] = useState(0);
+
+  const bumpAvatar = useCallback(() => setAvatarVersion((v) => v + 1), []);
 
   const refreshMe = useCallback(async () => {
     try {
@@ -41,7 +48,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [refreshMe]);
 
   return (
-    <Session.Provider value={{ ready, me, signedIn: Boolean(me), refreshMe, signOut }}>
+    <Session.Provider
+      value={{ ready, me, signedIn: Boolean(me), refreshMe, signOut, avatarVersion, bumpAvatar }}
+    >
       {children}
     </Session.Provider>
   );

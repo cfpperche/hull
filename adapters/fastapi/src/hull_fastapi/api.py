@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
+from uuid import UUID
 
 from fastapi import Depends, FastAPI, File, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response as RawResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from hull_fastapi.accounts import (
@@ -33,9 +35,16 @@ from hull_fastapi.config import Settings
 from hull_fastapi.db import connection
 from hull_fastapi.mail import send_mail
 from hull_fastapi.observe import record_event
-from hull_fastapi.storage import StorageError, get_avatar, put_avatar, s3_enabled
+from hull_fastapi.storage import StorageError, delete_avatar, get_avatar, put_avatar, s3_enabled
 
 PROBLEM_JSON = "application/problem+json"
+
+# The avatar cap lives in storage.put_avatar; this is the envelope allowance so a
+# multipart body can be refused on Content-Length before Starlette buffers it.
+MAX_AVATAR_BYTES = 5 * 1024 * 1024
+MAX_UPLOAD_BYTES = MAX_AVATAR_BYTES + 64 * 1024
+
+log = logging.getLogger("hull.api")
 
 
 class SignupBody(BaseModel):
@@ -54,7 +63,7 @@ class OrgBody(BaseModel):
 
 
 class SwitchBody(BaseModel):
-    id: str
+    id: UUID
 
 
 class ProfileBody(BaseModel):
@@ -72,12 +81,21 @@ class CloseBody(BaseModel):
 
 
 class SupportBody(BaseModel):
-    org_id: str = Field(min_length=1)
+    org_id: UUID
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings()
-    app = FastAPI(title="hull-api", version="0.1.0", root_path=(settings.root_path or "").rstrip("/"))
+    # contracts/openapi.yaml is the contract. Do not publish a second, generated
+    # spec (or its docs UI) from the adapter.
+    app = FastAPI(
+        title="hull-api",
+        version="0.1.0",
+        root_path=(settings.root_path or "").rstrip("/"),
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
     app.state.settings = settings
 
     origins = [o.strip() for o in (settings.cors_origins or "").split(",") if o.strip()]
@@ -122,6 +140,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return problem(404, "Not found", "Not found", "not_found")
         return problem(exc.status_code, "Error", str(detail), "http_error")
 
+    @app.exception_handler(Exception)
+    async def unhandled_handler(request: Request, exc: Exception) -> JSONResponse:
+        # Every error leaves as problem+json. A bare 500 with a text/plain body
+        # breaks the shared client, which parses every non-204 response as JSON.
+        log.exception("unhandled error on %s %s", request.method, request.url.path)
+        return problem(500, "Server error", "unexpected server error", "server_error")
+
+    @app.middleware("http")
+    async def cap_upload_body(request: Request, call_next):
+        # Refuse an oversized upload before the multipart parser buffers it.
+        # The cap inside put_avatar runs after the whole body is already in memory.
+        if request.method == "POST" and request.url.path.rstrip("/").endswith("/v1/me/avatar"):
+            declared = request.headers.get("content-length")
+            if declared is None or not declared.isdigit():
+                return problem(411, "Length required", "content-length is required", "request_validation_error")
+            if int(declared) > MAX_UPLOAD_BYTES:
+                return problem(413, "Too large", "photo is too large", "request_validation_error")
+        return await call_next(request)
+
     def _account_http(exc: AccountError | StorageError) -> JSONResponse:
         status = 401
         if exc.reason_code in {"email_taken", "username_taken"}:
@@ -149,6 +186,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             value=raw,
             httponly=True,
             samesite="lax",
+            # https behind the edge, http only for a direct local connection.
+            # This is load-bearing on cli.py passing forwarded_allow_ips: uvicorn
+            # trusts only 127.0.0.1 by default and Traefik dials from a bridge IP,
+            # so without it X-Forwarded-Proto was dropped and the flag never set.
             secure=request.url.scheme == "https",
             max_age=int(SESSION_TTL.total_seconds()),
             path="/",
@@ -156,7 +197,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     def _clear_cookie(request: Request, response: Response) -> None:
-        response.delete_cookie(settings.cookie_name, path="/", domain=_cookie_domain(request))
+        response.delete_cookie(
+            settings.cookie_name,
+            path="/",
+            domain=_cookie_domain(request),
+            httponly=True,
+            samesite="lax",
+            secure=request.url.scheme == "https",
+        )
 
     def require_session(request: Request):
         raw = request.cookies.get(settings.cookie_name)
@@ -237,9 +285,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.patch("/v1/me")
     def patch_me(payload: ProfileBody, request: Request, sess=Depends(require_session)) -> dict[str, Any]:
+        # Only forward what the client actually sent, so an omitted field is left
+        # alone while an empty one is an explicit clear.
+        sent = payload.model_fields_set
         try:
             with connection(settings) as conn:
-                update_profile(conn, user_id=sess.user_id, username=payload.username, name=payload.name)
+                update_profile(
+                    conn,
+                    user_id=sess.user_id,
+                    username=payload.username if "username" in sent else None,
+                    name=payload.name if "name" in sent else None,
+                )
                 loaded = load_session(conn, request.cookies.get(settings.cookie_name) or "")
                 assert loaded is not None
                 return me_body(conn, loaded)
@@ -247,52 +303,61 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return _account_http(exc)
 
     @app.post("/v1/me/password", status_code=204)
-    def me_password(payload: PasswordBody, request: Request, sess=Depends(require_session)) -> None:
-        raw = request.cookies.get(settings.cookie_name) or ""
+    def me_password(payload: PasswordBody, request: Request, response: Response, sess=Depends(require_session)) -> None:
         try:
             with connection(settings) as conn:
-                change_password(
+                token = change_password(
                     conn,
                     user_id=sess.user_id,
                     current=payload.current,
                     password=payload.password,
-                    keep_raw=raw,
                 )
         except AccountError as exc:
+            status = 401 if exc.reason_code == "unauthenticated" else 422
             raise StarletteHTTPException(
-                status_code=401 if exc.reason_code == "unauthenticated" else 422,
+                status_code=status,
                 detail={
                     "type": "about:blank",
                     "title": "Account error",
-                    "status": 401,
+                    "status": status,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
                 },
             ) from exc
+        # Rotate the caller's own token too, so a stolen copy of the current
+        # cookie does not survive the password change.
+        _set_cookie(request, response, token)
 
     @app.delete("/v1/me", status_code=204)
     def me_delete(payload: CloseBody, request: Request, response: Response, sess=Depends(require_session)) -> None:
+        avatar_key = sess.avatar_key
         try:
             with connection(settings) as conn:
                 close_account(conn, user_id=sess.user_id, password=payload.password, platform_role=sess.platform_role)
         except AccountError as exc:
+            status = 403 if exc.reason_code == "forbidden" else 401
             raise StarletteHTTPException(
-                status_code=403 if exc.reason_code == "forbidden" else 401,
+                status_code=status,
                 detail={
                     "type": "about:blank",
                     "title": "Account error",
-                    "status": 401,
+                    "status": status,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
                 },
             ) from exc
+        # The users row is gone, so nothing can reference the object any more.
+        if avatar_key:
+            delete_avatar(settings, key=avatar_key)
         _clear_cookie(request, response)
 
     @app.post("/v1/me/avatar")
     def me_avatar(request: Request, file: UploadFile = File(...), sess=Depends(require_session)) -> dict[str, bool]:
         if not s3_enabled(settings):
             return _account_http(StorageError("storage_not_configured", "object store is not configured"))
-        data = file.file.read()
+        # Bounded read: never materialise more than the cap plus one byte, even if
+        # the declared Content-Length that got us past the middleware was a lie.
+        data = file.file.read(MAX_AVATAR_BYTES + 1)
         try:
             key = put_avatar(settings, user_id=sess.user_id, data=data, content_type=file.content_type or "")
             with connection(settings) as conn:
@@ -328,7 +393,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         raw = request.cookies.get(settings.cookie_name) or ""
         try:
             with connection(settings) as conn:
-                return switch_org(conn, user_id=sess.user_id, org_id=payload.id, raw=raw)
+                return switch_org(conn, user_id=sess.user_id, org_id=str(payload.id), raw=raw)
         except AccountError as exc:
             return _account_http(exc)
 
@@ -355,12 +420,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             require_admin(sess)
             with connection(settings) as conn:
-                body = support_start(conn, raw=request.cookies.get(settings.cookie_name) or "", org_id=payload.org_id)
+                body = support_start(
+                    conn, raw=request.cookies.get(settings.cookie_name) or "", org_id=str(payload.org_id)
+                )
                 record_event(
                     conn,
                     source="api",
                     event="support.impersonate",
-                    org_id=payload.org_id,
+                    org_id=str(payload.org_id),
                     payload={"actor": sess.email},
                 )
                 conn.commit()

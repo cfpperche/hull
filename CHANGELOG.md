@@ -15,6 +15,49 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Security
+
+- Session cookie now carries `Secure`. It never did: the flag was derived from the connection scheme, and uvicorn ran with `proxy_headers` but no `forwarded_allow_ips`, so Traefik's `X-Forwarded-Proto` was dropped (uvicorn trusts only `127.0.0.1`, Traefik dials from a bridge IP) and every live install saw `http`.
+- Changing the password now revokes **every** session including the caller's, and returns a fresh cookie. Previously the one token the code deliberately preserved was the caller's own — so a stolen cookie survived the action taken to revoke it, while the contract advertised "other sessions die".
+- `migrate.sh` refuses to apply the demo seed unless `HULL_HOST` ends in `.test`. The seed installs a `platform_admin` whose password is printed in the README and defaulted to on for any host.
+- Avatar uploads are refused on `Content-Length` before the body is buffered. The 5 MB cap ran only after the whole request was in memory, so one large upload could drive the API container into the gigabytes.
+- Traefik gets the leaf certificate pair only, not the whole `deploy/certs` tree — which handed the container `ca/ca.key`, the key to a CA installed in the host and Windows root stores. New CAs are issued with name constraints limiting them to `.test` and `localhost`.
+- `signin` always spends the hash cost, so a missing account is not distinguishable from a wrong password by response time.
+- The adapter no longer publishes FastAPI's generated docs at `/api/docs`, `/api/redoc` and `/api/openapi.json` — a second, divergent spec served unauthenticated on both the customer and admin hosts.
+- The API binds `127.0.0.1` by default (the container image still sets `0.0.0.0`), so the host-side dev loop is not published to the LAN.
+- `.gitignore` covers every dotenv variant, not just the bare `.env`.
+- CI actions are pinned to commit SHAs and the workflow declares `permissions: contents: read`.
+
+### Fixed
+
+- **Avatar upload never worked.** The shared client set `Content-Type: application/json` on every request with a body, including `FormData`, which suppressed the multipart boundary — so the server could not parse any upload.
+- **The documented `scripts/dev.sh` inner loop served nothing.** All three Vite configs bound `127.0.0.1` while the dev edge dials the docker host-gateway (502), and binding wider hit Vite's host check (403). They now use `host: true` with `allowedHosts` and an HMR client port for the TLS edge.
+- **`setup-local.sh` never read `.env`**, so a white-label `HULL_HOST` never reached `/etc/hosts` while `up.sh` happily issued certificates and routers for it — a correctly configured, unreachable stack. It also backs up `/etc/hosts` and guards against a missing trailing newline.
+- `.env` is now parsed the way compose parses it. `set -a && source` ran the file as shell, so `HULL_BRAND=Acme Corp` printed `Corp: command not found` and left the brand at its default in `config.json` while the containers got the right value.
+- `dev.sh` writes its computed environment to `.env.dev` instead of discarding it; the inner-loop API was connecting to `:5432` rather than `HULL_PG_PORT`, with mail and object storage disabled.
+- A non-UUID org id returned a bare `500` instead of the contracted `404`/`422`, and the plain-text body then broke the client's JSON parse. Ids are typed, and every unhandled error leaves as `problem+json`.
+- Postgres readiness is probed over TCP with consecutive successes. The socket-only probe went green during `initdb`, so a first `up.sh` could run migrate against a closed port.
+- `migrate.sh` applies each file and its tracking row in one transaction under an advisory lock. A mid-file failure used to commit the earlier statements and record nothing, wedging the runner permanently.
+- `up.sh` always rebuilds. Images are pinned at `:0.1.0`, so "build only when the tag is missing" meant every run after the first served the first build — and the visual harness judged pixels from stale code.
+- Clearing a display name now clears it. `COALESCE` discarded the write while the UI reported "Profile saved".
+- `preflight.sh` sees a listener on any bind address, not just `127.0.0.1`; `smoke.sh` asserts a successful switch before trusting the isolation 404, checks the `reason_code`, and no longer writes to a predictable `/tmp` path; `capture-ui.sh` asserts sign-in actually happened before capturing the signed-in surfaces; `prune.sh` scopes its image prune to Hull's own label.
+- `render-edge.sh`'s dot-escaping survives sed, so the CoreDNS regex no longer matches `hull-test.` alongside `hull.test`.
+- Uvicorn's startup and access lines are emitted through the JSON formatter, so the container's stdout is uniformly JSON as `AGENTS.md` claims.
+- Pillow decode errors are mapped to `422`, not `500`; a closed account's photo is deleted from the object store.
+
+### Changed
+
+- **Sessions are per-device.** Every sign-in used to delete all of the user's other sessions, so signing in on a phone dropped the laptop to the sign-in screen mid-task.
+- Action feedback, per the `AGENTS.md` table: closing an account takes a confirmation dialog before it runs; a failed workspace switch, a failed support "Stop" and a failed admin "View as" now report and hold a pending state instead of being empty clicks; photo errors are inline rather than toasted; replacing a photo actually updates the chrome.
+- `contracts/openapi.yaml` describes what the adapter does: a root `security` requirement with explicit public opt-outs (all sixteen operations were specified as unauthenticated, including `/v1/admin/*`), a `Problem` schema with the `reason_code` enum, the reachable error statuses, the admin response envelopes, and OpenAPI 3.1 union types instead of the ignored `nullable: true` that made the schema reject every signup response.
+- The admin app has a catch-all route; unknown paths rendered a blank page.
+- `scripts/lib/env.sh` is the one place `.env` is read.
+
+### Removed
+
+- The second migration runner inside the FastAPI adapter (`db.py`), which carried its own DDL against the `AGENTS.md` schema lock and could silently drift from `scripts/migrate.sh`. Tests now rely on the bash runner.
+- The hardcoded `SESSION_COOKIE` constant in `@hull/config` — the cookie is `HttpOnly`, so no browser code can read it, and the literal contradicted the `HULL_COOKIE_NAME` knob. The hardcoded host list in `deploy/edge-hosts.txt`, which wrote eight stale `hull.test` entries on every white-label install.
+
 ### Changed
 
 - Benchmarks: only Vercel / Linear / Supabase (plus Stripe on www). Do not import another product’s sector list.

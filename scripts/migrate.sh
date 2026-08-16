@@ -13,6 +13,16 @@ SEED="${HULL_SEED_DEMO:-1}"
 SEED_HOST="${HULL_HOST:-hull.test}"
 SEED_HOST_SQL="$(printf '%s' "$SEED_HOST" | sed "s/'/''/g")"
 
+# The demo seed installs a platform_admin whose password is printed in the README.
+# That is fine for a .test lab and a disaster anywhere else, so refuse rather than
+# rely on the operator remembering to flip the flag.
+if [[ "$SEED" == "1" && "$SEED_HOST" != *.test ]]; then
+  echo "ERROR: HULL_SEED_DEMO=1 seeds a platform_admin with a publicly known password." >&2
+  echo "       Refusing on host '${SEED_HOST}', which is not a .test lab apex." >&2
+  echo "       Set HULL_SEED_DEMO=0 for this install." >&2
+  exit 1
+fi
+
 psql_exec() {
   if [[ -n "${HULL_PG_CONTAINER:-}" ]]; then
     docker exec -i \
@@ -58,6 +68,8 @@ already_applied() {
 }
 
 pipe_sql() {
+  # --single-transaction: DDL is transactional in Postgres, so a file and its
+  # tracking row either both land or neither does.
   if [[ -n "${HULL_PG_CONTAINER:-}" ]]; then
     docker exec -i \
       -e PGUSER="${PGUSER}" \
@@ -65,11 +77,11 @@ pipe_sql() {
       -e PGDATABASE="${PGDATABASE}" \
       -e PGHOST=127.0.0.1 \
       "$HULL_PG_CONTAINER" \
-      psql -v ON_ERROR_STOP=1 -X -q
+      psql -v ON_ERROR_STOP=1 --single-transaction -X -q
   elif [[ -n "${HULL_DATABASE_URL:-}" ]]; then
-    psql -v ON_ERROR_STOP=1 -X -q "$HULL_DATABASE_URL"
+    psql -v ON_ERROR_STOP=1 --single-transaction -X -q "$HULL_DATABASE_URL"
   else
-    psql -v ON_ERROR_STOP=1 -X -q
+    psql -v ON_ERROR_STOP=1 --single-transaction -X -q
   fi
 }
 
@@ -80,8 +92,15 @@ apply_sql_file() {
     return
   fi
   echo "apply ${id}"
-  pipe_sql <"$file"
-  psql_exec -c "INSERT INTO ${table} (id) VALUES ('${id}')"
+  # One transaction for the file plus its bookkeeping. Previously a mid-file
+  # failure committed the earlier statements and recorded nothing, so the next
+  # run died on "already exists" and up.sh could never get past migrate.
+  # The advisory lock serialises concurrent runners on the same file.
+  {
+    printf "SELECT pg_advisory_xact_lock(hashtext('hull-migrate'), hashtext('%s'));\n" "$id"
+    cat "$file"
+    printf "\nINSERT INTO %s (id) VALUES ('%s');\n" "$table" "$id"
+  } | pipe_sql
 }
 
 apply_sql_dir() {

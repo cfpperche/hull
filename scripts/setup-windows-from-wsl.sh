@@ -4,6 +4,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ -f "$ROOT/.env" ]]; then
+  . "$ROOT/scripts/lib/env.sh"
+  hull_load_env "$ROOT/.env"
+fi
 HOST="${HULL_HOST:-hull.test}"
 PS1="$ROOT/scripts/setup-windows.ps1"
 CA="$ROOT/deploy/certs/ca/ca.crt"

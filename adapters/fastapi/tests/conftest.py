@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from hull_fastapi.config import Settings
-from hull_fastapi.db import apply_migrations, connection
+from hull_fastapi.db import connection
 from hull_fastapi.api import create_app
 
 
@@ -24,7 +24,13 @@ def settings() -> Settings:
     if url.rstrip("/").endswith("/hull") and "hull_test" not in url:
         url = url.rsplit("/", 1)[0] + "/hull_test"
     s = Settings(database_url=url, s3_endpoint="", smtp_host="", host="hull.test")
-    apply_migrations(s)
+    # scripts/migrate.sh is the only migration runner (AGENTS.md). scripts/test.sh
+    # runs it against this database before pytest starts.
+    with connection(s) as conn, conn.cursor() as cur:
+        cur.execute("SELECT to_regclass('public.users') AS t")
+        row = cur.fetchone()
+        if not row or not row["t"]:
+            pytest.skip("schema not applied — run scripts/test.sh (or scripts/migrate.sh) first")
     return s
 
 

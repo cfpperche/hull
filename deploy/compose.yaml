@@ -23,7 +23,7 @@ services:
     ports:
       - "127.0.0.1:${HULL_PG_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${HULL_POSTGRES_USER:-hull} -d ${HULL_POSTGRES_DB:-hull}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${HULL_POSTGRES_USER:-hull} -d ${HULL_POSTGRES_DB:-hull}"]
       interval: 2s
       timeout: 5s
       retries: 20
@@ -46,7 +46,7 @@ services:
     ports:
       - "127.0.0.1:${HULL_TEST_PG_PORT:-55434}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hull -d hull_test"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U hull -d hull_test"]
       interval: 2s
       timeout: 5s
       retries: 20
@@ -193,7 +193,10 @@ services:
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
-      - ./certs:/etc/traefik/certs:ro
+      # Leaf pair only. Mounting ./certs would also hand the container ca/ca.key,
+      # the key to a CA installed in the host (and Windows) root stores.
+      - ./certs/hull-cert.pem:/etc/traefik/certs/hull-cert.pem:ro
+      - ./certs/hull-key.pem:/etc/traefik/certs/hull-key.pem:ro
     networks: [hull]
 
   dbgate:

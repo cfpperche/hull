@@ -47,5 +47,7 @@ export function originFor(surface: HullSurface, host = publicConfig().host): str
   return `https://admin.${host}`;
 }
 
-export const SESSION_COOKIE = "hull_session";
+// No SESSION_COOKIE constant here on purpose. The session cookie is HttpOnly, so
+// no browser code can read it, and hardcoding "hull_session" contradicted the
+// HULL_COOKIE_NAME white-label knob that only the adapter honoured.
 export const API_PREFIX = "/api";

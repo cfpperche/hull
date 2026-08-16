@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Button, Input, Label, Page, ThemePreference } from "@hull/ui";
+import { Button, ConfirmDialog, Input, Label, Page, ThemePreference } from "@hull/ui";
 import { errMsg } from "@hull/api-client";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
 export function AccountPage() {
-  const { me, refreshMe, signOut } = useSession();
+  const { me, refreshMe, signOut, bumpAvatar } = useSession();
   const [name, setName] = useState(me?.user.name ?? "");
   const [username, setUsername] = useState(me?.user.username ?? "");
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -18,14 +21,28 @@ export function AccountPage() {
   const [closePw, setClosePw] = useState("");
   const [closeError, setCloseError] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const [avatarPending, setAvatarPending] = useState(false);
+
+  // Keep the inputs in step with what the server actually stored, so the form
+  // can never show a value that was not saved.
+  useEffect(() => {
+    setName(me?.user.name ?? "");
+    setUsername(me?.user.username ?? "");
+  }, [me?.user.name, me?.user.username]);
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
     setProfileError(null);
     setProfilePending(true);
     try {
-      await api.updateMe({ name: name.trim(), username: username.trim() });
+      // `name` is always sent, so an empty value clears it. `username` is sent
+      // only when non-empty — omitting it leaves the stored one alone rather
+      // than failing validation for a user who has never set one.
+      const body: { name: string; username?: string } = { name: name.trim() };
+      if (username.trim()) body.username = username.trim();
+      await api.updateMe(body);
       await refreshMe();
       toast.success("Profile saved");
     } catch (err) {
@@ -54,27 +71,42 @@ export function AccountPage() {
   async function onAvatar(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setAvatarError(null);
+    // Reject locally first: the inline slot is on-screen, and a rejected upload
+    // should not cost a round trip.
+    if (!PHOTO_TYPES.includes(file.type)) {
+      setAvatarError("Photo must be a JPEG, PNG, or WebP.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setAvatarError("Photo must be 5 MB or smaller.");
+      e.target.value = "";
+      return;
+    }
     setAvatarPending(true);
     try {
       await api.uploadAvatar(file);
       await refreshMe();
+      bumpAvatar();
       toast.success("Photo updated");
     } catch (err) {
-      toast.error(errMsg(err));
+      setAvatarError(errMsg(err));
     } finally {
       setAvatarPending(false);
       e.target.value = "";
     }
   }
 
-  async function closeAccount(e: React.FormEvent) {
-    e.preventDefault();
+  async function closeAccount() {
     setCloseError(null);
     setClosing(true);
     try {
       await api.closeAccount({ password: closePw });
+      setConfirmClose(false);
       await signOut();
     } catch (err) {
+      setConfirmClose(false);
       setCloseError(errMsg(err));
     } finally {
       setClosing(false);
@@ -97,6 +129,7 @@ export function AccountPage() {
                 onChange={(e) => void onAvatar(e)}
               />
             </label>
+            {avatarError ? <p className="text-destructive text-sm">{avatarError}</p> : null}
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="email">Email</Label>
@@ -137,16 +170,56 @@ export function AccountPage() {
           </Button>
         </form>
 
-        <form className="grid gap-4 border-t pt-8" onSubmit={(e) => void closeAccount(e)}>
+        <form
+          className="grid gap-4 border-t pt-8"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setCloseError(null);
+            setConfirmClose(true);
+          }}
+        >
           <h2 className="text-sm font-medium">Close account</h2>
           <p className="text-muted-foreground text-sm">Deletes this login and workspaces only you own.</p>
-          <Input type="password" data-testid="close-password" placeholder="Password" value={closePw} onChange={(e) => setClosePw(e.target.value)} />
+          <div className="grid gap-1.5">
+            <Label htmlFor="close-password">Password</Label>
+            <Input
+              id="close-password"
+              type="password"
+              data-testid="close-password"
+              value={closePw}
+              onChange={(e) => setClosePw(e.target.value)}
+            />
+          </div>
           {closeError ? <p className="text-destructive text-sm">{closeError}</p> : null}
-          <Button type="submit" variant="destructive" className="w-fit" data-testid="close-account" disabled={closing}>
-            {closing ? "Closing…" : "Close account"}
+          <Button
+            type="submit"
+            variant="destructive"
+            className="w-fit"
+            data-testid="close-account"
+            disabled={closing || !closePw}
+          >
+            Close account
           </Button>
         </form>
       </div>
+
+      {/* AGENTS.md: destructive / irreversible takes a dialog before, not after. */}
+      <ConfirmDialog
+        open={confirmClose}
+        onOpenChange={setConfirmClose}
+        data-testid="close-account-dialog"
+        title="Close this account?"
+        description={
+          <>
+            This deletes <span className="text-foreground font-medium">{me?.user.email}</span> and every workspace you
+            are the only owner of. Workspaces with other members are kept. It cannot be undone.
+          </>
+        }
+        confirmLabel="Close account"
+        pendingLabel="Closing…"
+        pending={closing}
+        onConfirm={() => void closeAccount()}
+      />
     </Page>
   );
 }
