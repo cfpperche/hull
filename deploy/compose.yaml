@@ -91,6 +91,7 @@ services:
   migrate:
     image: public.ecr.aws/docker/library/postgres:16
     container_name: hull-migrate
+    profiles: ["tools"]
     restart: "no"
     labels:
       <<: *hull_labels
@@ -123,8 +124,6 @@ services:
         condition: service_healthy
       rustfs:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     environment:
       HULL_DATABASE_URL: postgresql://${HULL_POSTGRES_USER:-hull}:${HULL_POSTGRES_PASSWORD:-hull}@postgres:5432/${HULL_POSTGRES_DB:-hull}
       HULL_HOST: ${HULL_HOST:-hull.test}

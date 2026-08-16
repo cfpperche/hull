@@ -2,8 +2,6 @@
 #   docker compose -f compose.yaml -f compose.dev.yaml up -d postgres rustfs mailpit traefik
 # Traefik routes to host.docker.internal (started by scripts/dev.sh).
 services:
-  migrate:
-    profiles: ["never"]
   api:
     profiles: ["never"]
   www:

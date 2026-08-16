@@ -60,6 +60,7 @@ No Next.js. No worker. No billing. No SSO.
 | `./scripts/test.sh` | Disposable Postgres + pytest |
 | `./scripts/render-brand.sh` | `/config.json` from `.env` (chrome + host) |
 | `./scripts/build-images.sh` | `hull-api` `hull-www` `hull-web` `hull-admin` |
+| `./scripts/prune.sh` | Drop exited migrate / testdb leftovers (not other projects) |
 
 80/443 on loopback must be free (or already owned by `hull-traefik`).
 

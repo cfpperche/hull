@@ -38,4 +38,7 @@ HULL_PG_CONTAINER="$name" PGUSER=hull PGPASSWORD=hull PGDATABASE=hull_test HULL_
 cd "$ROOT/api"
 uv sync --extra dev
 uv run pytest -q
+# Drop testdb from the hull group; volume stays for the next run.
+compose stop testdb
+compose rm -f testdb
 echo "TEST_OK"

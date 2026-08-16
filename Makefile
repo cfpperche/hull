@@ -1,4 +1,4 @@
-.PHONY: setup up down dev smoke test images migrate brand
+.PHONY: setup up down dev smoke test images migrate brand prune
 
 setup:
 	./scripts/setup-local.sh
@@ -26,3 +26,6 @@ smoke:
 
 test:
 	./scripts/test.sh
+
+prune:
+	./scripts/prune.sh

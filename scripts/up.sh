@@ -35,7 +35,8 @@ for _ in $(seq 1 40); do
   sleep 0.5
 done
 
-compose run --rm migrate
+compose --profile tools run --rm --no-deps migrate
+# migrate is profile tools — do not `up` it or it sits Exited in the hull group
 compose up -d --remove-orphans
 echo "UP_OK  https://${HOST}/  https://app.${HOST}/  https://admin.${HOST}/"
 echo "Lab: ada@${HOST} / demodemo1   admin@${HOST} / same"
