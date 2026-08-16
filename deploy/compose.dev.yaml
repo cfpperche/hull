@@ -1,0 +1,19 @@
+# Overlay: same edge + data plane. API and SPAs run on the host.
+#   docker compose -f compose.yaml -f compose.dev.yaml up -d postgres rustfs mailpit traefik
+# Traefik routes to host.docker.internal (started by scripts/dev.sh).
+services:
+  migrate:
+    profiles: ["never"]
+  api:
+    profiles: ["never"]
+  www:
+    profiles: ["never"]
+  web:
+    profiles: ["never"]
+  admin:
+    profiles: ["never"]
+
+  traefik:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on: !reset []

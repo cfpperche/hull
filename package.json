@@ -1,0 +1,17 @@
+{
+  "name": "hull",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Standalone app shell + chrome for SaaS (www, web, admin)",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "build": "pnpm -r --if-present run build",
+    "dev:www": "pnpm --filter @hull/www dev",
+    "dev:web": "pnpm --filter @hull/web dev",
+    "dev:admin": "pnpm --filter @hull/admin dev"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

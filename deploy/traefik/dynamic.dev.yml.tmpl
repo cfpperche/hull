@@ -1,0 +1,106 @@
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/hull-cert.pem
+      keyFile: /etc/traefik/certs/hull-key.pem
+
+http:
+  middlewares:
+    strip-api:
+      stripPrefix:
+        prefixes:
+          - "/api"
+    api-headers:
+      headers:
+        customResponseHeaders:
+          Cache-Control: "no-store"
+        customRequestHeaders:
+          X-Forwarded-Prefix: "/api"
+
+  routers:
+    hull-www:
+      rule: "Host(`__HOST__`) || Host(`www.__HOST__`)"
+      entryPoints: [websecure]
+      service: hull-www
+      priority: 1
+      tls: {}
+    hull-web-api:
+      rule: "Host(`app.__HOST__`) && PathPrefix(`/api`)"
+      entryPoints: [websecure]
+      middlewares: [strip-api, api-headers]
+      service: hull-api
+      priority: 100
+      tls: {}
+    hull-web:
+      rule: "Host(`app.__HOST__`)"
+      entryPoints: [websecure]
+      service: hull-web
+      priority: 1
+      tls: {}
+    hull-admin-api:
+      rule: "Host(`admin.__HOST__`) && PathPrefix(`/api`)"
+      entryPoints: [websecure]
+      middlewares: [strip-api, api-headers]
+      service: hull-api
+      priority: 100
+      tls: {}
+    hull-admin:
+      rule: "Host(`admin.__HOST__`)"
+      entryPoints: [websecure]
+      service: hull-admin
+      priority: 1
+      tls: {}
+    hull-mail:
+      rule: "Host(`mail.__HOST__`)"
+      entryPoints: [websecure]
+      service: hull-mailpit
+      priority: 1
+      tls: {}
+    hull-s3:
+      rule: "Host(`s3.__HOST__`)"
+      entryPoints: [websecure]
+      service: hull-s3
+      priority: 1
+      tls: {}
+    hull-rustfs:
+      rule: "Host(`rustfs.__HOST__`)"
+      entryPoints: [websecure]
+      service: hull-rustfs
+      priority: 1
+      tls: {}
+
+  services:
+    hull-api:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8080"
+        passHostHeader: true
+    hull-www:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:5175"
+        passHostHeader: true
+    hull-web:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:5173"
+        passHostHeader: true
+    hull-admin:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:5174"
+        passHostHeader: true
+    hull-mailpit:
+      loadBalancer:
+        servers:
+          - url: "http://mailpit:8025"
+        passHostHeader: true
+    hull-s3:
+      loadBalancer:
+        servers:
+          - url: "http://rustfs:9000"
+        passHostHeader: true
+    hull-rustfs:
+      loadBalancer:
+        servers:
+          - url: "http://rustfs:9001"
+        passHostHeader: true
