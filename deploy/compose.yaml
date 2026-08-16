@@ -202,11 +202,10 @@ services:
   dbgate:
     image: dbgate/dbgate:alpine
     container_name: hull-dbgate
-    profiles: ["studio"]
     restart: unless-stopped
     labels:
       <<: *hull_labels
-      hull.role: studio
+      hull.role: studio  # dbgate: a lab service like mailpit/rustfs, not opt-in
     depends_on:
       postgres:
         condition: service_healthy
@@ -215,8 +214,8 @@ services:
       # it is "none" — an owner-level SQL console on the live database, reachable
       # from any page the developer happens to visit.
       LOGIN: ${HULL_DBGATE_USER:-hull}
-      # Defaulted, not required: compose interpolates the whole file up front, so
-      # a `:?` here would fail `up.sh` too, on an install that never starts studio.
+      # Defaulted, not required: compose interpolates the whole file up front,
+      # so a `:?` here would fail every command, not just the ones touching dbgate.
       PASSWORD: ${HULL_DBGATE_PASSWORD:-hull-studio-lab-secret}
       CONNECTIONS: hull
       LABEL_hull: Hull Postgres

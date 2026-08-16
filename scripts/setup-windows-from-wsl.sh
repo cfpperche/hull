@@ -36,6 +36,6 @@ WIN_CA=$(wslpath -w "$CA")
 
 echo "Approve the Windows UAC prompt (hosts + Hull CA)."
 "$PWSH" -NoProfile -Command \
-  "Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','${WIN_PS1}','-CaPath','${WIN_CA}','-HostName','${HOST}','-Studio','${HULL_STUDIO:-0}'"
+  "Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','${WIN_PS1}','-CaPath','${WIN_CA}','-HostName','${HOST}'"
 
 echo "If UAC was approved:  https://${HOST}/  https://app.${HOST}/  https://admin.${HOST}/  https://mail.${HOST}/"
