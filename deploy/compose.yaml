@@ -104,7 +104,7 @@ services:
       PGPASSWORD: ${HULL_POSTGRES_PASSWORD:-hull}
       PGDATABASE: ${HULL_POSTGRES_DB:-hull}
       HULL_SEED_DEMO: ${HULL_SEED_DEMO:-1}
-      HULL_HOST: ${HULL_HOST:-hull.dev}
+      HULL_HOST: ${HULL_HOST:-hull.test}
     volumes:
       - ../schema:/schema:ro
       - ../scripts/migrate.sh:/migrate.sh:ro
@@ -127,7 +127,7 @@ services:
         condition: service_completed_successfully
     environment:
       HULL_DATABASE_URL: postgresql://${HULL_POSTGRES_USER:-hull}:${HULL_POSTGRES_PASSWORD:-hull}@postgres:5432/${HULL_POSTGRES_DB:-hull}
-      HULL_HOST: ${HULL_HOST:-hull.dev}
+      HULL_HOST: ${HULL_HOST:-hull.test}
       HULL_BRAND: ${HULL_BRAND:-Hull}
       HULL_MARK: ${HULL_MARK:-}
       HULL_COOKIE_NAME: ${HULL_COOKIE_NAME:-hull_session}

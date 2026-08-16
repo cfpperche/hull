@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HOST="${HULL_HOST:-hull.dev}"
+HOST="${HULL_HOST:-hull.test}"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   echo "Need root for /etc/hosts and the OS trust store."

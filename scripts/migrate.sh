@@ -10,7 +10,7 @@ else
 fi
 
 SEED="${HULL_SEED_DEMO:-1}"
-SEED_HOST="${HULL_HOST:-hull.dev}"
+SEED_HOST="${HULL_HOST:-hull.test}"
 SEED_HOST_SQL="$(printf '%s' "$SEED_HOST" | sed "s/'/''/g")"
 
 psql_exec() {

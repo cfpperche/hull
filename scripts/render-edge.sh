@@ -2,7 +2,7 @@
 # Fill Traefik / CoreDNS templates for HULL_HOST.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HOST="${HULL_HOST:-hull.dev}"
+HOST="${HULL_HOST:-hull.test}"
 MODE="${1:-prod}"
 tmpl="$ROOT/deploy/traefik/dynamic.yml.tmpl"
 if [[ "$MODE" == "dev" ]]; then

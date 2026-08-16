@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CERT_DIR="$ROOT/deploy/certs"
 CA_DIR="$CERT_DIR/ca"
-HOST="${HULL_HOST:-hull.dev}"
+HOST="${HULL_HOST:-hull.test}"
 DAYS_CA="${HULL_CA_DAYS:-3650}"
 DAYS_LEAF="${HULL_CERT_DAYS:-825}"
 

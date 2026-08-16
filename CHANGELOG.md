@@ -15,6 +15,10 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- Default host is **`hull.test`**. `.dev` is a public gTLD (`hull.dev` resolves on the internet, HSTS preload). `.local` is reserved for mDNS — do not use it.
+
 ### Added
 
 - White-label **values** in `.env`: `HULL_BRAND`, `HULL_MARK`, `HULL_COOKIE_NAME`, plus existing `HULL_HOST`. `scripts/render-brand.sh` writes `/config.json` at start (no SPA rebuild). Chrome, mail subject/from, and lab seed emails follow those values.

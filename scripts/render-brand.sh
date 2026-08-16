@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 [[ -f "$ROOT/.env" ]] && set -a && source "$ROOT/.env" && set +a
 
-HOST="${HULL_HOST:-hull.dev}"
+HOST="${HULL_HOST:-hull.test}"
 BRAND="${HULL_BRAND:-Hull}"
 MARK="${HULL_MARK:-}"
 if [[ -z "$MARK" ]]; then

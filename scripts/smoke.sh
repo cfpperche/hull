@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 [[ -f "$ROOT/.env" ]] && set -a && source "$ROOT/.env" && set +a
-HOST="${HULL_HOST:-hull.dev}"
+HOST="${HULL_HOST:-hull.test}"
 WWW="https://${HOST}"
 APP="https://app.${HOST}"
 uniq="s$(date +%s)"

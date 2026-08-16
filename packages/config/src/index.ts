@@ -6,7 +6,7 @@ export type PublicConfig = {
   mark: string;
 };
 
-const FALLBACK: PublicConfig = { host: "hull.dev", brand: "Hull", mark: "H" };
+const FALLBACK: PublicConfig = { host: "hull.test", brand: "Hull", mark: "H" };
 
 let cached: PublicConfig | null = null;
 

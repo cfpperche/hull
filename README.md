@@ -15,16 +15,16 @@ sudo ./scripts/setup-local.sh
 
 | Host | Surface |
 |---|---|
-| https://hull.dev/ | Marketing (`apps/www`) |
-| https://app.hull.dev/ | Product (`apps/web`) |
-| https://admin.hull.dev/ | Install operator (`apps/admin`) |
-| https://mail.hull.dev/ | Mailpit |
-| https://s3.hull.dev/ | Object store API |
-| https://rustfs.hull.dev/ | Object store console |
+| https://hull.test/ | Marketing (`apps/www`) |
+| https://app.hull.test/ | Product (`apps/web`) |
+| https://admin.hull.test/ | Install operator (`apps/admin`) |
+| https://mail.hull.test/ | Mailpit |
+| https://s3.hull.test/ | Object store API |
+| https://rustfs.hull.test/ | Object store console |
 
-Lab logins after seed: `ada@hull.dev` / `demodemo1` (owner of one workspace). `admin@hull.dev` / `demodemo1` (platform admin, no workspace).
+Lab logins after seed: `ada@hull.test` / `demodemo1` (owner of one workspace). `admin@hull.test` / `demodemo1` (platform admin, no workspace).
 
-Change the apex and chrome with `.env` (`HULL_HOST`, `HULL_BRAND`, `HULL_MARK`, `HULL_COOKIE_NAME`). Re-run `setup-local.sh` when the host changes. Default TLD is **`.dev`**, not `.test`. SPA images do not bake the host — `scripts/render-brand.sh` writes `/config.json` at start. Compose project stays **`hull`**. Two installs on one daemon need a different `HULL_BIND` / Postgres port (not in this ritual).
+Change the apex and chrome with `.env` (`HULL_HOST`, `HULL_BRAND`, `HULL_MARK`, `HULL_COOKIE_NAME`). Re-run `setup-local.sh` when the host changes. Default TLD is **`.test`** (RFC 6761 — never a public name). Do not use `.dev` (real gTLD, HSTS preload) or `.local` (mDNS). SPA images do not bake the host — `scripts/render-brand.sh` writes `/config.json` at start. Compose project stays **`hull`**. Two installs on one daemon need a different `HULL_BIND` / Postgres port (not in this ritual).
 
 ## What this is
 

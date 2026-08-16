@@ -15,7 +15,7 @@ Update `CHANGELOG.md` under `[Unreleased]` before every push to `main`.
 - Objects: User (login) and Org (workspace). Do not add Company/Store unless a product module needs a second level.
 - Edge: Traefik **inside** `deploy/compose.yaml`. Do not join an external Docker network.
 - Compose project name is **`hull`**. Every container is `docker compose -p hull`. Never `docker run` a Hull process — VS Code files it under Individual Containers.
-- Hosts: `*.dev` (default `hull.dev`). Not `.test`.
+- Hosts: `*.test` (default `hull.test`, RFC 6761). Not `.dev` (public TLD). Not `.local` (mDNS).
 - White-label **values** live in `.env` (`HULL_HOST`, `HULL_BRAND`, `HULL_MARK`, `HULL_COOKIE_NAME`). Chrome reads `/config.json` from `scripts/render-brand.sh`. Do not bake `VITE_HULL_HOST`.
 - Signup: username + email + password. Then one workspace name. No long wizard.
 - Chrome: Vercel / Linear / Supabase density. Confirm writes (toast, destination, or control state). No Inter+purple.
@@ -24,9 +24,9 @@ Update `CHANGELOG.md` under `[Unreleased]` before every push to `main`.
 
 | App | Host | Auth |
 |---|---|---|
-| `apps/www` | `hull.dev` | none |
-| `apps/web` | `app.hull.dev` | cookie |
-| `apps/admin` | `admin.hull.dev` | `platform_admin` |
+| `apps/www` | `hull.test` | none |
+| `apps/web` | `app.hull.test` | cookie |
+| `apps/admin` | `admin.hull.test` | `platform_admin` |
 
 Support impersonates an **org**. Do not mint the customer’s session.
 

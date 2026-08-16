@@ -4,7 +4,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 [[ -f .env ]] || cp .env.example .env
 set -a && source .env && set +a
-HOST="${HULL_HOST:-hull.dev}"
+HOST="${HULL_HOST:-hull.test}"
 
 "$ROOT/scripts/check-deps.sh" dev
 "$ROOT/scripts/generate-certs.sh"

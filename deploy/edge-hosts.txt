@@ -1,8 +1,8 @@
-hull.dev
-www.hull.dev
-app.hull.dev
-admin.hull.dev
-mail.hull.dev
-s3.hull.dev
-rustfs.hull.dev
-db.hull.dev
+hull.test
+www.hull.test
+app.hull.test
+admin.hull.test
+mail.hull.test
+s3.hull.test
+rustfs.hull.test
+db.hull.test

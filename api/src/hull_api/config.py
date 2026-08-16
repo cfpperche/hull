@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="HULL_", extra="ignore")
 
-    host: str = "hull.dev"
+    host: str = "hull.test"
     brand: str = "Hull"
     mark: str = ""
     database_url: str = "postgresql://hull:hull@127.0.0.1:5432/hull"

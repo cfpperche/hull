@@ -23,7 +23,7 @@ def settings() -> Settings:
     # Isolate from the product database.
     if url.rstrip("/").endswith("/hull") and "hull_test" not in url:
         url = url.rsplit("/", 1)[0] + "/hull_test"
-    s = Settings(database_url=url, s3_endpoint="", smtp_host="", host="hull.dev")
+    s = Settings(database_url=url, s3_endpoint="", smtp_host="", host="hull.test")
     apply_migrations(s)
     return s
 
