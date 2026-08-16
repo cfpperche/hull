@@ -68,6 +68,8 @@ Compose project name is **`hull`**. Docker Desktop / VS Code Containers shows on
 
 Changelog: [`CHANGELOG.md`](CHANGELOG.md). Update `[Unreleased]` before pushing `main`.
 
+Agents (Claude, Codex, Grok): [`AGENTS.md`](AGENTS.md). Current state: [`HANDOFF.md`](HANDOFF.md). Visual: `make visual` (agent-browser) then read `harness/visual/current/*.png`.
+
 ## Layout
 
 ```text
@@ -83,6 +85,9 @@ deploy/           compose, Traefik, nginx, certs
 modules/example   empty product slot
 scripts/          setup, migrate, up, smoke
 CHANGELOG.md      Keep a Changelog — update before push
+AGENTS.md         Claude / Codex / Grok (one source)
+HANDOFF.md        session start
+harness/          plans, benchmarks, visual capture
 ```
 
 A future product is a module. The hull does not know what it sells.

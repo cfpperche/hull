@@ -21,6 +21,9 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
+- Agent kit: `AGENTS.md` (single source), `CLAUDE.md` / `GROK.md` / `CODEX.md` pointers, `HANDOFF.md`, `harness/orchestration.md`, `harness/benchmarks.md`.
+- Visual harness on **agent-browser** (not Playwright): `harness/scripts/capture-ui.sh`, `harness/visual-ux.md`, `.grok/skills/visual-ux`. Chromatic deferred until `@hull/ui` is a Storybook catalog.
+
 - Windows + WSL setup: `setup-windows.ps1` + `setup-windows-from-wsl.sh`. `setup-local.sh` on WSL opens UAC and writes Windows `hosts` + trusts the project CA (same ritual as Opt). Chrome on Windows does not use the WSL `/etc/hosts`.
 
 ### Changed

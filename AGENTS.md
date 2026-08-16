@@ -1,24 +1,36 @@
-# Hull — agent notes
+# Agent guidelines — Hull
 
-Standalone SaaS hull. Not a product. Not Opt.
+Standalone SaaS **hull** (app shell + chrome). Not a product. Not Opt.
 
-Read `README.md` first. The host ritual is `scripts/setup-local.sh` then `scripts/up.sh`.
+`CLAUDE.md`, `GROK.md`, and `CODEX.md` point here. Do not duplicate these rules there.
+
+Read **`HANDOFF.md`** first for what exists and what is next. Pipeline: `harness/orchestration.md`. Benchmarks by sector: `harness/benchmarks.md`. Visual loop: `harness/visual-ux.md`.
 
 Update `CHANGELOG.md` under `[Unreleased]` before every push to `main`.
+
+## Who does what
+
+| Agent | Role |
+|---|---|
+| **Grok** | Orchestrator on material slices. Classify, plan, present, wait for go, fold review. |
+| **Claude** | Only when the human asks. |
+| **Codex** | Adversarial review when the slice is auth, schema, cookie, or user-visible UI. |
+
+Small fix (one obvious file, no new object, no auth/tenancy, no new chrome): do it in the turn. Material work: `harness/<name>-plan.md`, then **go**.
 
 ## Locks
 
 - Frontend: Vite + React + Tailwind 4 + shadcn **default**. No Next.js. No custom token sheet.
 - Schema: SQL in `schema/`. Migrate with `scripts/migrate.sh` (psql). Do not put DDL in FastAPI.
-- HTTP contract: `contracts/openapi.yaml`. FastAPI in `api/` is one adapter. A second language implements the same file.
-- Do not add a database microservice. Postgres is the store. The API talks to it.
-- Objects: User (login) and Org (workspace). Do not add Company/Store unless a product module needs a second level.
+- HTTP contract: `contracts/openapi.yaml`. FastAPI in `api/` is one adapter.
+- No database microservice. Postgres is the store.
+- Objects: **User** = login. **Org** = workspace. **Install** = this compose. Do not add Company/Store unless a product module needs a second level.
 - Edge: Traefik **inside** `deploy/compose.yaml`. Do not join an external Docker network.
-- Compose project name is **`hull`**. Every container is `docker compose -p hull`. Never `docker run` a Hull process — VS Code files it under Individual Containers.
-- Hosts: `*.test` (default `hull.test`, RFC 6761). Not `.dev` (public TLD). Not `.local` (mDNS).
-- White-label **values** live in `.env` (`HULL_HOST`, `HULL_BRAND`, `HULL_MARK`, `HULL_COOKIE_NAME`). Chrome reads `/config.json` from `scripts/render-brand.sh`. Do not bake `VITE_HULL_HOST`.
-- Signup: username + email + password. Then one workspace name. No long wizard.
-- Chrome: Vercel / Linear / Supabase density. Confirm writes (toast, destination, or control state). No Inter+purple.
+- Compose project name is **`hull`**. Never `docker run` a Hull process.
+- Hosts: `*.test` (default `hull.test`, RFC 6761). Not `.dev`. Not `.local` (mDNS).
+- White-label **values** live in `.env` (`HULL_HOST`, `HULL_BRAND`, `HULL_MARK`, `HULL_COOKIE_NAME`). Chrome reads `/config.json`. Do not bake `VITE_HULL_HOST`.
+- Signup: username + email + password. Then one workspace name.
+- Windows Chrome does not use WSL `/etc/hosts`. `setup-local.sh` on WSL must open UAC (`setup-windows-from-wsl.sh`).
 
 ## Surfaces
 
@@ -30,8 +42,36 @@ Update `CHANGELOG.md` under `[Unreleased]` before every push to `main`.
 
 Support impersonates an **org**. Do not mint the customer’s session.
 
+## UI/UX — research before pixels
+
+Before changing layout, navigation, forms, empty states, onboarding, or copy, read **`harness/benchmarks.md`** for **that sector**. One family is not enough when the slice spans two sectors (e.g. www CTA + web signup).
+
+Write 3–6 sentences in the turn: what those products do, what we copy, what we refuse. Then implement. Do not invent a third visual language.
+
+Visual judgment requires **pixels** (`harness/visual-ux.md`, skill `visual-ux`). Research is not a screenshot substitute. Drive the browser with **agent-browser**, not Playwright MCP.
+
+## Action feedback
+
+Every write the operator starts must confirm. A button that returns to idle with no change is a bug.
+
+| Action | Confirmation |
+|---|---|
+| Settings save, photo upload, non-destructive write that stays on the page | Short toast (`toast.success`). Button pending while in flight. |
+| Field / schema validation | Inline next to the field. Do not toast schema errors. |
+| Unexpected API failure on a form | Inline on the form. Toast only if the error would be off-screen. |
+| Create that navigates to the new object | The destination is the confirmation. |
+| Destructive / irreversible | Dialog **before**. After success: navigate or toast. |
+| Immediate toggle / checkbox | The control state is the confirmation. |
+| Long job | Progress toast / run card. |
+
+Refuse: persistent “Saved.” banners, success splash pages, a confirm dialog for ordinary Save, empty clicks.
+
+Copy: verb + object, past tense, short. `Profile saved`. Not `Success!`
+
 ## Do not
 
 - Add a worker, Redis, or Grafana unless a product module requires it.
 - Observe is JSON stdout + `install_events`. No collector required.
 - Do not put product domain in `packages/ui` or `api/` auth.
+- Do not add Storybook or Chromatic until `@hull/ui` is a component catalog (`HANDOFF.md`).
+- Do not generate product UI with `image_gen`.
