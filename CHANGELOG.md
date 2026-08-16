@@ -17,6 +17,10 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ### Security
 
+- Credential endpoints are rate-limited at the edge. `/v1/auth/*` and `/v1/me/password` go through a Traefik `rateLimit` middleware (10/min per client IP, burst 20) on new routers at priority 200. Nothing throttled them before, so a breach list could be sprayed at full speed against an 8-character minimum. The counter is in Traefik's memory — `AGENTS.md` forbids adding Redis. Same limit in the dev edge: a dev override that behaves differently from prod is where rate-limit surprises come from.
+- `dbgate` is no longer an unauthenticated SQL console on the live database. It gets `LOGIN`/`PASSWORD` from `HULL_DBGATE_USER`/`HULL_DBGATE_PASSWORD` (without them its auth provider is literally `none`), and the `hull-db` router gets a Traefik `basicAuth` middleware — the second lock holds even if that image is swapped. `render-edge.sh` generates the htpasswd hash into the gitignored `dynamic.yml`, so it never lands in the tree.
+- `db.<host>` is only written to `/etc/hosts` when `HULL_STUDIO=1`. It was installed permanently, on Linux and Windows, for a profile that is off by default.
+
 - Session cookie now carries `Secure`. It never did: the flag was derived from the connection scheme, and uvicorn ran with `proxy_headers` but no `forwarded_allow_ips`, so Traefik's `X-Forwarded-Proto` was dropped (uvicorn trusts only `127.0.0.1`, Traefik dials from a bridge IP) and every live install saw `http`.
 - Changing the password now revokes **every** session including the caller's, and returns a fresh cookie. Previously the one token the code deliberately preserved was the caller's own — so a stolen cookie survived the action taken to revoke it, while the contract advertised "other sessions die".
 - `migrate.sh` refuses to apply the demo seed unless `HULL_HOST` ends in `.test`. The seed installs a `platform_admin` whose password is printed in the README and defaulted to on for any host.

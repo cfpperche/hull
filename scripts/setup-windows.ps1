@@ -3,7 +3,10 @@
 # Traefik publishes 127.0.0.1:443 only — never write ::1 (WSL does not forward Windows IPv6 loopback).
 param(
     [string]$HostName = $(if ($env:HULL_HOST) { $env:HULL_HOST } else { "hull.test" }),
-    [string]$CaPath = ""
+    [string]$CaPath = "",
+    # dbgate is opt-in (--profile studio). Off by default, so no permanent hosts
+    # entry for a SQL console nobody started.
+    [string]$Studio = $(if ($env:HULL_STUDIO) { $env:HULL_STUDIO } else { "0" })
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,11 +20,11 @@ foreach ($n in @(
     "admin.$HostName",
     "mail.$HostName",
     "s3.$HostName",
-    "rustfs.$HostName",
-    "db.$HostName"
+    "rustfs.$HostName"
 )) {
     if ($n) { [void]$Names.Add($n) }
 }
+if ($Studio -eq "1") { [void]$Names.Add("db.$HostName") }
 if (Test-Path $NamesFile) {
     Get-Content $NamesFile | ForEach-Object {
         $line = $_.Trim()
