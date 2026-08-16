@@ -139,7 +139,7 @@ services:
       HULL_S3_ACCESS_KEY: ${HULL_S3_ACCESS_KEY:-hull-s3}
       HULL_S3_SECRET_KEY: ${HULL_S3_SECRET_KEY:-hull-s3-lab-secret}
       HULL_S3_BUCKET_AVATARS: hull-avatars
-    command: ["hull-api"]
+    command: ["hull-fastapi"]
     networks: [hull]
 
   www:

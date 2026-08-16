@@ -26,7 +26,7 @@ This workstation: Hull binds `127.0.0.1:80` and `:443`. Postgres is published on
 ## Shipped
 
 - Three surfaces: www / web / admin
-- Schema in `schema/`, OpenAPI in `contracts/`, migrate via `scripts/migrate.sh`
+- Schema in `schema/`, OpenAPI in `contracts/`, default adapter in `adapters/fastapi/`, migrate via `scripts/migrate.sh`
 - Windows + WSL hosts/CA (`setup-windows-from-wsl.sh`)
 - `scripts/prune.sh` — no leftover migrate/testdb in the compose group
 - Agent files + visual harness (agent-browser)

@@ -4,9 +4,9 @@ import logging
 import smtplib
 from email.message import EmailMessage
 
-from hull_api.config import Settings
+from hull_fastapi.config import Settings
 
-log = logging.getLogger("hull_api.mail")
+log = logging.getLogger("hull_fastapi.mail")
 
 
 def send_mail(settings: Settings, *, to: str, subject: str, text: str) -> str:

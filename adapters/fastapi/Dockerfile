@@ -21,4 +21,4 @@ ENV PATH="/src/.venv/bin:$PATH" \
 
 WORKDIR /src
 EXPOSE 8080
-CMD ["hull-api"]
+CMD ["hull-fastapi"]

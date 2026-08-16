@@ -7,7 +7,7 @@ from botocore.client import Config
 from botocore.exceptions import ClientError
 from PIL import Image
 
-from hull_api.config import Settings
+from hull_fastapi.config import Settings
 
 ALLOWED = {"image/jpeg", "image/png", "image/webp"}
 

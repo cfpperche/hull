@@ -1,4 +1,4 @@
-from hull_api.config import Settings
+from hull_fastapi.config import Settings
 
 
 def test_mail_from_and_welcome_follow_brand() -> None:

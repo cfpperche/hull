@@ -12,6 +12,13 @@ compose() {
   docker compose "${compose_env[@]}" -f "$ROOT/deploy/compose.yaml" -p hull --profile test "$@"
 }
 
+cleanup() {
+  # Drop testdb from the hull group even if pytest fails. Volume stays for the next run.
+  compose stop testdb >/dev/null 2>&1 || true
+  compose rm -f testdb >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
 if ! docker ps --format '{{.Names}}' | grep -qx "$name"; then
   docker rm -f "$name" >/dev/null 2>&1 || true
   compose up -d testdb
@@ -35,10 +42,7 @@ fi
 export HULL_DATABASE_URL="postgresql://hull:hull@127.0.0.1:${port}/hull_test"
 HULL_PG_CONTAINER="$name" PGUSER=hull PGPASSWORD=hull PGDATABASE=hull_test HULL_SEED_DEMO=0 \
   "$ROOT/scripts/migrate.sh"
-cd "$ROOT/api"
+cd "$ROOT/adapters/fastapi"
 uv sync --extra dev
-uv run pytest -q
-# Drop testdb from the hull group; volume stays for the next run.
-compose stop testdb
-compose rm -f testdb
+uv run python -m pytest -q
 echo "TEST_OK"

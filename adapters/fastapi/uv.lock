@@ -181,7 +181,7 @@ wheels = [
 ]
 
 [[package]]
-name = "hull-api"
+name = "hull-fastapi"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

@@ -54,6 +54,6 @@ HULL_PG_CONTAINER=hull-pg \
 
 echo
 echo "DEV_OK  start these in other terminals:"
-echo "  cd $ROOT/api && uv run hull-api"
+echo "  cd $ROOT/adapters/fastapi && uv run hull-fastapi"
 echo "  cd $ROOT && pnpm install && pnpm dev:www && pnpm dev:web && pnpm dev:admin"
 echo "https://${HOST}/  https://app.${HOST}/  https://admin.${HOST}/"

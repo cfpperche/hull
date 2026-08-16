@@ -7,7 +7,7 @@ from pathlib import Path
 import psycopg
 from psycopg.rows import dict_row
 
-from hull_api.config import Settings
+from hull_fastapi.config import Settings
 
 
 @contextmanager
@@ -22,7 +22,7 @@ def connection(settings: Settings) -> Iterator[psycopg.Connection]:
 def schema_root(settings: Settings) -> Path:
     if settings.schema_dir:
         return Path(settings.schema_dir)
-    return Path(__file__).resolve().parents[3] / "schema"
+    return Path(__file__).resolve().parents[4] / "schema"
 
 
 def _apply_sql_dir(cur, table: str, directory: Path) -> None:

@@ -17,11 +17,12 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- HTTP implementation lives in `adapters/fastapi/` (`hull_fastapi`). Compose service `api` and image `hull-api` stay the process slot. The contract remains `contracts/openapi.yaml`.
 - Docs no longer name other products in this workspace. Hull stands alone.
 
 ### Fixed
 
-- `up` no longer leaves `hull-migrate` Exited in the VS Code group (`migrate` is profile `tools`; `compose run --rm`). `test.sh` removes `hull-test-pg` after pytest. `scripts/prune.sh` clears those leftovers.
+- `up` no longer leaves `hull-migrate` Exited in the VS Code group (`migrate` is profile `tools`; `compose run --rm`). `test.sh` removes `hull-test-pg` after pytest (also on failure). `scripts/prune.sh` clears those leftovers.
 
 ### Added
 

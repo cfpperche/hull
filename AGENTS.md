@@ -22,7 +22,7 @@ Small fix (one obvious file, no new object, no auth/tenancy, no new chrome): do 
 
 - Frontend: Vite + React + Tailwind 4 + shadcn **default**. No Next.js. No custom token sheet.
 - Schema: SQL in `schema/`. Migrate with `scripts/migrate.sh` (psql). Do not put DDL in FastAPI.
-- HTTP contract: `contracts/openapi.yaml`. FastAPI in `api/` is one adapter.
+- HTTP contract: `contracts/openapi.yaml`. The default adapter is `adapters/fastapi/`. Do not treat that folder as “the API”.
 - No database microservice. Postgres is the store.
 - Objects: **User** = login. **Org** = workspace. **Install** = this compose. Do not add Company/Store unless a product module needs a second level.
 - Edge: Traefik **inside** `deploy/compose.yaml`. Do not join an external Docker network.
@@ -72,6 +72,6 @@ Copy: verb + object, past tense, short. `Profile saved`. Not `Success!`
 
 - Add a worker, Redis, or Grafana unless a product module requires it.
 - Observe is JSON stdout + `install_events`. No collector required.
-- Do not put product domain in `packages/ui` or `api/` auth.
+- Do not put product domain in `packages/ui` or adapter auth.
 - Do not add Storybook or Chromatic until `@hull/ui` is a component catalog (`HANDOFF.md`).
 - Do not generate product UI with `image_gen`.

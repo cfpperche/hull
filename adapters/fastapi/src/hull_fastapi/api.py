@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse, Response as RawResponse
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from hull_api.accounts import (
+from hull_fastapi.accounts import (
     AccountError,
     SESSION_TTL,
     change_password,
@@ -29,11 +29,11 @@ from hull_api.accounts import (
     switch_org,
     update_profile,
 )
-from hull_api.config import Settings
-from hull_api.db import connection
-from hull_api.mail import send_mail
-from hull_api.observe import record_event
-from hull_api.storage import StorageError, get_avatar, put_avatar, s3_enabled
+from hull_fastapi.config import Settings
+from hull_fastapi.db import connection
+from hull_fastapi.mail import send_mail
+from hull_fastapi.observe import record_event
+from hull_fastapi.storage import StorageError, get_avatar, put_avatar, s3_enabled
 
 PROBLEM_JSON = "application/problem+json"
 

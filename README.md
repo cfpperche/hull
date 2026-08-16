@@ -80,7 +80,7 @@ apps/web          signed-in product
 apps/admin        platform / support
 packages/ui       ProductShell + shadcn
 packages/api-client
-api/              FastAPI adapter — implements contracts/ against schema/
+adapters/fastapi  default HTTP adapter (Compose service `api`)
 deploy/           compose, Traefik, nginx, certs
 modules/example   empty product slot
 scripts/          setup, migrate, up, smoke

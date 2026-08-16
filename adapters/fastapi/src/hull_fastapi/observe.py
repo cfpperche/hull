@@ -52,4 +52,4 @@ def record_event(
                     (str(uuid.uuid4()), source, event, level, org_id, json.dumps(payload or {})),
                 )
     except Exception:
-        logging.getLogger("hull_api.observe").warning("event write failed", exc_info=True)
+        logging.getLogger("hull_fastapi.observe").warning("event write failed", exc_info=True)
