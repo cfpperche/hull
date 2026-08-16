@@ -4,19 +4,11 @@ Standalone SaaS **hull** (app shell + chrome). Not a product.
 
 `CLAUDE.md`, `GROK.md`, and `CODEX.md` point here. Do not duplicate these rules there.
 
-Read **`HANDOFF.md`** first for what exists and what is next. Pipeline: `harness/orchestration.md`. Benchmarks by sector: `harness/benchmarks.md`. Visual loop: `harness/visual-ux.md`.
+Read **`HANDOFF.md`** first for what exists and what is next. Benchmarks by sector: `harness/benchmarks.md`. Visual loop: `harness/visual-ux.md`.
 
 Update `CHANGELOG.md` under `[Unreleased]` before every push to `main`.
 
-## Who does what
-
-| Agent | Role |
-|---|---|
-| **Grok** | Orchestrator on material slices. Classify, plan, present, wait for go, fold review. |
-| **Claude** | Only when the human asks. |
-| **Codex** | Adversarial review when the slice is auth, schema, cookie, or user-visible UI. |
-
-Small fix (one obvious file, no new object, no auth/tenancy, no new chrome): do it in the turn. Material work: `harness/<name>-plan.md`, then **go**.
+Agent operating model (who plans, who implements, who reviews) is **not defined**. Do not import a pipeline from another repo.
 
 ## Locks
 

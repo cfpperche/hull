@@ -20,13 +20,17 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 - HTTP implementation lives in `adapters/fastapi/` (`hull_fastapi`). Compose service `api` and image `hull-api` stay the process slot. The contract remains `contracts/openapi.yaml`.
 - Docs no longer name other products in this workspace. Hull stands alone.
 
+### Removed
+
+- Agent role split (Grok orchestrates, Claude only when asked, Codex adversarial review) and `harness/orchestration.md`. Hull’s operating model is not defined yet.
+
 ### Fixed
 
 - `up` no longer leaves `hull-migrate` Exited in the VS Code group (`migrate` is profile `tools`; `compose run --rm`). `test.sh` removes `hull-test-pg` after pytest (also on failure). `scripts/prune.sh` clears those leftovers.
 
 ### Added
 
-- Agent kit: `AGENTS.md` (single source), `CLAUDE.md` / `GROK.md` / `CODEX.md` pointers, `HANDOFF.md`, `harness/orchestration.md`, `harness/benchmarks.md`.
+- Agent kit: `AGENTS.md` (single source), `CLAUDE.md` / `GROK.md` / `CODEX.md` pointers, `HANDOFF.md`, `harness/benchmarks.md`.
 - Visual harness on **agent-browser** (not Playwright): `harness/scripts/capture-ui.sh`, `harness/visual-ux.md`, `.grok/skills/visual-ux`. Chromatic deferred until `@hull/ui` is a Storybook catalog.
 
 - Windows + WSL setup: `setup-windows.ps1` + `setup-windows-from-wsl.sh`. `setup-local.sh` on WSL opens UAC and writes Windows `hosts` + trusts the project CA. Chrome on Windows does not use the WSL `/etc/hosts`.
