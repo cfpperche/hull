@@ -41,7 +41,12 @@ done
 
 if grep -qi microsoft /proc/version 2>/dev/null; then
   echo
-  echo "WSL: add the same names to the Windows hosts file and trust deploy/certs/ca/ca.crt."
+  echo "WSL: launching Windows hosts + CA (UAC prompt)…"
+  if [[ -n "${SUDO_USER:-}" ]]; then
+    sudo -u "$SUDO_USER" --preserve-env=HULL_HOST "$ROOT/scripts/setup-windows-from-wsl.sh" || true
+  else
+    "$ROOT/scripts/setup-windows-from-wsl.sh" || true
+  fi
 fi
 
 echo

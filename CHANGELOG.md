@@ -15,6 +15,10 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- Windows + WSL setup: `setup-windows.ps1` + `setup-windows-from-wsl.sh`. `setup-local.sh` on WSL opens UAC and writes Windows `hosts` + trusts the project CA (same ritual as Opt). Chrome on Windows does not use the WSL `/etc/hosts`.
+
 ### Changed
 
 - Default host is **`hull.test`**. `.dev` is a public gTLD (`hull.dev` resolves on the internet, HSTS preload). `.local` is reserved for mDNS — do not use it.

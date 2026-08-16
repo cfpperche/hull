@@ -8,7 +8,7 @@ Clone the repo. Install Docker (Compose v2) and openssl. The scripts create cert
 git clone https://github.com/cfpperche/hull.git
 cd hull
 cp .env.example .env
-sudo ./scripts/setup-local.sh
+sudo ./scripts/setup-local.sh   # Linux hosts + CA; on WSL also opens Windows UAC
 ./scripts/up.sh
 ./scripts/smoke.sh
 ```
@@ -51,7 +51,8 @@ No Next.js. No worker. No billing. No SSO.
 
 | Script | Does |
 |---|---|
-| `./scripts/setup-local.sh` | Certs, `/etc/hosts`, trust CA (sudo, once) |
+| `./scripts/setup-local.sh` | Certs, Linux `/etc/hosts` + CA; on WSL also Windows hosts + CA (UAC) |
+| `./scripts/setup-windows-from-wsl.sh` | Windows only (from WSL): UAC → hosts + trust CA |
 | `./scripts/up.sh` | Build missing images, migrate, start the block |
 | `./scripts/smoke.sh` | www + health + signup + org isolation |
 | `./scripts/down.sh` | Stop. `./scripts/down.sh -v` wipes volumes |
