@@ -25,12 +25,12 @@ Refuse from that set: ERP master data, Inter+purple slop.
 ## admin / support
 
 **Copy:** Vercel / Linear “viewing as” bar + Stop. Support impersonates an **org**.  
-**Refuse:** minting the customer JWT (Supabase “impersonate user” as the product), Quinyx “view as employee”, key-paste as the human door.
+**Refuse:** minting the customer JWT (Supabase “impersonate user” as the product), viewing the app as a different login, key-paste as the human door.
 
 ## lab / install
 
-**Copy:** Opt deploy ritual: compose group, project CA, Mailpit, `setup-local` + Windows UAC.  
-**Refuse:** shared workstation Traefik, Grafana/Loki stack, `docker run` orphans.
+**Copy:** one compose project, project CA, Mailpit, `setup-local` + Windows UAC.  
+**Refuse:** joining an external Traefik, Grafana/Loki stack, `docker run` orphans.
 
 ## schema / HTTP contract
 

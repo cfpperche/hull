@@ -2,7 +2,7 @@
 
 **Normative.** The human talks to Grok. On a **material** slice Grok does not silently implement: it classifies, writes or delegates a plan, presents, waits for **go**.
 
-This is one git repo. Do not import Opt’s polyrepo Codex-on-everything loop.
+This is one git repo. Do not invent a second process or a mandatory review on every one-line fix.
 
 ## Size
 

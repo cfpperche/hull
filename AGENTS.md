@@ -1,6 +1,6 @@
 # Agent guidelines — Hull
 
-Standalone SaaS **hull** (app shell + chrome). Not a product. Not Opt.
+Standalone SaaS **hull** (app shell + chrome). Not a product.
 
 `CLAUDE.md`, `GROK.md`, and `CODEX.md` point here. Do not duplicate these rules there.
 

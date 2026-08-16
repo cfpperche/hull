@@ -21,7 +21,7 @@ sudo ./scripts/setup-local.sh    # Linux hosts+CA; WSL also Windows UAC
 
 Lab: `ada@hull.test` / `demodemo1`. Admin: `admin@hull.test` / `demodemo1`.
 
-This workstation: Opt was stopped to free `:80/:443`. Hull Postgres is `:55435` (host `:5432` is taken). Bring Opt back with `cd /home/goat/opt/opt-deploy && ./scripts/up.sh` (stops Hull edge).
+This workstation: Hull binds `127.0.0.1:80` and `:443`. Postgres is published on `:55435` when `:5432` is already taken. Another compose project on the same edge must be down first.
 
 ## Shipped
 

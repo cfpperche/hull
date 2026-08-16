@@ -64,7 +64,7 @@ No Next.js. No worker. No billing. No SSO.
 
 80/443 on loopback must be free (or already owned by `hull-traefik`).
 
-Compose project name is **`hull`**. Docker Desktop / VS Code Containers shows one folder, like Opt and CognixSE. Pytest Postgres is `testdb` (`--profile test`) in that same group. Do not `docker run` Hull containers.
+Compose project name is **`hull`**. Docker Desktop / VS Code Containers shows one folder. Pytest Postgres is `testdb` (`--profile test`) in that same group. Do not `docker run` Hull containers.
 
 Changelog: [`CHANGELOG.md`](CHANGELOG.md). Update `[Unreleased]` before pushing `main`.
 

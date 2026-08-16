@@ -15,6 +15,10 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- Docs no longer name other products in this workspace. Hull stands alone.
+
 ### Fixed
 
 - `up` no longer leaves `hull-migrate` Exited in the VS Code group (`migrate` is profile `tools`; `compose run --rm`). `test.sh` removes `hull-test-pg` after pytest. `scripts/prune.sh` clears those leftovers.
@@ -24,7 +28,7 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 - Agent kit: `AGENTS.md` (single source), `CLAUDE.md` / `GROK.md` / `CODEX.md` pointers, `HANDOFF.md`, `harness/orchestration.md`, `harness/benchmarks.md`.
 - Visual harness on **agent-browser** (not Playwright): `harness/scripts/capture-ui.sh`, `harness/visual-ux.md`, `.grok/skills/visual-ux`. Chromatic deferred until `@hull/ui` is a Storybook catalog.
 
-- Windows + WSL setup: `setup-windows.ps1` + `setup-windows-from-wsl.sh`. `setup-local.sh` on WSL opens UAC and writes Windows `hosts` + trusts the project CA (same ritual as Opt). Chrome on Windows does not use the WSL `/etc/hosts`.
+- Windows + WSL setup: `setup-windows.ps1` + `setup-windows-from-wsl.sh`. `setup-local.sh` on WSL opens UAC and writes Windows `hosts` + trusts the project CA. Chrome on Windows does not use the WSL `/etc/hosts`.
 
 ### Changed
 
@@ -35,7 +39,7 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 - White-label **values** in `.env`: `HULL_BRAND`, `HULL_MARK`, `HULL_COOKIE_NAME`, plus existing `HULL_HOST`. `scripts/render-brand.sh` writes `/config.json` at start (no SPA rebuild). Chrome, mail subject/from, and lab seed emails follow those values.
 - Lab seed template `schema/seed/001_lab.sql.tmpl` (`ada@` + host).
 - Compose `testdb` (`profile: test`) so pytest Postgres lives in the **hull** group in Docker Desktop / VS Code Containers.
-- Labels `hull.project` / `hull.role` on every service, same grouping contract as Opt.
+- Labels `hull.project` / `hull.role` on every service so the compose project groups in Docker Desktop / VS Code.
 
 ### Changed
 
