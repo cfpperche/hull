@@ -17,6 +17,7 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ### Changed
 
+- Benchmarks: only Vercel / Linear / Supabase (plus Stripe on www). Do not import another product’s sector list.
 - First visual pass: Tailwind now scans `@hull/ui` (shell/button/input were shipping unstyled). Desktop rail, centered auth with brand, quiet empty home, no surface cards on www.
 - HTTP implementation lives in `adapters/fastapi/` (`hull_fastapi`). Compose service `api` and image `hull-api` stay the process slot. The contract remains `contracts/openapi.yaml`.
 - Docs no longer name other products in this workspace. Hull stands alone.

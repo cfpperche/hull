@@ -7,6 +7,8 @@ Search the **product**, not only the marketing site.
 Chrome set (shared): **Vercel**, **Linear**, **Supabase**.  
 Refuse from that set: ERP master data, Inter+purple slop.
 
+This file is the only sector list. Do not import another product’s family (WFM, last-mile, rostering, or any other repo’s benchmarks).
+
 ## www — landing, CTA, no cookie
 
 **Copy:** Vercel / Linear marketing, Stripe. One headline, one primary CTA to `app…/signup`, quiet footer.  

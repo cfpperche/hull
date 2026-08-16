@@ -36,7 +36,7 @@ Support impersonates an **org**. Do not mint the customer’s session.
 
 ## UI/UX — research before pixels
 
-Before changing layout, navigation, forms, empty states, onboarding, or copy, read **`harness/benchmarks.md`** for **that sector**. One family is not enough when the slice spans two sectors (e.g. www CTA + web signup).
+Before changing layout, navigation, forms, empty states, onboarding, or copy, read **`harness/benchmarks.md`** for **that sector**. That file is the only set. Do not pull a sector family from another repo.
 
 Write 3–6 sentences in the turn: what those products do, what we copy, what we refuse. Then implement. Do not invent a third visual language.
 
