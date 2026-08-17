@@ -43,7 +43,9 @@ def verify_password(password: str, stored: str) -> bool:
         return False
     if kind != "scrypt":
         return False
-    got = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt_hex), n=2**14, r=8, p=1, dklen=32)
+    got = hashlib.scrypt(
+        password.encode(), salt=bytes.fromhex(salt_hex), n=2**14, r=8, p=1, dklen=32
+    )
     return hmac.compare_digest(got, bytes.fromhex(dk_hex))
 
 
@@ -69,7 +71,9 @@ def new_session_secret() -> str:
 def _username(value: str) -> str:
     raw = value.strip().lower()
     if not _USERNAME_RE.match(raw):
-        raise AccountError("request_validation_error", "username must be 3–24 letters, numbers, or _")
+        raise AccountError(
+            "request_validation_error", "username must be 3–24 letters, numbers, or _"
+        )
     return raw
 
 
@@ -179,7 +183,13 @@ def _insert_session(
             INSERT INTO sessions (id, session_hash, user_id, org_id, expires_at)
             VALUES (%s, %s, %s, %s, %s)
             """,
-            (str(uuid.uuid4()), hash_session(raw), user_id, org_id, datetime.now(UTC) + SESSION_TTL),
+            (
+                str(uuid.uuid4()),
+                hash_session(raw),
+                user_id,
+                org_id,
+                datetime.now(UTC) + SESSION_TTL,
+            ),
         )
     return raw
 
@@ -224,7 +234,9 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
     )
 
 
-def signup(conn: psycopg.Connection, *, username: str, email: str, password: str) -> tuple[dict[str, Any], str]:
+def signup(
+    conn: psycopg.Connection, *, username: str, email: str, password: str
+) -> tuple[dict[str, Any], str]:
     email_n = normalize_email(email)
     if not email_n or "@" not in email_n:
         raise AccountError("request_validation_error", "email is required")
@@ -328,7 +340,9 @@ def switch_org(conn: psycopg.Connection, *, user_id: str, org_id: str, raw: str)
     return me_body(conn, sess)
 
 
-def update_profile(conn: psycopg.Connection, *, user_id: str, username: str | None, name: str | None) -> None:
+def update_profile(
+    conn: psycopg.Connection, *, user_id: str, username: str | None, name: str | None
+) -> None:
     """Update only the fields the caller sent.
 
     `None` means "not provided, leave alone". An empty `name` clears the column —
@@ -374,14 +388,18 @@ def change_password(conn: psycopg.Connection, *, user_id: str, current: str, pas
         cur.execute("SELECT org_id FROM sessions WHERE user_id = %s LIMIT 1", (user_id,))
         prev = cur.fetchone()
         org_id = str(prev["org_id"]) if prev and prev["org_id"] else None
-        cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (hash_password(password), user_id))
+        cur.execute(
+            "UPDATE users SET password_hash = %s WHERE id = %s", (hash_password(password), user_id)
+        )
         cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
     token = _insert_session(conn, user_id=user_id, org_id=org_id)
     conn.commit()
     return token
 
 
-def close_account(conn: psycopg.Connection, *, user_id: str, password: str, platform_role: str | None) -> None:
+def close_account(
+    conn: psycopg.Connection, *, user_id: str, password: str, platform_role: str | None
+) -> None:
     if platform_role == "platform_admin":
         raise AccountError("forbidden", "platform admin cannot close")
     with conn.cursor() as cur:
@@ -487,7 +505,13 @@ def support_start(conn: psycopg.Connection, *, user_id: str, org_id: str) -> str
             INSERT INTO support_handoffs (id, token_hash, user_id, org_id, expires_at)
             VALUES (%s, %s, %s, %s, %s)
             """,
-            (str(uuid.uuid4()), hash_session(raw), user_id, org_id, datetime.now(UTC) + HANDOFF_TTL),
+            (
+                str(uuid.uuid4()),
+                hash_session(raw),
+                user_id,
+                org_id,
+                datetime.now(UTC) + HANDOFF_TTL,
+            ),
         )
     conn.commit()
     return raw

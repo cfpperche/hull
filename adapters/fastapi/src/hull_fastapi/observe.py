@@ -42,14 +42,13 @@ def record_event(
     payload: dict[str, Any] | None = None,
 ) -> None:
     try:
-        with conn.transaction():
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
+        with conn.transaction(), conn.cursor() as cur:
+            cur.execute(
+                """
                     INSERT INTO install_events (id, source, event, level, org_id, payload)
                     VALUES (%s, %s, %s, %s, %s, %s)
                     """,
-                    (str(uuid.uuid4()), source, event, level, org_id, json.dumps(payload or {})),
-                )
+                (str(uuid.uuid4()), source, event, level, org_id, json.dumps(payload or {})),
+            )
     except Exception:
         logging.getLogger("hull_fastapi.observe").warning("event write failed", exc_info=True)

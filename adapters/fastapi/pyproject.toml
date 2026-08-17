@@ -38,3 +38,28 @@ pythonpath = ["src", "tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.lint]
+# Explicit, not inherited. Ruff widens its default rule set between releases, so
+# an implicit default would let a routine upgrade turn CI red on untouched code.
+select = ["E", "F", "I", "B", "C4", "SIM", "UP"]
+# `ruff format` owns line length. E501 only fires where the formatter cannot
+# help — a long SQL line inside a triple-quoted string — so keeping it would buy
+# scattered noqa comments and nothing else. CI runs `ruff format --check`.
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# B008 flags a call in an argument default. That IS FastAPI's dependency
+# injection — `sess=Depends(require_session)` is the documented idiom, not a
+# mutable-default bug. Exempt the injectors rather than silencing the rule,
+# which still catches a real `def f(x=[])`.
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Cookie",
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Header",
+    "fastapi.Path",
+    "fastapi.Query",
+]

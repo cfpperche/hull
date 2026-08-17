@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import psycopg
 import pytest
+from fastapi.testclient import TestClient
 
 from hull_fastapi.api import create_app
 from hull_fastapi.db import connection
-from fastapi.testclient import TestClient
 
 
 def _admin(client, settings, unique: str) -> str:

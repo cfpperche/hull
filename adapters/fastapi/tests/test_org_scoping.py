@@ -18,19 +18,19 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 
 
 def _principal(**over) -> SessionPrincipal:
-    base = dict(
-        user_id="u1",
-        email="op@hull.test",
-        username="op",
-        display_name="Op",
-        session_org_id=None,
-        org_name=None,
-        platform_role=None,
-        avatar_key=None,
-        acting_org_id=None,
-        acting_org_name=None,
-        acting_expires_at=None,
-    )
+    base = {
+        "user_id": "u1",
+        "email": "op@hull.test",
+        "username": "op",
+        "display_name": "Op",
+        "session_org_id": None,
+        "org_name": None,
+        "platform_role": None,
+        "avatar_key": None,
+        "acting_org_id": None,
+        "acting_org_name": None,
+        "acting_expires_at": None,
+    }
     base.update(over)
     return SessionPrincipal(**base)
 

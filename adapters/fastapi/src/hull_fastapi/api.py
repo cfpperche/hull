@@ -7,14 +7,15 @@ from uuid import UUID
 from fastapi import Depends, FastAPI, File, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response as RawResponse
+from fastapi.responses import JSONResponse
+from fastapi.responses import Response as RawResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from hull_fastapi.accounts import (
-    AccountError,
     SESSION_TTL,
     SUPPORT_TTL,
+    AccountError,
     change_password,
     close_account,
     consume_handoff,
@@ -142,7 +143,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def http_handler(_request: Request, exc: StarletteHTTPException) -> JSONResponse:
         detail = exc.detail
         if isinstance(detail, dict) and "reason_code" in detail:
-            return JSONResponse(status_code=exc.status_code, content=detail, media_type=PROBLEM_JSON)
+            return JSONResponse(
+                status_code=exc.status_code, content=detail, media_type=PROBLEM_JSON
+            )
         if exc.status_code == 404:
             return problem(404, "Not found", "Not found", "not_found")
         return problem(exc.status_code, "Error", str(detail), "http_error")
@@ -161,7 +164,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if request.method == "POST" and request.url.path.rstrip("/").endswith("/v1/me/avatar"):
             declared = request.headers.get("content-length")
             if declared is None or not declared.isdigit():
-                return problem(411, "Length required", "content-length is required", "request_validation_error")
+                return problem(
+                    411, "Length required", "content-length is required", "request_validation_error"
+                )
             if int(declared) > MAX_UPLOAD_BYTES:
                 return problem(413, "Too large", "photo is too large", "request_validation_error")
         return await call_next(request)
@@ -185,7 +190,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # none of which authenticate anyone, and SameSite=lax does not separate
     # same-site siblings. Host-scoped means app. and admin. hold separate
     # sessions; "View as" bridges them with a one-time hand-off token.
-    def _set_cookie(request: Request, response: Response, raw: str, *, max_age: int | None = None) -> None:
+    def _set_cookie(
+        request: Request, response: Response, raw: str, *, max_age: int | None = None
+    ) -> None:
         response.set_cookie(
             key=settings.cookie_name,
             value=raw,
@@ -248,7 +255,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 body, token = signup(
                     conn, username=payload.username, email=payload.email, password=payload.password
                 )
-                record_event(conn, source="api", event="auth.signup", payload={"email": payload.email.lower()})
+                record_event(
+                    conn,
+                    source="api",
+                    event="auth.signup",
+                    payload={"email": payload.email.lower()},
+                )
                 conn.commit()
         except AccountError as exc:
             return _account_http(exc)
@@ -266,7 +278,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             with connection(settings) as conn:
                 body, token = signin(conn, email=payload.email, password=payload.password)
-                record_event(conn, source="api", event="auth.signin", payload={"email": payload.email.lower()})
+                record_event(
+                    conn,
+                    source="api",
+                    event="auth.signin",
+                    payload={"email": payload.email.lower()},
+                )
                 conn.commit()
         except AccountError as exc:
             return _account_http(exc)
@@ -287,7 +304,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return me_body(conn, sess)
 
     @app.patch("/v1/me")
-    def patch_me(payload: ProfileBody, request: Request, sess=Depends(require_session)) -> dict[str, Any]:
+    def patch_me(
+        payload: ProfileBody, request: Request, sess=Depends(require_session)
+    ) -> dict[str, Any]:
         # Only forward what the client actually sent, so an omitted field is left
         # alone while an empty one is an explicit clear.
         sent = payload.model_fields_set
@@ -306,7 +325,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return _account_http(exc)
 
     @app.post("/v1/me/password", status_code=204)
-    def me_password(payload: PasswordBody, request: Request, response: Response, sess=Depends(require_session)) -> None:
+    def me_password(
+        payload: PasswordBody, request: Request, response: Response, sess=Depends(require_session)
+    ) -> None:
         try:
             with connection(settings) as conn:
                 token = change_password(
@@ -332,11 +353,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         _set_cookie(request, response, token)
 
     @app.delete("/v1/me", status_code=204)
-    def me_delete(payload: CloseBody, request: Request, response: Response, sess=Depends(require_session)) -> None:
+    def me_delete(
+        payload: CloseBody, request: Request, response: Response, sess=Depends(require_session)
+    ) -> None:
         avatar_key = sess.avatar_key
         try:
             with connection(settings) as conn:
-                close_account(conn, user_id=sess.user_id, password=payload.password, platform_role=sess.platform_role)
+                close_account(
+                    conn,
+                    user_id=sess.user_id,
+                    password=payload.password,
+                    platform_role=sess.platform_role,
+                )
         except AccountError as exc:
             status = 403 if exc.reason_code == "forbidden" else 401
             raise StarletteHTTPException(
@@ -355,14 +383,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         _clear_cookie(request, response)
 
     @app.post("/v1/me/avatar")
-    def me_avatar(request: Request, file: UploadFile = File(...), sess=Depends(require_session)) -> dict[str, bool]:
+    def me_avatar(
+        request: Request, file: UploadFile = File(...), sess=Depends(require_session)
+    ) -> dict[str, bool]:
         if not s3_enabled(settings):
-            return _account_http(StorageError("storage_not_configured", "object store is not configured"))
+            return _account_http(
+                StorageError("storage_not_configured", "object store is not configured")
+            )
         # Bounded read: never materialise more than the cap plus one byte, even if
         # the declared Content-Length that got us past the middleware was a lie.
         data = file.file.read(MAX_AVATAR_BYTES + 1)
         try:
-            key = put_avatar(settings, user_id=sess.user_id, data=data, content_type=file.content_type or "")
+            key = put_avatar(
+                settings, user_id=sess.user_id, data=data, content_type=file.content_type or ""
+            )
             with connection(settings) as conn:
                 set_avatar_key(conn, user_id=sess.user_id, key=key)
         except StorageError as exc:
@@ -380,7 +414,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return RawResponse(content=body, media_type="image/webp")
 
     @app.post("/v1/orgs", status_code=201)
-    def orgs_create(payload: OrgBody, request: Request, sess=Depends(require_session)) -> dict[str, Any]:
+    def orgs_create(
+        payload: OrgBody, request: Request, sess=Depends(require_session)
+    ) -> dict[str, Any]:
         raw = request.cookies.get(settings.cookie_name) or ""
         try:
             with connection(settings) as conn:
@@ -392,7 +428,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return _account_http(exc)
 
     @app.post("/v1/session/org")
-    def session_org(payload: SwitchBody, request: Request, sess=Depends(require_session)) -> dict[str, Any]:
+    def session_org(
+        payload: SwitchBody, request: Request, sess=Depends(require_session)
+    ) -> dict[str, Any]:
         raw = request.cookies.get(settings.cookie_name) or ""
         try:
             with connection(settings) as conn:
@@ -442,7 +480,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return _account_http(exc)
 
     @app.post("/v1/session/handoff")
-    def session_handoff(payload: HandoffBody, request: Request, response: Response) -> dict[str, Any]:
+    def session_handoff(
+        payload: HandoffBody, request: Request, response: Response
+    ) -> dict[str, Any]:
         """Exchange a hand-off token for a session on this host.
 
         Deliberately unauthenticated: the browser arrives here with no cookie for
@@ -457,7 +497,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return body
 
     @app.delete("/v1/admin/support", status_code=204)
-    def admin_support_stop(request: Request, response: Response, sess=Depends(require_session)) -> None:
+    def admin_support_stop(
+        request: Request, response: Response, sess=Depends(require_session)
+    ) -> None:
         """End impersonation by ending the session it lives on."""
         with connection(settings) as conn:
             support_stop(conn, raw=request.cookies.get(settings.cookie_name) or "")

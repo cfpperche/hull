@@ -6,9 +6,9 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+from hull_fastapi.api import create_app
 from hull_fastapi.config import Settings
 from hull_fastapi.db import connection
-from hull_fastapi.api import create_app
 
 
 def _database_url() -> str | None:

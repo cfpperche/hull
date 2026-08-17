@@ -71,6 +71,10 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 - The admin app has a catch-all route; unknown paths rendered a blank page.
 - `scripts/lib/env.sh` is the one place `.env` is read.
 
+### Added
+
+- `scripts/test.sh` gates on `ruff check` and `ruff format --check`, so CI enforces them. The rule set is pinned explicitly rather than inherited: ruff widens its defaults between releases, and an implicit default would let a routine upgrade turn CI red on untouched code. FastAPI's injectors are exempted from B008 through `extend-immutable-calls` instead of silencing the rule, so a real `def f(x=[])` is still caught, and `E501` is left to the formatter.
+
 ### Removed
 
 - The second migration runner inside the FastAPI adapter (`db.py`), which carried its own DDL against the `AGENTS.md` schema lock and could silently drift from `scripts/migrate.sh`. Tests now rely on the bash runner.
