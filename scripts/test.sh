@@ -49,5 +49,7 @@ HULL_PG_CONTAINER="$name" PGUSER=hull PGPASSWORD=hull PGDATABASE=hull_test HULL_
   "$ROOT/scripts/migrate.sh"
 cd "$ROOT/adapters/fastapi"
 uv sync --locked --extra dev
+uv run ruff check src tests
+uv run ruff format --check src tests
 uv run python -m pytest -q
 echo "TEST_OK"
