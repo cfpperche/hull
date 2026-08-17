@@ -73,6 +73,7 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
+- A **Lab** group in the admin sidebar linking to the services compose brings up next to the product — Mail (Mailpit), Objects (RustFS console) and Database (dbgate). They were reachable only by typing the hostname. Admin only: these are operator tools, not product surfaces. Hosts come from `labOrigin()` in `@hull/config`, built at runtime from `/config.json`, so a white-label apex follows without a rebuild and nothing is baked into the bundle.
 - `scripts/test.sh` gates on `ruff check` and `ruff format --check`, so CI enforces them. The rule set is pinned explicitly rather than inherited: ruff widens its defaults between releases, and an implicit default would let a routine upgrade turn CI red on untouched code. FastAPI's injectors are exempted from B008 through `extend-immutable-calls` instead of silencing the rule, so a real `def f(x=[])` is still caught, and `E501` is left to the formatter.
 
 ### Removed

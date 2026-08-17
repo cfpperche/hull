@@ -1,6 +1,6 @@
-import { Building2, LayoutDashboard, Users } from "lucide-react";
+import { Building2, Database, HardDrive, LayoutDashboard, Mail, Users } from "lucide-react";
 import { BrowserRouter, Route, Routes } from "react-router";
-import { originFor } from "@hull/config";
+import { labOrigin, originFor } from "@hull/config";
 import { Button, ProductShell, useBrand } from "@hull/ui";
 import { useSession } from "./lib/session";
 import { NotFoundPage } from "./pages/NotFound";
@@ -18,7 +18,7 @@ export function App() {
 }
 
 function AdminApp() {
-  const { brand, mark } = useBrand();
+  const { brand, mark, host } = useBrand();
   const { ready, signedIn, me, signOut } = useSession();
   if (!ready) return <div className="text-muted-foreground p-8 text-sm">Loading…</div>;
   if (!signedIn) return <SigninPage />;
@@ -35,9 +35,24 @@ function AdminApp() {
             mark={mark}
             brandHint="Admin"
             nav={[
-              { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
-              { to: "/users", label: "Users", icon: Users },
-              { to: "/orgs", label: "Workspaces", icon: Building2 },
+              {
+                items: [
+                  { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
+                  { to: "/users", label: "Users", icon: Users },
+                  { to: "/orgs", label: "Workspaces", icon: Building2 },
+                ],
+              },
+              {
+                // The services compose brings up next to the product. Hosts come
+                // from /config.json, so a white-label apex follows without a
+                // rebuild. Admin only — these are operator tools.
+                label: "Lab",
+                items: [
+                  { to: labOrigin("mail", host), label: "Mail", icon: Mail, external: true },
+                  { to: labOrigin("objects", host), label: "Objects", icon: HardDrive, external: true },
+                  { to: labOrigin("db", host), label: "Database", icon: Database, external: true },
+                ],
+              },
             ]}
             footer={
               <Button type="button" variant="ghost" className="w-full justify-start" data-testid="sign-out" onClick={() => void signOut()}>
