@@ -68,6 +68,23 @@ jobs:
           EOF
 
       - run: cp .env.example .env
+
+      # Anonymous pulls are rate-limited per source IP and Actions runners share
+      # them, so a cold run can fail on "Rate exceeded" before a single test runs.
+      # Pull with backoff first; up.sh then finds everything local.
+      - name: Pull base images with retries
+        run: |
+          images=$(docker compose --env-file .env -f deploy/compose.yaml -p hull config --images \
+                   | sort -u | grep -v '^hull-')
+          for img in $images; do
+            for attempt in 1 2 3 4 5; do
+              if docker pull -q "$img" >/dev/null; then break; fi
+              if [ "$attempt" = 5 ]; then echo "giving up on $img" >&2; exit 1; fi
+              echo "retry $attempt for $img"
+              sleep $((attempt * 20))
+            done
+          done
+
       - name: Bring up the stack
         run: ./scripts/up.sh
 
