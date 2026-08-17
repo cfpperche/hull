@@ -4,24 +4,38 @@ Standalone SaaS **hull** (app shell + chrome). Not a product.
 
 `CLAUDE.md`, `GROK.md`, and `CODEX.md` point here. Do not duplicate these rules there.
 
-Read **`HANDOFF.md`** first for what exists and what is next. Benchmarks by sector: `harness/benchmarks.md`. Visual loop: `harness/visual-ux.md`.
+Read **`HANDOFF.md`** first for what exists and what is next.
 
-Update `CHANGELOG.md` under `[Unreleased]` before every push to `main`.
+| Where | What |
+|---|---|
+| [`HANDOFF.md`](./HANDOFF.md) | State of play. Read at session start. |
+| [`docs/adr/`](./docs/adr/) | Why each decision was made, and which ones were superseded. |
+| [`docs/domain.md`](./docs/domain.md) | What User, Org and Install mean; signup, isolation, support, sessions. |
+| [`harness/action-feedback.md`](./harness/action-feedback.md) | What every write must confirm. Normative. |
+| [`harness/benchmarks.md`](./harness/benchmarks.md) | Sector research, before pixels. |
+| [`harness/visual-ux.md`](./harness/visual-ux.md) | Driving the browser to judge pixels. |
+| [`CHANGELOG.md`](./CHANGELOG.md) | Update under `[Unreleased]` before every push to `main`. |
 
-Agent operating model (who plans, who implements, who reviews) is **not defined**. Do not import a pipeline from another repo.
+Agent operating model (who plans, who implements, who reviews) is **not defined**.
+Do not import a pipeline from another repo.
 
 ## Locks
 
-- Frontend: Vite + React + Tailwind 4 + shadcn **default**. No Next.js. No custom token sheet.
-- Schema: SQL in `schema/`. Migrate with `scripts/migrate.sh` (psql). Do not put DDL in FastAPI.
-- HTTP contract: `contracts/openapi.yaml`. The default adapter is `adapters/fastapi/`. Do not treat that folder as “the API”.
-- No database microservice. Postgres is the store.
-- Objects: **User** = login. **Org** = workspace. **Install** = this compose. Do not add Company/Store unless a product module needs a second level.
-- Edge: Traefik **inside** `deploy/compose.yaml`. Do not join an external Docker network.
+Hard invariants. Each links to the decision that explains it — change the decision
+first, with a new ADR, not the code.
+
+- Frontend: Vite + React + Tailwind 4 + shadcn **default**. No Next.js. No custom token sheet. → [0001](./docs/adr/0001-vite-react-shadcn-default-no-next.md)
+- Schema: SQL in `schema/`. Migrate with `scripts/migrate.sh`. Do not put DDL in an adapter. → [0002](./docs/adr/0002-sql-in-schema-applied-by-migrate-sh.md)
+- HTTP contract: `contracts/openapi.yaml`. The default adapter is `adapters/fastapi/`. Do not treat that folder as "the API". → [0003](./docs/adr/0003-openapi-yaml-is-the-contract.md)
+- No database microservice, no Redis, no queue. Postgres is the store. → [0004](./docs/adr/0004-postgres-is-the-store.md)
+- Edge: Traefik **inside** `deploy/compose.yaml`. Do not join an external Docker network. → [0005](./docs/adr/0005-traefik-inside-the-compose-project.md)
+- White-label **values** live in `.env`. Chrome reads `/config.json`. Do not bake `VITE_HULL_HOST`. → [0006](./docs/adr/0006-white-label-values-at-runtime.md)
+- Hosts: `*.test` (default `hull.test`, RFC 6761). Not `.dev`. Not `.local`. → [0007](./docs/adr/0007-hosts-are-dot-test.md)
+- The session cookie is host-scoped. `app.` and `admin.` are separate sessions. → [0009](./docs/adr/0009-host-scoped-cookie-and-support-hand-off.md)
+- Resolve the org with `accounts.effective_org_id(sess)` and nothing else. → [0010](./docs/adr/0010-effective-org-id-is-the-only-org-accessor.md)
+- Objects: **User** = login, **Org** = workspace, **Install** = this compose. No Company/Store. → [`docs/domain.md`](./docs/domain.md)
+- Support impersonates an **org**. Do not mint the customer's session. → [`docs/domain.md`](./docs/domain.md)
 - Compose project name is **`hull`**. Never `docker run` a Hull process.
-- Hosts: `*.test` (default `hull.test`, RFC 6761). Not `.dev`. Not `.local` (mDNS).
-- White-label **values** live in `.env` (`HULL_HOST`, `HULL_BRAND`, `HULL_MARK`, `HULL_COOKIE_NAME`). Chrome reads `/config.json`. Do not bake `VITE_HULL_HOST`.
-- Signup: username + email + password. Then one workspace name.
 - Windows Chrome does not use WSL `/etc/hosts`. `setup-local.sh` on WSL must open UAC (`setup-windows-from-wsl.sh`).
 
 ## Surfaces
@@ -32,33 +46,29 @@ Agent operating model (who plans, who implements, who reviews) is **not defined*
 | `apps/web` | `app.hull.test` | cookie |
 | `apps/admin` | `admin.hull.test` | `platform_admin` |
 
-Support impersonates an **org**. Do not mint the customer’s session.
-
 ## UI/UX — research before pixels
 
-Before changing layout, navigation, forms, empty states, onboarding, or copy, read **`harness/benchmarks.md`** for **that sector**. That file is the only set. Do not pull a sector family from another repo.
+Before changing layout, navigation, forms, empty states, onboarding, or copy, read
+**`harness/benchmarks.md`** for **that sector**. That file is the only set. Do not
+pull a sector family from another repo.
 
-Write 3–6 sentences in the turn: what those products do, what we copy, what we refuse. Then implement. Do not invent a third visual language.
+Write 3–6 sentences in the turn: what those products do, what we copy, what we
+refuse. Then implement. Do not invent a third visual language.
 
-Visual judgment requires **pixels** (`harness/visual-ux.md`, skill `visual-ux`). Research is not a screenshot substitute. Drive the browser with **agent-browser**, not Playwright MCP.
+Visual judgment requires **pixels** (`harness/visual-ux.md`, skill `visual-ux`).
+Research is not a screenshot substitute. Drive the browser with **agent-browser**,
+not Playwright MCP.
 
-## Action feedback
+Every write must confirm — **`harness/action-feedback.md`** is normative.
 
-Every write the operator starts must confirm. A button that returns to idle with no change is a bug.
+## Verifying
 
-| Action | Confirmation |
-|---|---|
-| Settings save, photo upload, non-destructive write that stays on the page | Short toast (`toast.success`). Button pending while in flight. |
-| Field / schema validation | Inline next to the field. Do not toast schema errors. |
-| Unexpected API failure on a form | Inline on the form. Toast only if the error would be off-screen. |
-| Create that navigates to the new object | The destination is the confirmation. |
-| Destructive / irreversible | Dialog **before**. After success: navigate or toast. |
-| Immediate toggle / checkbox | The control state is the confirmation. |
-| Long job | Progress toast / run card. |
+`./scripts/test.sh` runs ruff, the formatter check, then pytest. `./scripts/smoke.sh`
+exercises the live stack and validates TLS against the system trust store.
 
-Refuse: persistent “Saved.” banners, success splash pages, a confirm dialog for ordinary Save, empty clicks.
-
-Copy: verb + object, past tense, short. `Profile saved`. Not `Success!`
+Prove a claim against what is running, not against the diff. When you add a guard,
+plant a violation and watch it fail before trusting it — several guards in this
+repo's history passed while testing nothing.
 
 ## Do not
 

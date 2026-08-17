@@ -15,6 +15,13 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation is split by audience and stability. `AGENTS.md` is agent guidance again — process, gates, and a one-line statement of each hard invariant — while the reasoning moved to `docs/adr/` in the Nygard format (Status · Context · Decision · Consequences). The rules stay in the file agents always read; only the *why* moved, so an agent still sees the invariant without following a link.
+- `docs/domain.md` holds what User, Org and Install mean, plus signup, isolation, support and session rules. These are business rules, not architectural decisions, and were being carried in the agent file for lack of anywhere else.
+- `harness/action-feedback.md` holds the write-confirmation contract, next to `benchmarks.md` and `visual-ux.md`, and now records what its four failure patterns actually look like — none of which were visible in code review.
+- ADR-0008 and ADR-0009 record the session-cookie scope change *and that the first decision was superseded*. The absence of that record is why `HANDOFF.md` told readers not to rebuild auth immediately after auth was deliberately rebuilt. ADR-0011 captures the build-vs-adopt question for the login lifecycle as `Proposed`, undecided.
+
 ### Security
 
 - The session cookie is **host-scoped**. It carried `Domain=.<apex>`, so a live 14-day token was attached to every request to `mail.`, `s3.`, `rustfs.` and `db.` — none of which authenticate anyone, and `SameSite=lax` does not separate same-site siblings. `app.` and `admin.` now hold separate sessions; signing out of one no longer signs out the other.
@@ -66,7 +73,7 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 ### Changed
 
 - **Sessions are per-device.** Every sign-in used to delete all of the user's other sessions, so signing in on a phone dropped the laptop to the sign-in screen mid-task.
-- Action feedback, per the `AGENTS.md` table: closing an account takes a confirmation dialog before it runs; a failed workspace switch, a failed support "Stop" and a failed admin "View as" now report and hold a pending state instead of being empty clicks; photo errors are inline rather than toasted; replacing a photo actually updates the chrome.
+- Action feedback, per the table now in `harness/action-feedback.md`: closing an account takes a confirmation dialog before it runs; a failed workspace switch, a failed support "Stop" and a failed admin "View as" now report and hold a pending state instead of being empty clicks; photo errors are inline rather than toasted; replacing a photo actually updates the chrome.
 - `contracts/openapi.yaml` describes what the adapter does: a root `security` requirement with explicit public opt-outs (all sixteen operations were specified as unauthenticated, including `/v1/admin/*`), a `Problem` schema with the `reason_code` enum, the reachable error statuses, the admin response envelopes, and OpenAPI 3.1 union types instead of the ignored `nullable: true` that made the schema reject every signup response.
 - The admin app has a catch-all route; unknown paths rendered a blank page.
 - `scripts/lib/env.sh` is the one place `.env` is read.
