@@ -17,6 +17,14 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ### Security
 
+- The session cookie is **host-scoped**. It carried `Domain=.<apex>`, so a live 14-day token was attached to every request to `mail.`, `s3.`, `rustfs.` and `db.` — none of which authenticate anyone, and `SameSite=lax` does not separate same-site siblings. `app.` and `admin.` now hold separate sessions; signing out of one no longer signs out the other.
+- Credentialed CORS lists only the two authenticated surfaces. The apex and `www` have no auth and never call the API with credentials.
+- Admin "View as" no longer relies on the browser carrying the admin's session across hosts. It mints a **single-use hand-off token** (60s, hashed at rest, `schema/migrations/002_support_handoff.sql`) that the console passes in a **URL fragment** — never sent to the server, so it stays out of access logs and out of `Referer`. `POST /v1/session/handoff` redeems it in one atomic statement, re-checks `platform_admin` at redemption rather than only at mint, and creates a session that expires in 45 minutes instead of 14 days. The token is stripped from the address bar before the page renders.
+
+### Changed
+
+- Impersonation lives on the customer surface, not on the admin console: `POST /v1/admin/support` returns a hand-off token and leaves the caller's session untouched, and `DELETE /v1/admin/support` ends the impersonating session itself (204, cookie cleared) rather than un-setting a flag. The support banner's "Stop" returns the operator to the admin console.
+
 - Credential endpoints are rate-limited at the edge. `/v1/auth/*` and `/v1/me/password` go through a Traefik `rateLimit` middleware (10/min per client IP, burst 20) on new routers at priority 200. Nothing throttled them before, so a breach list could be sprayed at full speed against an 8-character minimum. The counter is in Traefik's memory — `AGENTS.md` forbids adding Redis. Same limit in the dev edge: a dev override that behaves differently from prod is where rate-limit surprises come from.
 - `dbgate` is no longer an unauthenticated SQL console on the live database. It gets `LOGIN`/`PASSWORD` from `HULL_DBGATE_USER`/`HULL_DBGATE_PASSWORD` (without them its auth provider is literally `none`), and the `hull-db` router gets a Traefik `basicAuth` middleware — the second lock holds even if that image is swapped. `render-edge.sh` generates the htpasswd hash into the gitignored `dynamic.yml`, so it never lands in the tree.
 - `db.<host>` is only written to `/etc/hosts` when `HULL_STUDIO=1`. It was installed permanently, on Linux and Windows, for a profile that is off by default.

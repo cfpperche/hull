@@ -8,6 +8,7 @@ import { SupportBanner } from "./components/SupportBanner";
 import { useSession } from "./lib/session";
 import { AccountPage } from "./pages/Account";
 import { CreateOrgPage } from "./pages/CreateOrg";
+import { HandoffPage } from "./pages/Handoff";
 import { HomePage } from "./pages/Home";
 import { NotFoundPage } from "./pages/NotFound";
 import { SigninPage } from "./pages/Signin";
@@ -24,6 +25,13 @@ export function App() {
 function ClientApp() {
   const { brand, mark } = useBrand();
   const { ready, signedIn, me } = useSession();
+
+  // Before every other guard. The hand-off arrives with no cookie for this host,
+  // so `signedIn` is false and the signed-out catch-all would swallow /handoff
+  // and render the sign-in page instead of redeeming the token.
+  if (window.location.pathname === "/handoff") {
+    return <HandoffPage />;
+  }
 
   if (!ready) {
     return <div className="text-muted-foreground p-8 text-sm">Loading…</div>;

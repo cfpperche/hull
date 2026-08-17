@@ -112,12 +112,24 @@ export function createApi(opts: ClientOpts = {}) {
       ),
     adminOrgs: () =>
       request<{ orgs: Array<HullOrg & { created_at: string }> }>(prefix, "/v1/admin/orgs"),
+    /**
+     * Returns a one-time hand-off token, not a session. The cookie is
+     * host-scoped, so the admin's session does not reach app.<host>; the token
+     * is what travels, once, in a URL fragment.
+     */
     supportStart: (orgId: string) =>
-      request<HullMe>(prefix, "/v1/admin/support", {
+      request<{ handoff: string }>(prefix, "/v1/admin/support", {
         method: "POST",
         body: JSON.stringify({ org_id: orgId }),
       }),
-    supportStop: () => request<HullMe>(prefix, "/v1/admin/support", { method: "DELETE" }),
+    /** Exchange the hand-off token for a session on this host. */
+    consumeHandoff: (token: string) =>
+      request<HullMe>(prefix, "/v1/session/handoff", {
+        method: "POST",
+        body: JSON.stringify({ token }),
+      }),
+    /** Ends the impersonating session itself, so the cookie is cleared too. */
+    supportStop: () => request<void>(prefix, "/v1/admin/support", { method: "DELETE" }),
   };
 }
 

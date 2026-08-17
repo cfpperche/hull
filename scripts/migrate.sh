@@ -97,7 +97,9 @@ apply_sql_file() {
   # run died on "already exists" and up.sh could never get past migrate.
   # The advisory lock serialises concurrent runners on the same file.
   {
-    printf "SELECT pg_advisory_xact_lock(hashtext('hull-migrate'), hashtext('%s'));\n" "$id"
+    # PERFORM inside DO, not a bare SELECT — a SELECT prints its result table
+    # into the migrate output for every file applied.
+    printf "DO \$mig\$ BEGIN PERFORM pg_advisory_xact_lock(hashtext('hull-migrate'), hashtext('%s')); END \$mig\$;\n" "$id"
     cat "$file"
     printf "\nINSERT INTO %s (id) VALUES ('%s');\n" "$table" "$id"
   } | pipe_sql

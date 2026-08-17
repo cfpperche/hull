@@ -1,23 +1,24 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { originFor } from "@hull/config";
 import { errMsg } from "@hull/api-client";
 import { api } from "../lib/api";
-import { useSession } from "../lib/session";
 
 export function SupportBanner({ orgName }: { orgName: string }) {
-  const { refreshMe } = useSession();
   const [stopping, setStopping] = useState(false);
 
   // This is the only exit from impersonation. A swallowed rejection left the
   // operator unable to tell whether they were still acting as the customer.
+  // Stopping ends the impersonating session itself — it is the only thing this
+  // host's cookie holds — so there is nothing left to refresh here. Go back to
+  // the console the operator came from.
   async function stop() {
     setStopping(true);
     try {
       await api.supportStop();
-      await refreshMe();
+      window.location.assign(originFor("admin"));
     } catch (err) {
       toast.error(errMsg(err));
-    } finally {
       setStopping(false);
     }
   }

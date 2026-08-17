@@ -31,7 +31,7 @@ http:
       priority: 1
       tls: {}
     hull-web-auth:
-      rule: "Host(`app.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`))"
+      rule: "Host(`app.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
       entryPoints: [websecure]
       middlewares: [auth-ratelimit, strip-api, api-headers]
       service: hull-api
@@ -51,7 +51,7 @@ http:
       priority: 1
       tls: {}
     hull-admin-auth:
-      rule: "Host(`admin.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`))"
+      rule: "Host(`admin.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
       entryPoints: [websecure]
       middlewares: [auth-ratelimit, strip-api, api-headers]
       service: hull-api
