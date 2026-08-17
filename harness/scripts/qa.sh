@@ -28,17 +28,28 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 # Which agent is driving. Three of them share this repo and `agent-browser`'s
 # default session is one browser for the whole machine — without this, Codex
 # navigating away mid-run would look like a Hull bug to Claude.
-agent_id() {
-  if [[ -n "${HULL_QA_AGENT:-}" ]]; then echo "$HULL_QA_AGENT"
-  elif [[ -n "${CLAUDECODE:-}${CLAUDE_CODE_SESSION_ID:-}" ]]; then echo "claude"
-  elif [[ -n "${CODEX_HOME:-}${CODEX_SANDBOX:-}" ]]; then echo "codex"
-  elif [[ -n "${GROK_CLI:-}${GROK_SESSION:-}" ]]; then echo "grok"
-  else echo "agent$$"
+#
+# The fallback is a fixed name, not $$. Every command here is a separate process
+# — the agent runs `start` in one shell and `env` in the next — so a PID in the
+# name meant `start` filed the run under one key and everything after it looked
+# under another. Two *undetected* agents on one machine now collide instead,
+# which is louder, rarer, and fixed by HULL_QA_AGENT.
+AGENT_FALLBACK=0
+if   [[ -n "${HULL_QA_AGENT:-}" ]];                          then AGENT="$HULL_QA_AGENT"
+elif [[ -n "${CLAUDECODE:-}${CLAUDE_CODE_SESSION_ID:-}" ]];  then AGENT="claude"
+elif [[ -n "${CODEX_HOME:-}${CODEX_SANDBOX:-}" ]];           then AGENT="codex"
+elif [[ -n "${GROK_CLI:-}${GROK_SESSION:-}" ]];              then AGENT="grok"
+else AGENT="agent"; AGENT_FALLBACK=1
+fi
+
+POINTER="$RUNS/.current-$AGENT"
+
+warn_if_unidentified() {
+  if [[ "$AGENT_FALLBACK" == 1 ]]; then
+    echo "note: could not tell which agent this is — using '${AGENT}'." >&2
+    echo "      Set HULL_QA_AGENT if another agent shares this machine." >&2
   fi
 }
-
-AGENT="$(agent_id)"
-POINTER="$RUNS/.current-$AGENT"
 
 current_run() {
   [[ -f "$POINTER" ]] || die "no run in progress for '$AGENT'. Start one: ./harness/scripts/qa.sh start"
@@ -50,6 +61,7 @@ current_run() {
 # blank screenshot ten steps in.
 cmd_doctor() {
   local ok=1
+  warn_if_unidentified
 
   if command -v agent-browser >/dev/null; then
     echo "✓ agent-browser $(agent-browser --version 2>/dev/null | head -1)"
@@ -149,6 +161,7 @@ cmd_start() {
   case "$taint" in clean|legacy-cookie|stale|junk|carry) ;; *) die "taint must be clean, legacy-cookie, stale, junk or carry" ;; esac
 
   command -v agent-browser >/dev/null || die "agent-browser missing — run: ./harness/scripts/qa.sh doctor"
+  warn_if_unidentified
 
   local run_id="${AGENT}-$(date +%Y%m%d-%H%M%S)"
   local run="$RUNS/$run_id"

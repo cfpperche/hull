@@ -79,6 +79,12 @@ browser for the whole machine, so without isolation one agent navigating away
 looks like a Hull bug to another. Sessions are named `hull-qa-<agent>-<stamp>`
 and detected from the environment; override with `HULL_QA_AGENT`.
 
+Detection is a guess at a few environment variables and it can miss — Grok's were
+never confirmed. A miss falls back to the fixed name `agent` and says so. That is
+safe alone and collides if two unidentified agents run at once, which is what
+`HULL_QA_AGENT` is for. It cannot fall back to a PID: every command here is a
+separate process, so `start` would file the run under a key `env` never finds.
+
 Findings are files, not conversation. `harness/qa/runs/<run>/` holds `report.md`,
 `meta` and `shots/`, all gitignored. That is what lets a second agent replay a
 first agent's finding without having been there.
