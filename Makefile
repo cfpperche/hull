@@ -1,4 +1,4 @@
-.PHONY: setup up down dev smoke test images migrate brand prune visual ci ci-e2e
+.PHONY: setup up down dev smoke test images migrate brand prune visual qa ci ci-e2e
 
 setup:
 	./scripts/setup-local.sh
@@ -39,3 +39,8 @@ prune:
 
 visual:
 	./harness/scripts/capture-ui.sh
+
+# Exploration, not a gate. `make qa` only checks the machine is ready; drive it
+# with ./harness/scripts/qa.sh start — see harness/qa.md.
+qa:
+	./harness/scripts/qa.sh doctor

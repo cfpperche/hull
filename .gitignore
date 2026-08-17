@@ -35,3 +35,4 @@ uv.lock.bak
 .vscode/
 harness/visual/current/
 harness/visual/evidence/
+harness/qa/runs/

@@ -15,6 +15,11 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- An **agentic QA harness** (`harness/scripts/qa.sh`, protocol in `harness/qa.md`, ADR-0013). Every gate in this repo starts from nothing — pytest builds a fresh client, `e2e/` opens a clean browser, `smoke.sh` is a bare `curl` — which is correct for each and a shared blind spot. PR #9's redirect loop lived in it: it needed a browser that had been somewhere before, so review, 34 tests, smoke, the visual harness and green CI all missed it and the operator hit it on the first sign-in. The harness takes the starting state as an argument: personas (`anon`, `member`, `admin`) crossed with taints (`clean`, `legacy-cookie`, `stale`, `junk`, `carry`), where `legacy-cookie` is that duplicate-cookie shape in one flag and `carry` reopens whatever the last run left. Shell rather than MCP because Claude, Codex and Grok share a shell but configure MCP differently, and the one that had not would find the harness silently absent. Headless by default, with `--headed` for a real window and `qa.sh watch` to hand the same live session to a person. It is not a gate and does not run in CI; a finding worth keeping becomes an `e2e/` spec or a pytest case.
+- First finding from it, and the reason the `legacy-cookie` taint exists: a duplicate-cookie migration costs exactly one request. Signed in, with an apex-scoped `hull_session` planted beside the host-scoped one, the first load renders the sign-in form and retires the apex cookie; the second is signed in again. Failing closed on an ambiguous `Cookie` header is the right call and it self-heals, but the user-visible symptom during a migration is one flash of the sign-in screen. By design, recorded rather than changed.
+
 ### Changed
 
 - Documentation is split by audience and stability. `AGENTS.md` is agent guidance again — process, gates, and a one-line statement of each hard invariant — while the reasoning moved to `docs/adr/` in the Nygard format (Status · Context · Decision · Consequences). The rules stay in the file agents always read; only the *why* moved, so an agent still sees the invariant without following a link.

@@ -14,6 +14,7 @@ Read **`HANDOFF.md`** first for what exists and what is next.
 | [`harness/action-feedback.md`](./harness/action-feedback.md) | What every write must confirm. Normative. |
 | [`harness/benchmarks.md`](./harness/benchmarks.md) | Sector research, before pixels. |
 | [`harness/visual-ux.md`](./harness/visual-ux.md) | Driving the browser to judge pixels. |
+| [`harness/qa.md`](./harness/qa.md) | Exploring a live install mid-task, carrying state. Not CI. |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Update under `[Unreleased]` before every push to `main`. |
 
 Agent operating model (who plans, who implements, who reviews) is **not defined**.
@@ -65,6 +66,11 @@ Every write must confirm — **`harness/action-feedback.md`** is normative.
 
 `./scripts/test.sh` runs ruff, the formatter check, then pytest. `./scripts/smoke.sh`
 exercises the live stack and validates TLS against the system trust store.
+
+To poke a live install while working — signed in, or carrying a cookie from the
+build before — use `./harness/scripts/qa.sh` (**`harness/qa.md`**). It is
+exploration, not a gate: it never runs in CI, and a finding worth keeping becomes
+an `e2e/` spec or a pytest case. → [0013](./docs/adr/0013-agentic-qa-harness.md)
 
 Prove a claim against what is running, not against the diff. When you add a guard,
 plant a violation and watch it fail before trusting it — several guards in this

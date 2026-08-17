@@ -59,9 +59,19 @@ browser does in `e2e/`, and `smoke.sh` stays a small HTTP check of a live instal
 
 When you add a guard, prove it fails: plant a violation, watch it reject, remove it. Three guards in this repo's history passed while testing nothing.
 
+## Exploring by hand (or by agent)
+
+`./harness/scripts/qa.sh` stands up a live install an agent can poke mid-task —
+signed in as a persona, and optionally **carrying state**: `--taint legacy-cookie`
+is PR #9's duplicate-cookie shape in one flag, `--taint carry` reopens whatever
+the last run left. That is the blind spot every gate above shares, since all of
+them start from an empty browser. Headless by default; `--headed` for a window and
+`qa.sh watch` to hand the live session to a person. Protocol: `harness/qa.md`.
+It is **not** a gate and never runs in CI — a finding worth keeping becomes an
+`e2e/` spec or a pytest case.
+
 ## Next (not started)
 
-- **An agentic QA harness** — a way for an agent to drive these flows on demand while working on a task, as opposed to the deterministic suite CI runs. Not designed yet. Whatever it becomes, it has to cover **inherited state**: the redirect loop in PR #9 survived review, 34 tests, smoke, the harness and green CI because all of them start from an empty browser.
 - Product module in `modules/` when there is a sold job
 
 ## Later — component lab (do not do now)

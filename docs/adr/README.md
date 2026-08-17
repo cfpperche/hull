@@ -27,6 +27,8 @@ Status is one of `Proposed`, `Accepted`, `Superseded by NNNN`, `Deprecated`.
 | [0009](0009-host-scoped-cookie-and-support-hand-off.md) | Host-scoped cookie and support hand-off | Accepted |
 | [0010](0010-effective-org-id-is-the-only-org-accessor.md) | `effective_org_id` is the only org accessor | Accepted |
 | [0011](0011-keep-the-built-in-login-lifecycle.md) | Keep the built-in login lifecycle | Proposed |
+| [0012](0012-browser-e2e-with-playwright.md) | Browser E2E with Playwright, in CI | Accepted |
+| [0013](0013-agentic-qa-harness.md) | An agentic QA harness that starts dirty | Accepted |
 
 Business rules and the object model are not decisions — they are in
 [`docs/domain.md`](../domain.md).
