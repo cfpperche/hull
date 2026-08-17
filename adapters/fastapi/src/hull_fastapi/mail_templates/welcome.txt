@@ -1,0 +1,8 @@
+{{brand}}
+
+
+Your account is ready
+
+Name a workspace to continue.
+
+{{brand}} · {{host}}

@@ -17,6 +17,7 @@ Read **`HANDOFF.md`** first for what exists and what is next.
 | [`harness/design/PROTOCOL.md`](./harness/design/PROTOCOL.md) | Measuring a build, then putting it to a panel of agents. Not CI. |
 | [`harness/qa.md`](./harness/qa.md) | Exploring a live install mid-task, carrying state. Not CI. |
 | [`harness/peer.md`](./harness/peer.md) | Asking one of the other two agents — delegation, audit, adversarial review. Not CI. |
+| [`packages/email/`](./packages/email/) | The mail bodies, as react-email JSX. Rendered at build time; never at runtime. |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Update under `[Unreleased]` before every push to `main`. |
 
 Agent operating model (who plans, who implements, who reviews) is **not defined**.
@@ -52,6 +53,9 @@ the mechanism is the same one every time.
 - Resolve the org with `accounts.effective_org_id(sess)` and nothing else. → [0010](./docs/adr/0010-effective-org-id-is-the-only-org-accessor.md)
 - Objects: **User** = login, **Org** = workspace, **Install** = this compose. No Company/Store. → [`docs/domain.md`](./docs/domain.md)
 - Support impersonates an **org**. Do not mint the customer's session. → [`docs/domain.md`](./docs/domain.md)
+- Mail bodies are **react-email JSX** in `packages/email`, rendered into the adapter by
+  `pnpm --filter @hull/email build`. Do not hand-edit `hull_fastapi/mail_templates/` — it is
+  generated, and CI fails when it has drifted. No runtime editor, no Node behind SMTP.
 - Compose project name is **`hull`**. Never `docker run` a Hull process.
 - Windows Chrome does not use WSL `/etc/hosts`. `setup-local.sh` on WSL must open UAC (`setup-windows-from-wsl.sh`).
 

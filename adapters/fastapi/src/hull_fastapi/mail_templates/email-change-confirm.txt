@@ -1,0 +1,12 @@
+{{brand}}
+
+
+Confirm your new email
+
+Confirm this address so {{brand}} can move {{old_email}} to it.
+
+{{link}}
+
+The link works once and expires in {{change_hours}} hours. Until then {{old_email}} is still the address on the account.
+
+{{brand}} · {{host}}

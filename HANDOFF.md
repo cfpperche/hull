@@ -41,6 +41,7 @@ Lab services come up with the stack, linked from the admin sidebar: `mail.` (Mai
 - Agent files + visual harness (agent-browser)
 - First visual pass: `@source` for `@hull/ui`, desktop rail, auth frame, quiet empty home
 - Adversarial review and its four follow-up stages (PRs #1–#9). See `CHANGELOG.md` for what changed and why
+- **The mail carries the design.** Six transactional messages, `multipart/alternative`, bodies written as react-email JSX in `packages/email` and rendered at build time into the adapter. No runtime editor and no Node behind SMTP — see *Mail* below
 - **Account management, all four pieces.** Password reset, email verification, changing the address you sign in with, and seeing and revoking sessions. The first three share the single-use token pattern `support_handoffs` established: hashed at rest, `used_at IS NULL … RETURNING`, token in the URL fragment. Migrations `003` to `006`. That closes the lifecycle ADR-0011 was about; a user can now do everything to their own account except delete a workspace they share
 
 ## How the session works now
@@ -57,9 +58,45 @@ Changed by the review — the old notes here described the previous model.
 - **Sessions are visible and revocable**, and none of it takes a password: revoking only ever removes access, so a credential in front of it makes the safe action the slow one. Ownership lives *inside* the delete (`WHERE id = %s AND user_id = %s`), not in a check around it — the id is in the URL and is not a secret. A row is recognised by its `User-Agent`, read by a dumb matcher in `accounts._device_label`, and by `last_seen_at`, which `_touch_session` writes at most once a minute. Do not remove that guard: `load_session` runs on every authenticated request, so without it every GET is a write.
 - **Changing the email is a move, not an edit.** The password is confirmed when the change is *asked for* — that is the step a stolen cookie reaches. Nothing changes until the new address redeems its own link; until then the old one still signs in and still gets reset mail. The old address is mailed twice, and **changing the password cancels every pending change**, which is what makes "if this was not you, change your password" a control rather than advice.
 
+## Mail
+
+Six messages: welcome, password reset, verification resend, and the three that
+carry an address change. Every one is `multipart/alternative`.
+
+- **The plain half is not a courtesy.** It is what a text-only client shows and
+  what deliverability rests on, and its wording is the one this install has
+  always sent. The HTML is an alternative, never a replacement — order matters,
+  because a client takes the last part it understands.
+- **Bodies are react-email JSX in `packages/email`.** `pnpm --filter @hull/email
+  build` renders them once into `adapters/fastapi/src/hull_fastapi/mail_templates/`
+  with `{{name}}` where a value goes; `mail_compose` fills the holes at send.
+  React is not in the request path — putting Node behind SMTP would mean a second
+  runtime in the compose group for six messages. Preview them with
+  `pnpm --filter @hull/email dev` on :3300.
+- **That directory is generated. Do not hand-edit it.** `pnpm --filter @hull/email
+  check` runs in `ci.sh` and fails when it has drifted from the JSX.
+- **Two build-time guards.** A placeholder not declared in `src/vars.ts` fails the
+  build, because a mistyped `{{lnk}}` is delivered literally in the mail whose
+  only job is to carry a URL. And a known placeholder nobody passed a value for is
+  caught by `test_mail_design.py`, which asserts no message keeps a hole.
+- **No runtime editor, deliberately.** An install that can rewrite its own
+  password-reset mail while running has a new way to lose account recovery. If
+  that changes, it is an ADR — and the template language would need to stay a
+  substitution rather than becoming a language.
+- **Why the HTML looks the way it does.** Tokens are hex because
+  `packages/ui/src/styles.css` states them in `oklch()`, which Gmail drops and
+  Outlook never parsed; styles are inline and layout is tables because clients
+  strip `:root`; there is one light design because `prefers-color-scheme` works in
+  Apple Mail and almost nowhere else; the brand mark is a drawn letter because a
+  hosted logo is blocked by default and arrives as a broken icon. White-label
+  still reaches it — brand, mark and host come from Settings (ADR-0006).
+- **The two warnings have no button.** The mails to the address losing an account
+  go to somebody who may not have asked for anything, and a one-click action in a
+  "was this you?" mail teaches the reflex phishing depends on.
+
 ## Gates
 
-`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (95).
+`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (104).
 `e2e/` holds 15 browser specs. Keep the split the three mail flows use: what only
 a browser shows goes in `e2e/`, and single use, expiry, collisions and the
 enumeration guard stay in pytest — cheaper, deterministic, and they do not spend
@@ -186,6 +223,14 @@ Org isolation, Traefik-in-compose, `config.json` runtime brand, and the session 
 
 ## Open, and owned by the operator
 
+- **WSL wipes `/etc/hosts` on every boot, and it takes the whole stack with it.**
+  Hit on 2026-08-17: `smoke.sh` failed with `Could not resolve host: hull.test`,
+  every browser-shaped tool was unreachable, and nothing about the code had
+  changed. `/etc/wsl.conf` here has a `[network]` section but no
+  `generateHosts = false`, so WSL regenerates the file and the entries
+  `setup-local.sh` wrote are gone. The immediate fix is
+  `sudo ./scripts/setup-local.sh`; the durable one is adding that line and
+  `wsl --shutdown`. Owned by the operator because both need a password.
 - `capture-ui.sh` sets `AGENT_BROWSER_IGNORE_HTTPS_ERRORS`, so it cannot tell a trusted certificate from an untrusted one. Left as is: judging pixels and testing TLS are different jobs, and `smoke.sh` already covers the second.
 - The CA on this workstation was rotated to a name-constrained one. A fresh clone gets constraints on first issue; an older install is detected and told how to rotate.
 - **Headless Chrome never presents a frame here, and that takes the browser gate with it.** Measured 2026-08-17. `requestAnimationFrame` is never called back — a promise waiting on one still has not resolved after three seconds. Playwright's actionability check waits for an element's box to be unchanged across **two consecutive animation frames** before it will click, so on this host every click waits out its timeout: `pnpm e2e` failed 12 of 13, each at exactly 35s, all with `waiting for element to be visible, enabled and stable`. The one that passed is the only one that never clicks — it drives the API and asserts visibility.

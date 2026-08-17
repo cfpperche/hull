@@ -12,12 +12,10 @@ from fastapi.responses import Response as RawResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from hull_fastapi import mail_compose
 from hull_fastapi.accounts import (
-    EMAIL_CHANGE_TTL,
-    RESET_TTL,
     SESSION_TTL,
     SUPPORT_TTL,
-    VERIFY_TTL,
     AccountError,
     change_password,
     close_account,
@@ -321,16 +319,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def _email_change_link(token: str) -> str:
         return f"{settings.resolved_public_origin()}/email#{token}"
 
-    def _welcome_text(token: str | None) -> str:
-        body = "Your account is ready. Name a workspace to continue.\n"
-        if not token:
-            return body
-        return (
-            body + "\nConfirm this is your address:\n\n"
-            f"{_verify_link(token)}\n\n"
-            f"The link works once and expires in {VERIFY_TTL.days} days.\n"
-        )
-
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "service": "hull-api"}
@@ -359,11 +347,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # One mail, not two. A welcome and a "confirm your address" arriving
         # together is the pattern people learn to ignore, and the link is the
         # only part of either that does anything.
+        text, html = mail_compose.welcome(
+            settings,
+            verify_link=_verify_link(verification[0]) if verification else None,
+        )
         send_mail(
             settings,
             to=payload.email.strip().lower(),
             subject=settings.welcome_subject(),
-            text=_welcome_text(verification[0] if verification else None),
+            text=text,
+            html=html,
         )
         _set_cookie(request, response, token)
         return body
@@ -414,15 +407,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # are never sent to a server, so it stays out of access logs and out of
         # the Referer of anything the reset page links to.
         link = f"{settings.resolved_public_origin()}/reset#{token}"
+        text, html = mail_compose.password_reset(settings, link=link)
         send_mail(
             settings,
             to=payload.email.strip().lower(),
             subject=settings.reset_subject(),
-            text=(
-                f"Use this link to choose a new password:\n\n{link}\n\n"
-                f"It expires in {int(RESET_TTL.total_seconds() // 60)} minutes and works once.\n"
-                "If you did not ask for it, nothing has changed and you can ignore this.\n"
-            ),
+            text=text,
+            html=html,
         )
 
     @app.post("/v1/auth/reset", status_code=204)
@@ -484,14 +475,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not verification:
             return
         token, email = verification
+        text, html = mail_compose.verify_email(settings, link=_verify_link(token))
         send_mail(
             settings,
             to=email,
             subject=settings.verify_subject(),
-            text=(
-                f"Confirm this is your address:\n\n{_verify_link(token)}\n\n"
-                f"The link works once and expires in {VERIFY_TTL.days} days.\n"
-            ),
+            text=text,
+            html=html,
         )
 
     @app.post("/v1/me/email", status_code=204)
@@ -523,32 +513,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "reason_code": exc.reason_code,
                 },
             ) from exc
-        hours = int(EMAIL_CHANGE_TTL.total_seconds() // 3600)
+        text, html = mail_compose.email_change_confirm(
+            settings, link=_email_change_link(token), old_email=old_email
+        )
         send_mail(
             settings,
             to=new_email,
             subject=settings.email_change_subject(),
-            text=(
-                f"Confirm this address so {settings.resolved_brand()} can move "
-                f"{old_email} to it:\n\n{_email_change_link(token)}\n\n"
-                f"The link works once and expires in {hours} hours. Until then "
-                f"{old_email} is still the address on the account.\n"
-            ),
+            text=text,
+            html=html,
         )
         # The address that is losing the account hears about it while it can still
         # do something. Changing the password cancels every pending change, so
         # this is an instruction rather than a condolence.
+        text, html = mail_compose.email_change_notice(
+            settings, old_email=old_email, new_email=new_email
+        )
         send_mail(
             settings,
             to=old_email,
             subject=settings.email_change_notice_subject(),
-            text=(
-                f"Someone asked to change this account's email to {new_email}.\n\n"
-                f"Nothing has changed yet — {old_email} still signs in, and the "
-                "change only happens if that address confirms it.\n\n"
-                "If this was not you, change your password now. That cancels the "
-                "request and ends every other session.\n"
-            ),
+            text=text,
+            html=html,
         )
 
     @app.post("/v1/auth/email", status_code=204)
@@ -583,16 +569,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ) from exc
         # The last mail the old address gets. It is the one that says an account
         # it can no longer reach has been taken over, if that is what happened.
+        text, html = mail_compose.email_changed(settings, old_email=old_email, new_email=new_email)
         send_mail(
             settings,
             to=old_email,
             subject=settings.email_changed_subject(),
-            text=(
-                f"This account now signs in as {new_email}. {old_email} no longer "
-                "reaches it, including for password reset.\n\n"
-                "If this was not you, contact support — you cannot undo it from "
-                "here any more.\n"
-            ),
+            text=text,
+            html=html,
         )
 
     @app.get("/v1/me/sessions")

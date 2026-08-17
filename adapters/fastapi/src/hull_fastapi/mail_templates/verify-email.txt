@@ -1,0 +1,10 @@
+{{brand}}
+
+
+Confirm your email
+
+{{link}}
+
+The link works once and expires in {{verify_days}} days.
+
+{{brand}} · {{host}}

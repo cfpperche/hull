@@ -1,0 +1,14 @@
+{{brand}}
+
+
+Your email was changed
+
+This account now signs in as {{new_email}}.
+
+{{old_email}} no longer reaches it, including for password reset.
+
+----------------------------------------
+
+If this was not you, contact support — you cannot undo it from here any more.
+
+{{brand}} · {{host}}
