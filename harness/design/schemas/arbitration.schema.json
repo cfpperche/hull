@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Arbitration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["headline", "order", "duplicates", "disagreements"],
+  "properties": {
+    "headline": {
+      "type": "string",
+      "description": "Three to five sentences an operator can act on without opening anything else: what this build looks like, the one thing to fix first, and what is fine and should be left alone."
+    },
+    "order": {
+      "type": "array",
+      "description": "Finding ids, most worth fixing first. Rank by (harm × how many people meet it × how small the fix is), not by severity label alone.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "rank", "because"],
+        "properties": {
+          "id": { "type": "string" },
+          "rank": { "type": "integer", "minimum": 1 },
+          "because": { "type": "string" }
+        }
+      }
+    },
+    "duplicates": {
+      "type": "array",
+      "description": "Groups where several critics found the same defect. The first id is the one to keep.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["keep", "drop", "why"],
+        "properties": {
+          "keep": { "type": "string" },
+          "drop": { "type": "array", "items": { "type": "string" } },
+          "why": { "type": "string" }
+        }
+      }
+    },
+    "disagreements": {
+      "type": "array",
+      "description": "Where the critics or refuters contradicted each other. Do not resolve these silently — name them.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["about", "positions", "yourCall"],
+        "properties": {
+          "about": { "type": "string" },
+          "positions": { "type": "string" },
+          "yourCall": { "type": "string" }
+        }
+      }
+    }
+  }
+}

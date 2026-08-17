@@ -1,0 +1,81 @@
+<!doctype html>
+<!-- Planted defects. Every rule this harness claims to detect is broken here on
+     purpose, exactly once where possible, so `design selftest` can prove the
+     sensors fire instead of trusting that they would. If you add a rule, plant
+     its violation here and add the assertion — a detector nobody has watched
+     fail is a detector that tests nothing. `lang` is missing on purpose. -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Fixture — planted</title>
+<style>
+  /* No :focus-visible rule anywhere in this sheet. That is a planted defect. */
+  body { font-family: Inter, system-ui, sans-serif; margin: 0; color: #8b8b93; background: #ffffff; }
+  a, button, input { outline: none; }
+  .hero { background-image: linear-gradient(135deg, rgb(124, 58, 237), rgb(37, 99, 235)); padding: 64px 32px; color: #c9c9d1; }
+  .badge { display: inline-block; border-radius: 999px; padding: 4px 12px; font-size: 11px; background: rgba(255,255,255,.25); color: #e6e6f0; }
+  h1 { font-size: 44px; font-weight: 800; margin: 12px 0; color: #d9d9e3; }
+  h4 { font-size: 15px; }
+  h5 { font-size: 15px; } /* same as h4: a ladder that exists only in the markup */
+  .sub { font-size: 17px; }
+  .glass { backdrop-filter: blur(12px); background: rgba(255,255,255,.35); border-radius: 28px; padding: 24px; margin: 24px; box-shadow: 0 8px 30px rgba(0,0,0,.12); }
+  .cards { display: flex; gap: 19px; padding: 32px; }
+  .card { flex: 1; border-left: 4px solid rgb(139, 92, 246); border-radius: 24px; padding: 21px; box-shadow: 0 2px 8px rgba(0,0,0,.08); background: #fbfbfd; }
+  .card h3 { font-size: 19px; margin: 0 0 6px; color: #9a9aa4; }
+  .card p { font-size: 14px; color: #a3a3ad; }
+  .cta { background: rgb(124, 58, 237); color: #b9a8f0; border: 0; border-radius: 26px; padding: 14px 26px; font-size: 15px; box-shadow: 0 6px 18px rgba(124,58,237,.4); }
+  .tiny { width: 18px; height: 18px; padding: 0; border: 0; background: #ede9fe; border-radius: 4px; font-size: 9px; }
+  .toolbar { display: flex; gap: 2px; padding: 8px 32px; }
+  .wide { width: 1900px; height: 8px; background: #eee; }
+  .clip { width: 180px; overflow: hidden; white-space: nowrap; font-size: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .trunc { width: 180px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; }
+  form { padding: 32px; font-family: Georgia, serif; font-size: 16px; }
+  input { border: 1px solid #fafafa; padding: 8px; font-size: 16px; border-radius: 22px; box-shadow: inset 0 1px 2px rgba(0,0,0,.04); }
+  .foot { padding: 32px; font-size: 10px; box-shadow: 0 -1px 0 #eee; font-family: "Courier New", monospace; }
+  .stack { box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+</style>
+</head>
+<body>
+  <header class="stack">
+    <div class="toolbar">
+      <button class="tiny">1</button><button class="tiny">2</button><button class="tiny">3</button>
+      <button class="tiny">4</button><button class="tiny">5</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <span class="badge">New — now with agents</span>
+    <h1>Ship faster with the platform for modern teams</h1>
+    <p class="sub">Everything you need, nothing you don't. Built for scale, designed for speed, trusted by teams everywhere.</p>
+    <button class="cta">Get started</button>
+    <a href="#">Click here</a>
+  </section>
+
+  <div class="glass">
+    <h4>Trusted by</h4>
+    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" width="120" height="24">
+  </div>
+
+  <div class="cards">
+    <div class="card"><h3>🚀 Fast</h3><p>Our platform is built on a modern stack that delivers unmatched performance for teams of any size.</p></div>
+    <div class="card"><h3>🔒 Secure</h3><p>Enterprise-grade security with SOC2, encryption at rest and a permission model that scales with you.</p></div>
+    <div class="card"><h3>⚡ Simple</h3><p>Get started in minutes with an onboarding flow designed to get out of your way immediately.</p></div>
+  </div>
+
+  <h5>Details</h5>
+  <div class="clip">This label is cut off with no ellipsis at all</div>
+  <div class="trunc">This one truncates but has no title attribute anywhere</div>
+  <div class="wide"></div>
+
+  <form>
+    <h3 id="dupe">Start now</h3>
+    <span id="dupe">duplicate id on purpose</span>
+    <input type="email" placeholder="Work email">
+    <input type="text">
+    <button tabindex="3">→</button>
+  </form>
+
+  <div class="foot">© Fixture. <a href="#">Read more</a></div>
+</body>
+</html>

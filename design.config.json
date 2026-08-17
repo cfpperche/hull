@@ -1,0 +1,85 @@
+{
+  "$schema": "./harness/design/schemas/profile.schema.json",
+  "project": "hull",
+  "sector": "b2b SaaS app shell — marketing door, signed-in console, support console",
+  "out": ".design/runs",
+
+  "notes": [
+    "This file is the only thing the design harness knows about this repo. The harness in harness/design/ contains no host, no route and no product name — keep it that way; `design selftest` fails if it does not.",
+    "Surfaces, personas and the demo password mirror harness/scripts/capture-ui.sh. If you add a surface there, add it here.",
+    "The stack must be up (./scripts/up.sh) and hosts+CA installed (sudo ./scripts/setup-local.sh) before any of this runs."
+  ],
+
+  "brand": {
+    "accent": "the shadcn default token set — no custom token sheet (ADR 0001)",
+    "type": "the shadcn/Tailwind default stack",
+    "voice": "plain, short, verb + object. Confirmations in past tense: \"Profile saved\", never \"Success!\""
+  },
+  "benchmarks": {
+    "copy": ["Vercel", "Linear", "Supabase"],
+    "refuse": [
+      "generic dashboard: six stat cards on an empty home",
+      "Inter + purple slop, glassmorphism, giant radius",
+      "debugger JSON rendered as the page",
+      "ERP master-data density",
+      "lead-magnet modal or splash on the marketing door",
+      "company name on signup, five-step wizard, email-verify wall on the lab path",
+      "minting a customer session for support — support impersonates an org"
+    ]
+  },
+
+  "browser": { "ignoreHttpsErrors": true },
+
+  "viewports": [
+    { "name": "desktop", "width": 1440, "height": 900 },
+    { "name": "mobile", "width": 390, "height": 844 }
+  ],
+
+  "auth": {
+    "member": [
+      { "open": "https://app.${HULL_HOST:-hull.test}/signin" },
+      { "wait": "networkidle" },
+      { "fill": { "testid": "auth-email" }, "value": "ada@${HULL_HOST:-hull.test}" },
+      { "fill": { "testid": "auth-password" }, "value": "${HULL_DEMO_PASSWORD:-demodemo1}" },
+      { "click": { "testid": "auth-submit" } },
+      { "wait": "networkidle" },
+      { "assert": "[data-testid=user-menu]" }
+    ],
+    "admin": [
+      { "open": "https://admin.${HULL_HOST:-hull.test}/" },
+      { "wait": "networkidle" },
+      { "fill": { "testid": "auth-email" }, "value": "admin@${HULL_HOST:-hull.test}" },
+      { "fill": { "testid": "auth-password" }, "value": "${HULL_DEMO_PASSWORD:-demodemo1}" },
+      { "click": { "testid": "auth-submit" } },
+      { "wait": "networkidle" },
+      { "assert": "[data-testid=sign-out]" }
+    ]
+  },
+
+  "surfaces": [
+    { "name": "www", "url": "https://${HULL_HOST:-hull.test}/" },
+    { "name": "web-signin", "url": "https://app.${HULL_HOST:-hull.test}/signin", "assert": "[data-testid=auth-submit]" },
+    { "name": "web-signup", "url": "https://app.${HULL_HOST:-hull.test}/signup", "viewports": ["desktop"] },
+    { "name": "web-home", "url": "https://app.${HULL_HOST:-hull.test}/", "auth": "member", "assert": "[data-testid=user-menu]" },
+    { "name": "web-account", "url": "https://app.${HULL_HOST:-hull.test}/account", "auth": "member", "assert": "[data-testid=user-menu]", "viewports": ["desktop"] },
+    { "name": "admin-signin", "url": "https://admin.${HULL_HOST:-hull.test}/", "viewports": ["desktop"] },
+    { "name": "admin-home", "url": "https://admin.${HULL_HOST:-hull.test}/", "auth": "admin", "assert": "[data-testid=sign-out]", "viewports": ["desktop"] },
+    { "name": "admin-users", "url": "https://admin.${HULL_HOST:-hull.test}/users", "auth": "admin", "assert": "[data-testid=sign-out]", "viewports": ["desktop"] },
+    { "name": "admin-orgs", "url": "https://admin.${HULL_HOST:-hull.test}/orgs", "auth": "admin", "assert": "[data-testid=sign-out]", "viewports": ["desktop"] }
+  ],
+
+  "budgets": {
+    "typeScaleMax": 7,
+    "fontFamiliesMax": 2,
+    "radiiMax": 4,
+    "shadowsMax": 4,
+    "paletteMax": 20,
+    "spacingOffGridMax": 3,
+    "slopWeightMax": 4,
+    "domNodesMax": 2500
+  },
+
+  "panel": { "refuters": 1, "quorum": 1 },
+
+  "selftest": { "denyTokens": ["hull"] }
+}
