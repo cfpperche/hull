@@ -108,8 +108,68 @@ def _require_password(password: str) -> None:
         raise AccountError("request_validation_error", "password must be at least 8 characters")
 
 
+# How stale last_seen_at is allowed to get before a request pays for a write.
+# A list a human reads does not need finer, and finer makes every authenticated
+# GET a write.
+SEEN_GRANULARITY = timedelta(minutes=1)
+# Anything longer is not a device name, it is someone probing how much text this
+# column will hold.
+MAX_USER_AGENT = 400
+
+
+def _device_label(user_agent: str | None) -> str:
+    """A short, deliberately dumb reading of a User-Agent string.
+
+    Not a parser. User-Agent is a pile of historical lies — every browser claims
+    to be Mozilla, Edge claims to be Chrome, Chrome claims to be Safari — and a
+    library that keeps up with it is a dependency and a subscription. This answers
+    the only question the list is asking, "which of these is the machine in front
+    of me", and says so honestly when it cannot tell.
+    """
+    ua = user_agent or ""
+    if not ua.strip():
+        return "Unknown device"
+    browser = next(
+        (
+            name
+            for token, name in (
+                # Order matters: every one of these also contains the tokens of
+                # the ones below it.
+                ("Edg/", "Edge"),
+                ("OPR/", "Opera"),
+                ("Chrome/", "Chrome"),
+                ("Firefox/", "Firefox"),
+                ("Safari/", "Safari"),
+            )
+            if token in ua
+        ),
+        None,
+    )
+    system = next(
+        (
+            name
+            for token, name in (
+                ("iPhone", "iPhone"),
+                ("iPad", "iPad"),
+                ("Android", "Android"),
+                ("Windows", "Windows"),
+                ("Mac OS X", "macOS"),
+                ("Linux", "Linux"),
+            )
+            if token in ua
+        ),
+        None,
+    )
+    if browser and system:
+        return f"{browser} on {system}"
+    return browser or system or "Unknown device"
+
+
 @dataclass(frozen=True)
 class SessionPrincipal:
+    # The row's id, not its secret. The secret is session_hash and never leaves
+    # the database; this is what lets the session list say which row is you.
+    session_id: str
     user_id: str
     email: str
     username: str | None
@@ -190,6 +250,7 @@ def _insert_session(
     *,
     user_id: str,
     org_id: str | None,
+    user_agent: str | None = None,
 ) -> str:
     raw = new_session_secret()
     with conn.cursor() as cur:
@@ -201,18 +262,35 @@ def _insert_session(
         )
         cur.execute(
             """
-            INSERT INTO sessions (id, session_hash, user_id, org_id, expires_at)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO sessions (id, session_hash, user_id, org_id, user_agent, expires_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
             (
                 str(uuid.uuid4()),
                 hash_session(raw),
                 user_id,
                 org_id,
+                (user_agent or "")[:MAX_USER_AGENT] or None,
                 datetime.now(UTC) + SESSION_TTL,
             ),
         )
     return raw
+
+
+def _touch_session(conn: psycopg.Connection, session_id: str) -> None:
+    """Record that this session is alive, at most once a minute.
+
+    The WHERE clause is what keeps this cheap: without it every authenticated
+    GET becomes a write, and a page that fires five requests writes five times to
+    say the same thing. It commits on its own because the caller may be in the
+    middle of a read that never commits.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE sessions SET last_seen_at = now() WHERE id = %s AND last_seen_at < %s",
+            (session_id, datetime.now(UTC) - SEEN_GRANULARITY),
+        )
+    conn.commit()
 
 
 def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
@@ -221,8 +299,8 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT s.user_id, u.email, u.username, u.display_name, u.platform_role, u.avatar_key,
-                   u.email_verified_at,
+            SELECT s.id, s.user_id, u.email, u.username, u.display_name, u.platform_role,
+                   u.avatar_key, u.email_verified_at,
                    s.org_id, o.name AS org_name,
                    s.acting_org_id, ao.name AS acting_org_name, s.acting_expires_at, s.expires_at
             FROM sessions s
@@ -241,7 +319,9 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
         exp = exp.replace(tzinfo=UTC)
     if exp <= datetime.now(UTC):
         return None
+    _touch_session(conn, str(row["id"]))
     return SessionPrincipal(
+        session_id=str(row["id"]),
         user_id=str(row["user_id"]),
         email=str(row["email"]),
         username=row["username"],
@@ -258,7 +338,12 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
 
 
 def signup(
-    conn: psycopg.Connection, *, username: str, email: str, password: str
+    conn: psycopg.Connection,
+    *,
+    username: str,
+    email: str,
+    password: str,
+    user_agent: str | None = None,
 ) -> tuple[dict[str, Any], str]:
     email_n = _require_email(email)
     uname = _username(username)
@@ -273,7 +358,7 @@ def signup(
                 """,
                 (user_id, email_n, uname, hash_password(password)),
             )
-        token = _insert_session(conn, user_id=user_id, org_id=None)
+        token = _insert_session(conn, user_id=user_id, org_id=None, user_agent=user_agent)
         conn.commit()
     except UniqueViolation as exc:
         conn.rollback()
@@ -287,7 +372,9 @@ def signup(
     return me_body(conn, sess), token
 
 
-def signin(conn: psycopg.Connection, *, email: str, password: str) -> tuple[dict[str, Any], str]:
+def signin(
+    conn: psycopg.Connection, *, email: str, password: str, user_agent: str | None = None
+) -> tuple[dict[str, Any], str]:
     email_n = normalize_email(email)
     with conn.cursor() as cur:
         cur.execute("SELECT id, password_hash FROM users WHERE lower(email) = %s", (email_n,))
@@ -311,7 +398,12 @@ def signin(conn: psycopg.Connection, *, email: str, password: str) -> tuple[dict
             (user_id,),
         )
         first = cur.fetchone()
-    token = _insert_session(conn, user_id=user_id, org_id=str(first["id"]) if first else None)
+    token = _insert_session(
+        conn,
+        user_id=user_id,
+        org_id=str(first["id"]) if first else None,
+        user_agent=user_agent,
+    )
     conn.commit()
     sess = load_session(conn, token)
     assert sess is not None
@@ -392,7 +484,14 @@ def update_profile(
         raise AccountError("username_taken", "username is taken") from exc
 
 
-def change_password(conn: psycopg.Connection, *, user_id: str, current: str, password: str) -> str:
+def change_password(
+    conn: psycopg.Connection,
+    *,
+    user_id: str,
+    current: str,
+    password: str,
+    user_agent: str | None = None,
+) -> str:
     """Change the password and return a fresh session token.
 
     Every existing session dies, including the caller's own — otherwise a stolen
@@ -414,7 +513,7 @@ def change_password(conn: psycopg.Connection, *, user_id: str, current: str, pas
         )
         cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
         _cancel_email_changes(cur, user_id)
-    token = _insert_session(conn, user_id=user_id, org_id=org_id)
+    token = _insert_session(conn, user_id=user_id, org_id=org_id, user_agent=user_agent)
     conn.commit()
     return token
 
@@ -669,6 +768,74 @@ def confirm_email_change(conn: psycopg.Connection, *, raw: str) -> tuple[str, st
     return new_email, old_email
 
 
+def list_sessions(
+    conn: psycopg.Connection, *, user_id: str, current_id: str
+) -> list[dict[str, Any]]:
+    """Every live session of this user, most recently used first.
+
+    Expired rows are excluded rather than deleted — sweeping them is sign-in's
+    job, and a list that quietly rewrites the table on every read is a surprise
+    waiting to happen.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, user_agent, created_at, last_seen_at, acting_org_id
+            FROM sessions
+            WHERE user_id = %s AND expires_at > now()
+            ORDER BY last_seen_at DESC
+            """,
+            (user_id,),
+        )
+        rows = cur.fetchall()
+    return [
+        {
+            "id": str(r["id"]),
+            "device": _device_label(r["user_agent"]),
+            "created_at": r["created_at"].isoformat(),
+            "last_seen_at": r["last_seen_at"].isoformat(),
+            # A support session is the operator's own, taken to view a customer.
+            # It shows here because it *is* theirs, and it is worth naming rather
+            # than leaving as an unexplained extra row.
+            "support": r["acting_org_id"] is not None,
+            "current": str(r["id"]) == current_id,
+        }
+        for r in rows
+    ]
+
+
+def revoke_session(conn: psycopg.Connection, *, user_id: str, session_id: str) -> None:
+    """End one session. No password, on purpose.
+
+    Revoking only ever takes access away. Putting a credential in front of it
+    would make the safe action the slow one, at the exact moment somebody has
+    decided they do not trust a device.
+    """
+    with conn.cursor() as cur:
+        # user_id in the WHERE, not checked afterwards: this is the only thing
+        # stopping one user ending another's session by pasting an id.
+        cur.execute(
+            "DELETE FROM sessions WHERE id = %s AND user_id = %s",
+            (session_id, user_id),
+        )
+        gone = cur.rowcount
+    conn.commit()
+    if not gone:
+        raise AccountError("not_found", "session not found")
+
+
+def revoke_other_sessions(conn: psycopg.Connection, *, user_id: str, keep_id: str) -> int:
+    """End every session except the caller's own. Returns how many died."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM sessions WHERE user_id = %s AND id <> %s",
+            (user_id, keep_id),
+        )
+        gone = cur.rowcount
+    conn.commit()
+    return gone
+
+
 def close_account(
     conn: psycopg.Connection, *, user_id: str, password: str, platform_role: str | None
 ) -> None:
@@ -741,7 +908,9 @@ def list_orgs(conn: psycopg.Connection) -> list[dict[str, Any]]:
     ]
 
 
-def _insert_support_session(conn: psycopg.Connection, *, user_id: str, org_id: str) -> str:
+def _insert_support_session(
+    conn: psycopg.Connection, *, user_id: str, org_id: str, user_agent: str | None = None
+) -> str:
     """A session that exists only to view one org, on the customer surface.
 
     org_id stays NULL — the admin is not a member. The org they see comes from
@@ -753,10 +922,20 @@ def _insert_support_session(conn: psycopg.Connection, *, user_id: str, org_id: s
         cur.execute("DELETE FROM sessions WHERE user_id = %s AND expires_at <= now()", (user_id,))
         cur.execute(
             """
-            INSERT INTO sessions (id, session_hash, user_id, org_id, acting_org_id, acting_expires_at, expires_at)
-            VALUES (%s, %s, %s, NULL, %s, %s, %s)
+            INSERT INTO sessions
+                (id, session_hash, user_id, org_id, acting_org_id, acting_expires_at,
+                 user_agent, expires_at)
+            VALUES (%s, %s, %s, NULL, %s, %s, %s, %s)
             """,
-            (str(uuid.uuid4()), hash_session(raw), user_id, org_id, expires, expires),
+            (
+                str(uuid.uuid4()),
+                hash_session(raw),
+                user_id,
+                org_id,
+                expires,
+                (user_agent or "")[:MAX_USER_AGENT] or None,
+                expires,
+            ),
         )
     return raw
 
@@ -789,7 +968,9 @@ def support_start(conn: psycopg.Connection, *, user_id: str, org_id: str) -> str
     return raw
 
 
-def consume_handoff(conn: psycopg.Connection, *, raw: str) -> tuple[dict[str, Any], str]:
+def consume_handoff(
+    conn: psycopg.Connection, *, raw: str, user_agent: str | None = None
+) -> tuple[dict[str, Any], str]:
     """Exchange a hand-off token for an impersonating session on this host."""
     if not raw:
         raise AccountError("unauthenticated", "hand-off link is invalid or expired")
@@ -818,7 +999,7 @@ def consume_handoff(conn: psycopg.Connection, *, raw: str) -> tuple[dict[str, An
     if not actor or actor["platform_role"] != "platform_admin":
         conn.rollback()
         raise AccountError("forbidden", "platform admin required")
-    token = _insert_support_session(conn, user_id=user_id, org_id=org_id)
+    token = _insert_support_session(conn, user_id=user_id, org_id=org_id, user_agent=user_agent)
     conn.commit()
     sess = load_session(conn, token)
     assert sess is not None

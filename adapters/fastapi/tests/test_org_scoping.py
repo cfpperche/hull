@@ -19,6 +19,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 
 def _principal(**over) -> SessionPrincipal:
     base = {
+        "session_id": "s1",
         "user_id": "u1",
         "email": "op@hull.test",
         "username": "op",

@@ -207,6 +207,75 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "409":
           $ref: "#/components/responses/Conflict"
+  /v1/me/sessions:
+    get:
+      operationId: listSessions
+      description: >
+        Every live session of this user, most recently used first. `current`
+        marks the one making the request; `support` marks one taken to view a
+        customer's workspace. Expired rows are not listed and not deleted —
+        sweeping them is sign-in's job.
+      responses:
+        "200":
+          description: The live sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions]
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, device, created_at, last_seen_at, support, current]
+                      properties:
+                        id: { type: string, format: uuid }
+                        device:
+                          type: string
+                          description: >
+                            A short reading of the User-Agent, e.g. "Chrome on
+                            Windows", or "Unknown device". Not a promise about
+                            the client — User-Agent is self-reported.
+                        created_at: { type: string, format: date-time }
+                        last_seen_at:
+                          type: string
+                          format: date-time
+                          description: Stamped on use, at most once a minute.
+                        support: { type: boolean }
+                        current: { type: boolean }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+    delete:
+      operationId: revokeOtherSessions
+      description: >
+        End every session of this user except the caller's own. No password:
+        revoking only takes access away, and putting a credential in front of the
+        safe action is backwards at the moment somebody stops trusting a device.
+      responses:
+        "204":
+          description: The others ended; this one survives
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /v1/me/sessions/{id}:
+    delete:
+      operationId: revokeSession
+      description: >
+        End one session. 404 when it is not this user's — the id is not a secret,
+        so ownership is enforced in the delete itself. Ending your own is allowed
+        and clears the cookie: it is what "not this device" means.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Ended
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /v1/auth/signout:
     post:
       operationId: signout

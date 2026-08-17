@@ -25,6 +25,7 @@ from hull_fastapi.accounts import (
     consume_handoff,
     create_org,
     list_orgs,
+    list_sessions,
     list_users,
     load_session,
     me_body,
@@ -33,6 +34,8 @@ from hull_fastapi.accounts import (
     request_password_reset,
     require_admin,
     reset_password,
+    revoke_other_sessions,
+    revoke_session,
     set_avatar_key,
     signin,
     signout,
@@ -337,7 +340,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             with connection(settings) as conn:
                 body, token = signup(
-                    conn, username=payload.username, email=payload.email, password=payload.password
+                    conn,
+                    username=payload.username,
+                    email=payload.email,
+                    password=payload.password,
+                    user_agent=request.headers.get("user-agent"),
                 )
                 record_event(
                     conn,
@@ -365,7 +372,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def auth_signin(payload: SigninBody, request: Request, response: Response) -> dict[str, Any]:
         try:
             with connection(settings) as conn:
-                body, token = signin(conn, email=payload.email, password=payload.password)
+                body, token = signin(
+                    conn,
+                    email=payload.email,
+                    password=payload.password,
+                    user_agent=request.headers.get("user-agent"),
+                )
                 record_event(
                     conn,
                     source="api",
@@ -583,6 +595,47 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ),
         )
 
+    @app.get("/v1/me/sessions")
+    def me_sessions(sess=Depends(require_session)) -> dict[str, Any]:
+        with connection(settings) as conn:
+            return {
+                "sessions": list_sessions(conn, user_id=sess.user_id, current_id=sess.session_id)
+            }
+
+    @app.delete("/v1/me/sessions/{session_id}", status_code=204)
+    def me_session_revoke(
+        session_id: UUID, request: Request, response: Response, sess=Depends(require_session)
+    ) -> None:
+        try:
+            with connection(settings) as conn:
+                revoke_session(conn, user_id=sess.user_id, session_id=str(session_id))
+        except AccountError as exc:
+            raise StarletteHTTPException(
+                status_code=404,
+                detail={
+                    "type": "about:blank",
+                    "title": "Account error",
+                    "status": 404,
+                    "detail": exc.message,
+                    "reason_code": exc.reason_code,
+                },
+            ) from exc
+        # Ending your own session is allowed — it is what "this device, no longer"
+        # means — so clear the cookie rather than leaving the browser holding a
+        # token the server has forgotten.
+        if str(session_id) == sess.session_id:
+            _clear_cookie(request, response)
+
+    @app.delete("/v1/me/sessions", status_code=204)
+    def me_sessions_revoke_others(sess=Depends(require_session)) -> None:
+        """Everywhere but here. The caller's own session survives deliberately:
+        this is the button someone presses when they are worried, and signing
+        them out of the browser they pressed it in helps nobody."""
+        with connection(settings) as conn:
+            gone = revoke_other_sessions(conn, user_id=sess.user_id, keep_id=sess.session_id)
+            record_event(conn, source="api", event="session.revoke_others", payload={"ended": gone})
+            conn.commit()
+
     @app.post("/v1/auth/signout", status_code=204)
     def auth_signout(request: Request, response: Response) -> None:
         raw = request.cookies.get(settings.cookie_name) or ""
@@ -628,6 +681,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     user_id=sess.user_id,
                     current=payload.current,
                     password=payload.password,
+                    user_agent=request.headers.get("user-agent"),
                 )
         except AccountError as exc:
             status = 401 if exc.reason_code == "unauthenticated" else 422
@@ -783,7 +837,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """
         try:
             with connection(settings) as conn:
-                body, token = consume_handoff(conn, raw=payload.token)
+                body, token = consume_handoff(
+                    conn, raw=payload.token, user_agent=request.headers.get("user-agent")
+                )
         except AccountError as exc:
             return _account_http(exc)
         _set_cookie(request, response, token, max_age=int(SUPPORT_TTL.total_seconds()))

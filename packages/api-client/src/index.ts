@@ -9,6 +9,17 @@ export type HullUser = {
 
 export type HullOrg = { id: string; name: string };
 
+export type HullSession = {
+  id: string;
+  /** A short reading of the User-Agent. Self-reported, so not a guarantee. */
+  device: string;
+  created_at: string;
+  last_seen_at: string;
+  /** Taken to view a customer's workspace, not to use the product. */
+  support: boolean;
+  current: boolean;
+};
+
 export type HullMe = {
   user: HullUser;
   org: HullOrg | null;
@@ -123,6 +134,11 @@ export function createApi(opts: ClientOpts = {}) {
       request<HullMe>(prefix, "/v1/session/org", { method: "POST", body: JSON.stringify({ id }) }),
     updateMe: (body: { username?: string; name?: string }) =>
       request<HullMe>(prefix, "/v1/me", { method: "PATCH", body: JSON.stringify(body) }),
+    listSessions: () => request<{ sessions: HullSession[] }>(prefix, "/v1/me/sessions"),
+    revokeSession: (id: string) =>
+      request<void>(prefix, `/v1/me/sessions/${id}`, { method: "DELETE" }),
+    /** Everywhere but here. The caller's own session deliberately survives. */
+    revokeOtherSessions: () => request<void>(prefix, "/v1/me/sessions", { method: "DELETE" }),
     /**
      * Asks; does not change. The current address stays live until the new one
      * redeems its link, so do not update anything on-screen from this call.

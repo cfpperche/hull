@@ -1,7 +1,8 @@
 import { Building2, Database, HardDrive, LayoutDashboard, Mail, Users } from "lucide-react";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { labOrigin, originFor } from "@hull/config";
-import { Button, ProductShell, useBrand } from "@hull/ui";
+import { ProductShell, useBrand } from "@hull/ui";
+import { OperatorMenu } from "./components/OperatorMenu";
 import { useSession } from "./lib/session";
 import { NotFoundPage } from "./pages/NotFound";
 import { OverviewPage } from "./pages/Overview";
@@ -19,7 +20,7 @@ export function App() {
 
 function AdminApp() {
   const { brand, mark, host } = useBrand();
-  const { ready, signedIn, me, signOut } = useSession();
+  const { ready, signedIn, me } = useSession();
   if (!ready) return <div className="text-muted-foreground p-8 text-sm">Loading…</div>;
   if (!signedIn) return <SigninPage />;
   if (me?.platform_role !== "platform_admin") {
@@ -54,11 +55,7 @@ function AdminApp() {
                 ],
               },
             ]}
-            footer={
-              <Button type="button" variant="ghost" className="w-full justify-start" data-testid="sign-out" onClick={() => void signOut()}>
-                Sign out
-              </Button>
-            }
+            footer={<OperatorMenu />}
           />
         }
       >
