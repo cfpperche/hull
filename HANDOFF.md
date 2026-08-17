@@ -94,10 +94,27 @@ carry an address change. Every one is `multipart/alternative`.
   go to somebody who may not have asked for anything, and a one-click action in a
   "was this you?" mail teaches the reflex phishing depends on.
 
+### The console has its own account page
+
+Decided rather than drifted: `apps/admin` gained `/account` instead of the bounce
+being relaxed. A `platform_admin` on `app.` is still sent back here, because that
+redirect is a domain rule — an operator has no workspace, so the product would
+hand them the "name your first workspace" screen — and relaxing it to save one
+screen is the erosion the Locks section exists to stop.
+
+The sections are shared through `@hull/ui` (`ProfileForm`, `EmailSection`,
+`PasswordForm`, `SessionList`), each taking the client as a prop so neither
+package imports the other's. That is shell, not product: Hull *is* the shell, and
+`ThemePreference` is the precedent.
+
+The console's page has no **Close account** — `close_account` refuses a
+`platform_admin`, so the button would exist only to answer 403. There is a
+browser test asserting its absence.
+
 ## Gates
 
 `scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (104).
-`e2e/` holds 15 browser specs. Keep the split the three mail flows use: what only
+`e2e/` holds 16 browser specs. Keep the split the three mail flows use: what only
 a browser shows goes in `e2e/`, and single use, expiry, collisions and the
 enumeration guard stay in pytest — cheaper, deterministic, and they do not spend
 credential calls out of the suite's shared rate-limit budget. Each of those flows
@@ -225,14 +242,6 @@ queued behind it — pick from below, or take a business trigger.
   is **3.99:1** against 4.5:1. No signed-in surface has a `<main>` landmark, so
   skip-to-content has nowhere to go. Evidence: run `20260817-150605`, and
   `design sense` reproduces it in about three minutes.
-- **A platform admin cannot reach their own account.** Found while building the
-  session list, and left alone deliberately rather than smuggled in. `apps/admin`
-  has no account page, and a `platform_admin` landing on `app.` is bounced to the
-  console — so an operator cannot change their own password or email, and cannot
-  see their own sessions, which is exactly the list that shows their support
-  sessions. Either give the console an account page or stop bouncing admins away
-  from `/account`. That is a decision, not a task: the bounce is what keeps the
-  two surfaces from blurring.
 - Product module in `modules/` when there is a sold job
 - **Repair the browser on this workstation.** The cause is now narrowed: Chrome's separate GPU process never comes up, and `--in-process-gpu` or a headed launch both dodge it — in Playwright *and* in `agent-browser`, via `AGENT_BROWSER_ARGS`. See *Open, and owned by the operator* for the measurements. What is left is the actual repair, most likely a `wsl --shutdown` and, failing that, `--headless=old` or a different WSL kernel. Worth an hour because it costs every browser-shaped tool here, not just `ci-e2e`.
 
