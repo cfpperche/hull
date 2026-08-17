@@ -1,4 +1,5 @@
-import { LogOut } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
+import { useNavigate } from "react-router";
 import { UserMenu } from "@hull/ui";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
@@ -12,12 +13,12 @@ import { useSession } from "../lib/session";
  * and an operator who cannot see whose account they are in cannot tell whose
  * name is going on the record.
  *
- * One item, on purpose. There is no account page on this host — the operator's
- * own profile lives on the product surface, which a platform admin is bounced
- * away from — so a second entry would point nowhere.
+ * Account lives here rather than in the rail, for the same reason it does on the
+ * product surface: it is not one of this console's jobs, it is who is doing them.
  */
 export function OperatorMenu() {
   const { me, signOut } = useSession();
+  const navigate = useNavigate();
   const email = me?.user.email ?? "";
 
   return (
@@ -26,7 +27,15 @@ export function OperatorMenu() {
       handle={me?.user.username ? `@${me.user.username}` : email}
       avatarUrl={me?.user.has_avatar ? api.avatarUrl() : null}
       initial={(email[0] ?? "?").toUpperCase()}
-      items={[{ label: "Sign out", icon: LogOut, testId: "sign-out", onSelect: () => void signOut() }]}
+      items={[
+        {
+          label: "Account",
+          icon: UserRound,
+          testId: "menu-account",
+          onSelect: () => navigate("/account"),
+        },
+        { label: "Sign out", icon: LogOut, testId: "sign-out", onSelect: () => void signOut() },
+      ]}
     />
   );
 }

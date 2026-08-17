@@ -185,6 +185,13 @@ export function createApi(opts: ClientOpts = {}) {
   };
 }
 
+/**
+ * The client's shape, so a component can ask for exactly the calls it makes
+ * (`Pick<HullApi, "listSessions" | "revokeSession">`) instead of taking the
+ * whole thing — or worse, importing `api` and picking its own surface.
+ */
+export type HullApi = ReturnType<typeof createApi>;
+
 export function parseRequired(value: string, field: string): string | null {
   const t = value.trim();
   return t ? t : `${field} is required`;

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { HullSession } from "@hull/api-client";
+import type { HullApi, HullSession } from "@hull/api-client";
 import { errMsg } from "@hull/api-client";
-import { Button, ConfirmDialog } from "@hull/ui";
-import { api } from "../lib/api";
+import { Button } from "../ui/button";
+import { ConfirmDialog } from "../ui/confirm-dialog";
 
 /** "just now" / "4 minutes ago" / "3 days ago", in the viewer's locale. */
 function ago(iso: string): string {
@@ -21,7 +21,18 @@ function ago(iso: string): string {
   return "just now";
 }
 
-export function SessionList() {
+/**
+ * Where this login is signed in, and the way to end any of it.
+ *
+ * Takes the client rather than importing one, because both surfaces need this
+ * and each builds its own. An operator has a particular reason to read it: a
+ * support session shows up here, marked, and it is theirs.
+ */
+export function SessionList({
+  api,
+}: {
+  api: Pick<HullApi, "listSessions" | "revokeSession" | "revokeOtherSessions">;
+}) {
   const [sessions, setSessions] = useState<HullSession[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The id being revoked, or "others" for the bulk action. One value, because
@@ -37,7 +48,7 @@ export function SessionList() {
     } catch (err) {
       setError(errMsg(err));
     }
-  }, []);
+  }, [api]);
 
   useEffect(() => {
     void load();
@@ -124,9 +135,9 @@ export function SessionList() {
       {others > 0 ? (
         <Button
           type="button"
-          /* Not destructive. Close account is two sections below in the same
-             red, and it is the one that cannot be undone — this costs a
-             re-login. Two reds on one page teaches people to ignore both. */
+          /* Not destructive. Close account is the red one on the product's
+             account page, and it is the one that cannot be undone — this costs
+             a re-login. Two reds on one page teaches people to ignore both. */
           variant="outline"
           className="w-fit"
           data-testid="session-revoke-others"

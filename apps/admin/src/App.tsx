@@ -4,6 +4,7 @@ import { labOrigin, originFor } from "@hull/config";
 import { ProductShell, useBrand } from "@hull/ui";
 import { OperatorMenu } from "./components/OperatorMenu";
 import { useSession } from "./lib/session";
+import { AccountPage } from "./pages/Account";
 import { NotFoundPage } from "./pages/NotFound";
 import { OverviewPage } from "./pages/Overview";
 import { OrgsPage } from "./pages/Orgs";
@@ -62,6 +63,7 @@ function AdminApp() {
         <Route index element={<OverviewPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/orgs" element={<OrgsPage />} />
+        <Route path="/account" element={<AccountPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
