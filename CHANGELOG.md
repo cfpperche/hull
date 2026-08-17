@@ -50,6 +50,8 @@ All notable changes to Hull. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
+- `make ci` and `make ci-e2e` run the gate locally. The workflow now calls `scripts/ci.sh` and `scripts/ci-e2e.sh` and holds no logic of its own, so local and CI are the same code rather than two lists that drift — and "did I run what CI runs" stops being a guess. Runner-only steps (writing `/etc/hosts`, pulling images with backoff, installing browser system libraries) are behind a `CI` check; on a workstation the script instead fails early with the fix if the Hull hostnames do not resolve.
+
 - Browser end-to-end tests in `e2e/` (Playwright), run in CI against the real compose stack — ten flows covering signup through to a workspace, sign out and back in, photo upload, profile save, password change, account closure, and the admin "View as" hand-off. This covers the layer that let **avatar upload ship broken**: the API was correct and every API test passed while the client built an unparseable request. Proven both ways — reintroducing that exact bug fails the suite, restoring the fix passes it. It runs as a separate CI job so the existing checks keep their ~90s feedback.
 
 - `dbgate` is a first-class lab service at `db.<host>`, started by `up.sh` alongside Mailpit and RustFS rather than hidden behind a `studio` profile, and listed in the README host table. It always requires its own credentials — that is the lock; the Traefik `basicAuth` that briefly sat in front of it was dropped, because two password prompts on a daily tool is the kind of friction that gets worked around with a trivial password.

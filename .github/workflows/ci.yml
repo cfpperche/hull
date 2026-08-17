@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+# The gate lives in scripts/ci.sh and scripts/ci-e2e.sh, not here. This file only
+# provisions a runner and calls them, so `make ci` on a workstation runs the same
+# code — and a step cannot be added to one without the other.
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -29,18 +33,10 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
         with:
           enable-cache: true
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm --filter @hull/www build
-      - run: pnpm --filter @hull/web build
-      - run: pnpm --filter @hull/admin build
-      # Exercises the hardcoded workspace importer list in the frontend
-      # Dockerfile, which nothing else in CI touches.
-      - run: docker build -f deploy/docker/frontend.Dockerfile --build-arg SHELL=web -t hull-web:ci .
-      - run: ./scripts/test.sh
+      - run: ./scripts/ci.sh
 
   # Separate job on purpose: the checks above give feedback in ~90s and must not
-  # wait on a compose stack. E2E covers the layer none of them can reach - what a
+  # wait on a compose stack. E2E covers the layer none of them can reach — what a
   # browser actually does. See docs/adr/0012-browser-e2e-with-playwright.md.
   e2e:
     runs-on: ubuntu-latest
@@ -55,41 +51,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-
-      # Traefik routes by Host, so the names have to resolve. The CA is not
-      # trusted here; Playwright ignores certificate errors, and asserting trust
-      # is smoke.sh's job.
-      - name: Resolve the Hull hostnames
-        run: |
-          sudo tee -a /etc/hosts >/dev/null <<'EOF'
-          127.0.0.1 hull.test www.hull.test app.hull.test admin.hull.test
-          127.0.0.1 mail.hull.test s3.hull.test rustfs.hull.test db.hull.test
-          EOF
-
-      - run: cp .env.example .env
-
-      # Anonymous pulls are rate-limited per source IP and Actions runners share
-      # them, so a cold run can fail on "Rate exceeded" before a single test runs.
-      # Pull with backoff first; up.sh then finds everything local.
-      - name: Pull base images with retries
-        run: |
-          images=$(docker compose --env-file .env -f deploy/compose.yaml -p hull config --images \
-                   | sort -u | grep -v '^hull-')
-          for img in $images; do
-            for attempt in 1 2 3 4 5; do
-              if docker pull -q "$img" >/dev/null; then break; fi
-              if [ "$attempt" = 5 ]; then echo "giving up on $img" >&2; exit 1; fi
-              echo "retry $attempt for $img"
-              sleep $((attempt * 20))
-            done
-          done
-
-      - name: Bring up the stack
-        run: ./scripts/up.sh
-
-      - run: pnpm --filter @hull/e2e exec playwright install --with-deps chromium
-      - run: pnpm e2e
+      - run: ./scripts/ci-e2e.sh
 
       - if: failure()
         run: docker compose --env-file .env -f deploy/compose.yaml -p hull logs --tail 200

@@ -48,6 +48,9 @@ Changed by the review — the old notes here described the previous model.
 ## Gates
 
 `scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (34).
+`make ci` and `make ci-e2e` run exactly what CI runs — the workflow calls those
+same two scripts and contains no gate logic of its own, so the two cannot drift
+and a provider outage does not leave you merging on faith.
 `pnpm e2e` runs the browser suite in `e2e/` against a live stack — the layer the
 other two cannot reach. Keep the boundary: adapter behaviour in pytest, what a
 browser does in `e2e/`, and `smoke.sh` stays a small HTTP check of a live install. CI also builds all three frontends and one frontend image, which is what catches drift in the hardcoded importer list in `deploy/docker/frontend.Dockerfile`.

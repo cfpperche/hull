@@ -1,4 +1,4 @@
-.PHONY: setup up down dev smoke test images migrate brand prune visual
+.PHONY: setup up down dev smoke test images migrate brand prune visual ci ci-e2e
 
 setup:
 	./scripts/setup-local.sh
@@ -26,6 +26,13 @@ smoke:
 
 test:
 	./scripts/test.sh
+
+# Exactly what CI runs — the workflow calls these same scripts.
+ci:
+	./scripts/ci.sh
+
+ci-e2e:
+	./scripts/ci-e2e.sh
 
 prune:
 	./scripts/prune.sh
