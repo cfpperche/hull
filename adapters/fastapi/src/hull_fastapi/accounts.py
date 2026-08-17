@@ -91,13 +91,36 @@ class SessionPrincipal:
     email: str
     username: str | None
     display_name: str | None
-    org_id: str | None
+    # Deliberately not `org_id`. Reading this directly ignores impersonation —
+    # go through effective_org_id() instead. The name is awkward on purpose.
+    session_org_id: str | None
     org_name: str | None
     platform_role: str | None
     avatar_key: str | None
     acting_org_id: str | None
     acting_org_name: str | None
     acting_expires_at: datetime | None
+
+    def acting(self) -> dict[str, Any] | None:
+        """The live impersonation, or None.
+
+        The role check lives here so the chrome and the data scope can never
+        disagree: a demoted operator holding an impersonating session stops
+        seeing the acting org *and* stops resolving to it, in the same place.
+        """
+        if self.platform_role != "platform_admin":
+            return None
+        if not (self.acting_org_id and self.acting_org_name and self.acting_expires_at):
+            return None
+        exp = self.acting_expires_at
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=UTC)
+        if exp <= datetime.now(UTC):
+            return None
+        return {
+            "org": {"id": self.acting_org_id, "name": self.acting_org_name},
+            "expires_at": exp.isoformat(),
+        }
 
 
 def _orgs_for(conn: psycopg.Connection, user_id: str) -> list[dict[str, str]]:
@@ -116,21 +139,12 @@ def _orgs_for(conn: psycopg.Connection, user_id: str) -> list[dict[str, str]]:
 
 
 def me_body(conn: psycopg.Connection, sess: SessionPrincipal) -> dict[str, Any]:
-    acting = None
-    if sess.acting_org_id and sess.acting_org_name and sess.acting_expires_at:
-        exp = sess.acting_expires_at
-        if exp.tzinfo is None:
-            exp = exp.replace(tzinfo=UTC)
-        if exp > datetime.now(UTC):
-            acting = {
-                "org": {"id": sess.acting_org_id, "name": sess.acting_org_name},
-                "expires_at": exp.isoformat(),
-            }
+    acting = sess.acting()
     org = None
     if acting:
         org = acting["org"]
-    elif sess.org_id and sess.org_name:
-        org = {"id": sess.org_id, "name": sess.org_name}
+    elif sess.session_org_id and sess.org_name:
+        org = {"id": sess.session_org_id, "name": sess.org_name}
     return {
         "user": {
             "id": sess.user_id,
@@ -200,7 +214,7 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
         email=str(row["email"]),
         username=row["username"],
         display_name=row["display_name"],
-        org_id=str(row["org_id"]) if row["org_id"] else None,
+        session_org_id=str(row["org_id"]) if row["org_id"] else None,
         org_name=row["org_name"],
         platform_role=row["platform_role"],
         avatar_key=row["avatar_key"],
@@ -523,11 +537,14 @@ def support_stop(conn: psycopg.Connection, *, raw: str) -> None:
 
 
 def effective_org_id(sess: SessionPrincipal) -> str | None:
-    if sess.platform_role == "platform_admin" and sess.acting_org_id:
-        exp = sess.acting_expires_at
-        if exp is not None:
-            if exp.tzinfo is None:
-                exp = exp.replace(tzinfo=UTC)
-            if exp > datetime.now(UTC):
-                return sess.acting_org_id
-    return sess.org_id
+    """The org this request operates on. The only supported way to get it.
+
+    Product modules must call this rather than reading the session field. A
+    support operator's session carries the customer's org in acting_org_id and
+    nothing in session_org_id, so reading the raw field would silently scope an
+    impersonated request to no org at all — or, once modules keep their own
+    org column, to the wrong one.
+    """
+    if sess.acting() is not None:
+        return sess.acting_org_id
+    return sess.session_org_id

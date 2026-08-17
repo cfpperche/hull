@@ -51,6 +51,28 @@ fi
 compose --profile tools run --rm migrate
 # migrate is profile tools — do not `up` it or it sits Exited in the hull group
 compose up -d --remove-orphans
+
+# `compose up -d` returns when containers start, not when they serve. up.sh used
+# to print UP_OK and point at smoke.sh, which then failed on health because the
+# API was still booting behind a freshly reloaded edge.
+echo -n "waiting for the edge"
+ready=0
+for _ in $(seq 1 60); do
+  if curl -sk --max-time 2 --resolve "app.${HOST}:443:127.0.0.1" \
+       "https://app.${HOST}/api/health" 2>/dev/null | grep -q '"status":"ok"'; then
+    ready=1
+    echo " ok"
+    break
+  fi
+  echo -n "."
+  sleep 1
+done
+if [[ "$ready" != "1" ]]; then
+  echo " FAIL"
+  echo "ERROR: https://app.${HOST}/api/health did not answer. Check: docker logs hull-api" >&2
+  exit 1
+fi
+
 echo "UP_OK  https://${HOST}/  https://app.${HOST}/  https://admin.${HOST}/"
 echo "Lab: ada@${HOST} / demodemo1   admin@${HOST} / same"
 echo "Mail: https://mail.${HOST}/"
