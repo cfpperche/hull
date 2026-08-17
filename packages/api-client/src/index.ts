@@ -4,6 +4,7 @@ export type HullUser = {
   username: string | null;
   name: string | null;
   has_avatar: boolean;
+  email_verified: boolean;
 };
 
 export type HullOrg = { id: string; name: string };
@@ -104,6 +105,11 @@ export function createApi(opts: ClientOpts = {}) {
     signin: (body: { email: string; password: string }) =>
       request<HullMe>(prefix, "/v1/auth/signin", { method: "POST", body: JSON.stringify(body) }),
     signout: () => request<void>(prefix, "/v1/auth/signout", { method: "POST" }),
+    verifyEmail: (token: string) =>
+      request<void>(prefix, "/v1/auth/verify", { method: "POST", body: JSON.stringify({ token }) }),
+    // Resolves whether or not a mail went out: a verified address has no state
+    // to change, and saying so would only be noise.
+    resendVerification: () => request<void>(prefix, "/v1/me/verify", { method: "POST" }),
     // Resolves the same way whether or not the address has an account. Do not
     // branch the UI on it — that would put the oracle back in the client.
     forgotPassword: (body: { email: string }) =>

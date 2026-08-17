@@ -16,6 +16,7 @@ from hull_fastapi.accounts import (
     RESET_TTL,
     SESSION_TTL,
     SUPPORT_TTL,
+    VERIFY_TTL,
     AccountError,
     change_password,
     close_account,
@@ -25,6 +26,7 @@ from hull_fastapi.accounts import (
     list_users,
     load_session,
     me_body,
+    request_email_verification,
     request_password_reset,
     require_admin,
     reset_password,
@@ -36,6 +38,7 @@ from hull_fastapi.accounts import (
     support_stop,
     switch_org,
     update_profile,
+    verify_email,
 )
 from hull_fastapi.config import Settings
 from hull_fastapi.db import connection
@@ -101,6 +104,10 @@ class ForgotBody(BaseModel):
 class ResetBody(BaseModel):
     token: str
     password: str
+
+
+class VerifyBody(BaseModel):
+    token: str
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -295,6 +302,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         return sess
 
+    def _verify_link(token: str) -> str:
+        # Fragment, for the same reason the reset and hand-off links use one: it
+        # is never sent to a server, so it stays out of access logs and Referer.
+        return f"{settings.resolved_public_origin()}/verify#{token}"
+
+    def _welcome_text(token: str | None) -> str:
+        body = "Your account is ready. Name a workspace to continue.\n"
+        if not token:
+            return body
+        return (
+            body + "\nConfirm this is your address:\n\n"
+            f"{_verify_link(token)}\n\n"
+            f"The link works once and expires in {VERIFY_TTL.days} days.\n"
+        )
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "service": "hull-api"}
@@ -313,13 +335,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     payload={"email": payload.email.lower()},
                 )
                 conn.commit()
+                verification = request_email_verification(conn, user_id=body["user"]["id"])
         except AccountError as exc:
             return _account_http(exc)
+        # One mail, not two. A welcome and a "confirm your address" arriving
+        # together is the pattern people learn to ignore, and the link is the
+        # only part of either that does anything.
         send_mail(
             settings,
             to=payload.email.strip().lower(),
             subject=settings.welcome_subject(),
-            text="Your account is ready. Name a workspace to continue.\n",
+            text=_welcome_text(verification[0] if verification else None),
         )
         _set_cookie(request, response, token)
         return body
@@ -401,6 +427,49 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # holding. Clear the cookie so the page that follows is honestly signed
         # out instead of carrying a token the server has already forgotten.
         _clear_cookie(request, response)
+
+    @app.post("/v1/auth/verify", status_code=204)
+    def auth_verify(payload: VerifyBody) -> None:
+        """Public: the link is clicked from a mail client, which carries no session.
+
+        It grants nothing, so there is nothing to protect with one — and requiring
+        a session would strand anyone who clicked from their phone.
+        """
+        try:
+            with connection(settings) as conn:
+                email = verify_email(conn, raw=payload.token)
+                record_event(conn, source="api", event="auth.verify", payload={"email": email})
+                conn.commit()
+        except AccountError as exc:
+            raise StarletteHTTPException(
+                status_code=401,
+                detail={
+                    "type": "about:blank",
+                    "title": "Account error",
+                    "status": 401,
+                    "detail": exc.message,
+                    "reason_code": exc.reason_code,
+                },
+            ) from exc
+
+    @app.post("/v1/me/verify", status_code=204)
+    def me_verify_resend(sess=Depends(require_session)) -> None:
+        """Send the link again. Silent when the address is already confirmed —
+        there is no state to change and nothing useful to say about it."""
+        with connection(settings) as conn:
+            verification = request_email_verification(conn, user_id=sess.user_id)
+        if not verification:
+            return
+        token, email = verification
+        send_mail(
+            settings,
+            to=email,
+            subject=settings.verify_subject(),
+            text=(
+                f"Confirm this is your address:\n\n{_verify_link(token)}\n\n"
+                f"The link works once and expires in {VERIFY_TTL.days} days.\n"
+            ),
+        )
 
     @app.post("/v1/auth/signout", status_code=204)
     def auth_signout(request: Request, response: Response) -> None:

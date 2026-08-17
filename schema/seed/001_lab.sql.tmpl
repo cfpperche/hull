@@ -1,23 +1,30 @@
 -- Lab users. Password for both is demodemo1 (scrypt, same hasher as the Python adapter).
 -- __HOST__ is replaced by scripts/migrate.sh from HULL_HOST.
+--
+-- Both start verified. Nobody can click a link in a mailbox that does not
+-- exist, and a fixture that greets every lab session with a banner asking for
+-- something impossible is a fixture people learn to ignore. The unverified
+-- path is what a real signup produces, and that is where it is tested.
 
-INSERT INTO users (id, email, username, display_name, password_hash)
+INSERT INTO users (id, email, username, display_name, password_hash, email_verified_at)
 SELECT
     '00000000-0000-4000-8000-000000000001',
     'ada@__HOST__',
     'ada',
     'Ada',
-    'scrypt$bbbd31e492c4893ad465b3b21c9c1131$d06e33672d79d2cbfc77091f4e3a9cdfe0aa49cb6de4077a029e1e343f0ac91c'
+    'scrypt$bbbd31e492c4893ad465b3b21c9c1131$d06e33672d79d2cbfc77091f4e3a9cdfe0aa49cb6de4077a029e1e343f0ac91c',
+    now()
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE lower(email) = 'ada@__HOST__');
 
-INSERT INTO users (id, email, username, display_name, password_hash, platform_role)
+INSERT INTO users (id, email, username, display_name, password_hash, platform_role, email_verified_at)
 SELECT
     '00000000-0000-4000-8000-000000000002',
     'admin@__HOST__',
     'admin',
     'Admin',
     'scrypt$bbbd31e492c4893ad465b3b21c9c1131$d06e33672d79d2cbfc77091f4e3a9cdfe0aa49cb6de4077a029e1e343f0ac91c',
-    'platform_admin'
+    'platform_admin',
+    now()
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE lower(email) = 'admin@__HOST__');
 
 INSERT INTO orgs (id, name)

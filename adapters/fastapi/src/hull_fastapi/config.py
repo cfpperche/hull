@@ -55,3 +55,6 @@ class Settings(BaseSettings):
 
     def reset_subject(self) -> str:
         return f"Reset your {self.resolved_brand()} password"
+
+    def verify_subject(self) -> str:
+        return f"Confirm your {self.resolved_brand()} email"

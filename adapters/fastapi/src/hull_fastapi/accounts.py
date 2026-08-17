@@ -20,6 +20,10 @@ HANDOFF_TTL = timedelta(seconds=60)
 # measured in seconds — but it is the one credential that arrives unauthenticated,
 # so it does not get to live for a day either.
 RESET_TTL = timedelta(minutes=30)
+# Longer, because it is worth less: redeeming a verification link proves someone
+# reached the mailbox, and grants nothing. Signup is also the worst moment to
+# demand promptness — the mail lands while the person is already busy elsewhere.
+VERIFY_TTL = timedelta(days=3)
 _USERNAME_RE = re.compile(r"^[a-z0-9_]{3,24}$")
 
 
@@ -105,6 +109,7 @@ class SessionPrincipal:
     org_name: str | None
     platform_role: str | None
     avatar_key: str | None
+    email_verified_at: datetime | None
     acting_org_id: str | None
     acting_org_name: str | None
     acting_expires_at: datetime | None
@@ -160,6 +165,7 @@ def me_body(conn: psycopg.Connection, sess: SessionPrincipal) -> dict[str, Any]:
             "username": sess.username,
             "name": sess.display_name,
             "has_avatar": bool(sess.avatar_key),
+            "email_verified": sess.email_verified_at is not None,
         },
         "org": org,
         "orgs": _orgs_for(conn, sess.user_id),
@@ -205,6 +211,7 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
         cur.execute(
             """
             SELECT s.user_id, u.email, u.username, u.display_name, u.platform_role, u.avatar_key,
+                   u.email_verified_at,
                    s.org_id, o.name AS org_name,
                    s.acting_org_id, ao.name AS acting_org_name, s.acting_expires_at, s.expires_at
             FROM sessions s
@@ -232,6 +239,7 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
         org_name=row["org_name"],
         platform_role=row["platform_role"],
         avatar_key=row["avatar_key"],
+        email_verified_at=row["email_verified_at"],
         acting_org_id=str(row["acting_org_id"]) if row["acting_org_id"] else None,
         acting_org_name=row["acting_org_name"],
         acting_expires_at=row["acting_expires_at"],
@@ -467,6 +475,71 @@ def reset_password(conn: psycopg.Connection, *, raw: str, password: str) -> None
             (user_id,),
         )
     conn.commit()
+
+
+def request_email_verification(conn: psycopg.Connection, *, user_id: str) -> tuple[str, str] | None:
+    """Mint a verification link, or None when there is nothing to verify.
+
+    Returns (token, address). The address is stored with the token because a link
+    minted for one address must not confirm the one that replaced it — the day
+    changing your email exists, that is the difference between verification and
+    a rubber stamp.
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT email, email_verified_at FROM users WHERE id = %s", (user_id,))
+        row = cur.fetchone()
+        if not row or row["email_verified_at"] is not None:
+            return None
+        email = str(row["email"])
+        raw = new_session_secret()
+        cur.execute(
+            """
+            INSERT INTO email_verifications (id, token_hash, user_id, email, expires_at)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (str(uuid.uuid4()), hash_session(raw), user_id, email, datetime.now(UTC) + VERIFY_TTL),
+        )
+    conn.commit()
+    return raw, email
+
+
+def verify_email(conn: psycopg.Connection, *, raw: str) -> str:
+    """Redeem a verification link. Returns the address that got confirmed."""
+    if not raw:
+        raise AccountError("unauthenticated", "verification link is invalid or expired")
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE email_verifications
+            SET used_at = now()
+            WHERE token_hash = %s AND used_at IS NULL AND expires_at > now()
+            RETURNING user_id, email
+            """,
+            (hash_session(raw),),
+        )
+        row = cur.fetchone()
+        if not row:
+            conn.rollback()
+            raise AccountError("unauthenticated", "verification link is invalid or expired")
+        user_id, email = str(row["user_id"]), str(row["email"])
+        # Only stamp the user if they still hold the address the link was sent to.
+        # An address changed between minting and clicking leaves the link spent and
+        # the account unverified, which is the honest outcome.
+        cur.execute(
+            """
+            UPDATE users
+            SET email_verified_at = now()
+            WHERE id = %s AND lower(email) = lower(%s) AND email_verified_at IS NULL
+            """,
+            (user_id, email),
+        )
+        # Any other outstanding link for this user is spent with it.
+        cur.execute(
+            "UPDATE email_verifications SET used_at = now() WHERE user_id = %s AND used_at IS NULL",
+            (user_id,),
+        )
+    conn.commit()
+    return email
 
 
 def close_account(

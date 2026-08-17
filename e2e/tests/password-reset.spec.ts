@@ -16,20 +16,27 @@ import { APP, HOST, newUser, signIn, signUp } from "./helpers";
  * single use, expiry and the enumeration guard are server properties and live in
  * tests/test_password_reset.py, where they are cheap and deterministic.
  */
-async function latestMailTo(request: APIRequestContext, address: string): Promise<string> {
-  const list = await (await request.get(`https://mail.${HOST}/api/v1/messages?limit=50`)).json();
-  const match = list.messages.find((m: { To: { Address: string }[] }) =>
-    m.To.some((t) => t.Address.toLowerCase() === address.toLowerCase()),
-  );
-  expect(match, `no mail for ${address}`).toBeTruthy();
-  const full = await (await request.get(`https://mail.${HOST}/api/v1/message/${match.ID}`)).json();
-  return full.Text as string;
-}
-
-function resetLink(body: string): string {
-  const found = /https:\/\/\S*\/reset#\S+/.exec(body);
-  expect(found, `no reset link in:\n${body}`).toBeTruthy();
-  return found![0];
+/**
+ * The newest mail to this address that actually carries a reset link — not
+ * simply the newest. Signup also mails this person, and Mailpit ingests a
+ * moment after the API answers, so "newest" is a race that lands on the welcome
+ * mail and reports a missing link that is merely late.
+ */
+async function resetLinkFor(request: APIRequestContext, address: string): Promise<string> {
+  const wanted = /https:\/\/\S*\/reset#\S+/;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const list = await (await request.get(`https://mail.${HOST}/api/v1/messages?limit=50`)).json();
+    const mine = list.messages.filter((m: { To: { Address: string }[] }) =>
+      m.To.some((t) => t.Address.toLowerCase() === address.toLowerCase()),
+    );
+    for (const m of mine) {
+      const full = await (await request.get(`https://mail.${HOST}/api/v1/message/${m.ID}`)).json();
+      const found = wanted.exec(full.Text as string);
+      if (found) return found[0];
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error(`no reset link mailed to ${address}`);
 }
 
 test("a forgotten password can be reset from the emailed link", async ({ page, playwright }) => {
@@ -46,7 +53,7 @@ test("a forgotten password can be reset from the emailed link", async ({ page, p
   await expect(page.getByTestId("forgot-sent")).toBeVisible();
 
   const mail = await playwright.request.newContext({ ignoreHTTPSErrors: true });
-  const link = resetLink(await latestMailTo(mail, user.email));
+  const link = await resetLinkFor(mail, user.email);
 
   await page.goto(link);
   // The token must not survive in the address bar: screenshots, bookmarks, history.

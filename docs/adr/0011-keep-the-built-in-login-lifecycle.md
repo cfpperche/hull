@@ -15,10 +15,18 @@ verification. The alternative is adopting a self-hosted identity service.
 Keep the built-in lifecycle and add the two missing pieces, reusing the single-use
 token pattern already proven by `support_handoffs` and the existing `mail.py`.
 
-Password reset shipped 2026-08-17 on exactly that pattern: `password_resets`
-mirrors `support_handoffs` row for row, redeemed with the same
-`used_at IS NULL … RETURNING`, and the link carries its token in the fragment for
-the same reason the hand-off does. Email verification is the remaining piece.
+Both shipped 2026-08-17 on exactly that pattern. `password_resets` and
+`email_verifications` mirror `support_handoffs` row for row, are redeemed with
+the same `used_at IS NULL … RETURNING`, and carry their token in the fragment for
+the same reason the hand-off does. The lifecycle this decision was about is now
+complete; what remains in account management — changing an address, seeing and
+revoking sessions — builds on it rather than filling it in.
+
+Verification informs, it does not gate. Nothing in Hull requires a confirmed
+address yet, and inventing a wall would be policy this decision did not make.
+The first thing that genuinely needs it is changing your email, which is why
+`email_verifications` stores the address a link was sent to: a link minted before
+a change must not rubber-stamp the address that replaced it.
 
 ## Consequences
 

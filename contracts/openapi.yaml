@@ -118,6 +118,40 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "422":
           $ref: "#/components/responses/Invalid"
+  /v1/auth/verify:
+    post:
+      operationId: verifyEmail
+      security: []
+      description: >
+        Redeem an email confirmation link. Public on purpose: the link is opened
+        from a mail client, often on another device, and it grants nothing that
+        would need a session to protect. The token arrives in the link's
+        fragment, so it never reaches a server log.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        "204":
+          description: Address confirmed
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /v1/me/verify:
+    post:
+      operationId: resendVerification
+      description: >
+        Send the confirmation link again. Answers 204 whether or not a mail went
+        out — an address that is already confirmed has no state to change.
+      responses:
+        "204":
+          description: Accepted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
   /v1/auth/signout:
     post:
       operationId: signout
@@ -485,7 +519,7 @@ components:
         created_at: { type: string, format: date-time }
     User:
       type: object
-      required: [id, email, username, name, has_avatar]
+      required: [id, email, username, name, has_avatar, email_verified]
       properties:
         id: { type: string, format: uuid }
         email: { type: string }
@@ -494,6 +528,7 @@ components:
         username: { type: [string, "null"] }
         name: { type: [string, "null"] }
         has_avatar: { type: boolean }
+        email_verified: { type: boolean }
     AdminUser:
       type: object
       required: [id, email, username, name, has_avatar, platform_role, created_at]

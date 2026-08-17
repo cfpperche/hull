@@ -5,6 +5,7 @@ import { ProductShell, useBrand } from "@hull/ui";
 import { AvatarMenu } from "./components/AvatarMenu";
 import { OrgSwitcher } from "./components/OrgSwitcher";
 import { SupportBanner } from "./components/SupportBanner";
+import { VerifyBanner } from "./components/VerifyBanner";
 import { useSession } from "./lib/session";
 import { AccountPage } from "./pages/Account";
 import { CreateOrgPage } from "./pages/CreateOrg";
@@ -14,6 +15,7 @@ import { HomePage } from "./pages/Home";
 import { NotFoundPage } from "./pages/NotFound";
 import { ResetPage } from "./pages/Reset";
 import { SigninPage } from "./pages/Signin";
+import { VerifyPage } from "./pages/Verify";
 import { SignupPage } from "./pages/Signup";
 
 export function App() {
@@ -40,6 +42,12 @@ function ClientApp() {
   // it to Not found — losing the token in the fragment with it.
   if (window.location.pathname === "/reset") {
     return <ResetPage />;
+  }
+
+  // Same reasons again: the link is opened from a mail client, often on
+  // another device, so it must not depend on a session either way.
+  if (window.location.pathname === "/verify") {
+    return <VerifyPage />;
   }
 
   if (!ready) {
@@ -76,7 +84,15 @@ function ClientApp() {
             brand={brand}
             mark={mark}
             lead={acting ? <ActingChip brand={brand} name={acting.name} /> : <OrgSwitcher />}
-            banner={acting ? <SupportBanner orgName={acting.name} /> : undefined}
+            banner={
+              acting ? (
+                <SupportBanner orgName={acting.name} />
+              ) : me.user.email_verified ? undefined : (
+                // Impersonation wins the slot: an operator viewing someone
+                // else needs to know that before anything about their own inbox.
+                <VerifyBanner email={me.user.email} />
+              )
+            }
             nav={[{ to: "/", label: "Home", icon: Home, end: true }, { to: "/account", label: "Account", icon: UserRound }]}
             footer={<AvatarMenu />}
           />
