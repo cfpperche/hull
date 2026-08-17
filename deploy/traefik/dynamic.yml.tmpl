@@ -18,9 +18,12 @@ http:
 
     # One bucket per threat, not one bucket for everything.
     #
-    # Guessing: sign-in, password reset redemption, password change and hand-off
-    # redemption all take a secret and answer whether it was right. This is the
-    # budget that stops a spray, and it stays tight.
+    # Guessing: sign-in, password reset redemption, password change, the email
+    # change request and hand-off redemption all take a secret and answer whether
+    # it was right. This is the budget that stops a spray, and it stays tight.
+    # Link *redemption* by mailed token is not here — /v1/auth/verify and
+    # /v1/auth/email carry 256 bits from the fragment, so volume is not the
+    # attack, and throttling them only breaks the person clicking twice.
     auth-ratelimit:
       rateLimit:
         average: 10
@@ -49,7 +52,7 @@ http:
     # Priority 200, above the catch-all /api routers at 100, so the rate limit
     # applies before the general API route matches.
     hull-web-auth:
-      rule: "Host(`app.__HOST__`) && (Path(`/api/v1/auth/signin`) || Path(`/api/v1/auth/reset`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
+      rule: "Host(`app.__HOST__`) && (Path(`/api/v1/auth/signin`) || Path(`/api/v1/auth/reset`) || Path(`/api/v1/me/password`) || Path(`/api/v1/me/email`) || Path(`/api/v1/session/handoff`))"
       entryPoints: [websecure]
       middlewares: [auth-ratelimit, strip-api, api-headers]
       service: hull-api
@@ -80,7 +83,7 @@ http:
       tls: {}
 
     hull-admin-auth:
-      rule: "Host(`admin.__HOST__`) && (Path(`/api/v1/auth/signin`) || Path(`/api/v1/auth/reset`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
+      rule: "Host(`admin.__HOST__`) && (Path(`/api/v1/auth/signin`) || Path(`/api/v1/auth/reset`) || Path(`/api/v1/me/password`) || Path(`/api/v1/me/email`) || Path(`/api/v1/session/handoff`))"
       entryPoints: [websecure]
       middlewares: [auth-ratelimit, strip-api, api-headers]
       service: hull-api

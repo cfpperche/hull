@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { APIRequestContext } from "@playwright/test";
-import { APP, HOST, newUser, signIn, signUp } from "./helpers";
+import { APP, HOST, expectTokenStripped, newUser, signIn, signUp } from "./helpers";
 
 /**
  * Forgotten password.
@@ -56,8 +56,7 @@ test("a forgotten password can be reset from the emailed link", async ({ page, p
   const link = await resetLinkFor(mail, user.email);
 
   await page.goto(link);
-  // The token must not survive in the address bar: screenshots, bookmarks, history.
-  expect(new URL(page.url()).hash).toBe("");
+  await expectTokenStripped(page);
 
   // A typo is caught in the browser, so it costs neither a request nor the link.
   await page.getByTestId("reset-password").fill("brandnew123");

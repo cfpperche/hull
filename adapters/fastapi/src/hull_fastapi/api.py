@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from hull_fastapi.accounts import (
+    EMAIL_CHANGE_TTL,
     RESET_TTL,
     SESSION_TTL,
     SUPPORT_TTL,
@@ -20,12 +21,14 @@ from hull_fastapi.accounts import (
     AccountError,
     change_password,
     close_account,
+    confirm_email_change,
     consume_handoff,
     create_org,
     list_orgs,
     list_users,
     load_session,
     me_body,
+    request_email_change,
     request_email_verification,
     request_password_reset,
     require_admin,
@@ -108,6 +111,11 @@ class ResetBody(BaseModel):
 
 class VerifyBody(BaseModel):
     token: str
+
+
+class EmailBody(BaseModel):
+    password: str
+    email: str
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -307,6 +315,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # is never sent to a server, so it stays out of access logs and Referer.
         return f"{settings.resolved_public_origin()}/verify#{token}"
 
+    def _email_change_link(token: str) -> str:
+        return f"{settings.resolved_public_origin()}/email#{token}"
+
     def _welcome_text(token: str | None) -> str:
         body = "Your account is ready. Name a workspace to continue.\n"
         if not token:
@@ -468,6 +479,107 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             text=(
                 f"Confirm this is your address:\n\n{_verify_link(token)}\n\n"
                 f"The link works once and expires in {VERIFY_TTL.days} days.\n"
+            ),
+        )
+
+    @app.post("/v1/me/email", status_code=204)
+    def me_email_change(payload: EmailBody, sess=Depends(require_session)) -> None:
+        """Ask to move the account to another address. Nothing changes yet."""
+        try:
+            with connection(settings) as conn:
+                token, new_email, old_email = request_email_change(
+                    conn, user_id=sess.user_id, password=payload.password, email=payload.email
+                )
+                record_event(
+                    conn,
+                    source="api",
+                    event="account.email_change_requested",
+                    payload={"from": old_email, "to": new_email},
+                )
+                conn.commit()
+        except AccountError as exc:
+            status = 401 if exc.reason_code == "unauthenticated" else 422
+            if exc.reason_code == "email_taken":
+                status = 409
+            raise StarletteHTTPException(
+                status_code=status,
+                detail={
+                    "type": "about:blank",
+                    "title": "Account error",
+                    "status": status,
+                    "detail": exc.message,
+                    "reason_code": exc.reason_code,
+                },
+            ) from exc
+        hours = int(EMAIL_CHANGE_TTL.total_seconds() // 3600)
+        send_mail(
+            settings,
+            to=new_email,
+            subject=settings.email_change_subject(),
+            text=(
+                f"Confirm this address so {settings.resolved_brand()} can move "
+                f"{old_email} to it:\n\n{_email_change_link(token)}\n\n"
+                f"The link works once and expires in {hours} hours. Until then "
+                f"{old_email} is still the address on the account.\n"
+            ),
+        )
+        # The address that is losing the account hears about it while it can still
+        # do something. Changing the password cancels every pending change, so
+        # this is an instruction rather than a condolence.
+        send_mail(
+            settings,
+            to=old_email,
+            subject=settings.email_change_notice_subject(),
+            text=(
+                f"Someone asked to change this account's email to {new_email}.\n\n"
+                f"Nothing has changed yet — {old_email} still signs in, and the "
+                "change only happens if that address confirms it.\n\n"
+                "If this was not you, change your password now. That cancels the "
+                "request and ends every other session.\n"
+            ),
+        )
+
+    @app.post("/v1/auth/email", status_code=204)
+    def auth_email_change(payload: VerifyBody) -> None:
+        """Redeem the change link. Public, like /v1/auth/verify.
+
+        The link lands in a mailbox that by definition has no session on this
+        install yet — that is the whole thing it is proving. Authorisation
+        happened at /v1/me/email, where the password was confirmed.
+        """
+        try:
+            with connection(settings) as conn:
+                new_email, old_email = confirm_email_change(conn, raw=payload.token)
+                record_event(
+                    conn,
+                    source="api",
+                    event="account.email_changed",
+                    payload={"from": old_email, "to": new_email},
+                )
+                conn.commit()
+        except AccountError as exc:
+            status = 409 if exc.reason_code == "email_taken" else 401
+            raise StarletteHTTPException(
+                status_code=status,
+                detail={
+                    "type": "about:blank",
+                    "title": "Account error",
+                    "status": status,
+                    "detail": exc.message,
+                    "reason_code": exc.reason_code,
+                },
+            ) from exc
+        # The last mail the old address gets. It is the one that says an account
+        # it can no longer reach has been taken over, if that is what happened.
+        send_mail(
+            settings,
+            to=old_email,
+            subject=settings.email_changed_subject(),
+            text=(
+                f"This account now signs in as {new_email}. {old_email} no longer "
+                "reaches it, including for password reset.\n\n"
+                "If this was not you, contact support — you cannot undo it from "
+                "here any more.\n"
             ),
         )
 

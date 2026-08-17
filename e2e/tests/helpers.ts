@@ -1,3 +1,4 @@
+import { expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 export const HOST = process.env.HULL_HOST ?? "hull.test";
@@ -55,6 +56,22 @@ export async function signInExpectingFailure(
   await page.getByTestId("auth-email").fill(email);
   await page.getByTestId("auth-password").fill(password);
   await page.getByTestId("auth-submit").click();
+}
+
+/**
+ * The token from an emailed link must not be left in the address bar — bookmarks,
+ * history, a screenshot over someone's shoulder.
+ *
+ * Polled, not read once. `page.goto` resolves on `load`, which lands either side
+ * of the app's first render depending on the machine; reading the URL at that
+ * instant passed for months and then failed on every fragment page at once,
+ * while the app was stripping correctly the whole time. What a browser cannot
+ * tell apart at this granularity is stripping during render versus in an effect
+ * one frame later — that distinction is a code-review property, and the comments
+ * in Reset.tsx, Verify.tsx and EmailChange.tsx are where it is kept.
+ */
+export async function expectTokenStripped(page: Page) {
+  await expect.poll(() => new URL(page.url()).hash, { timeout: 5_000 }).toBe("");
 }
 
 /** Name the first workspace — the step signup hands you straight into. */

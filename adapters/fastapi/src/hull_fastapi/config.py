@@ -58,3 +58,15 @@ class Settings(BaseSettings):
 
     def verify_subject(self) -> str:
         return f"Confirm your {self.resolved_brand()} email"
+
+    def email_change_subject(self) -> str:
+        return f"Confirm your new {self.resolved_brand()} email"
+
+    # Two notices to the address that is losing the account, and they are not the
+    # same mail: the first is the one somebody can still act on, the second is the
+    # one that says it is done.
+    def email_change_notice_subject(self) -> str:
+        return f"Your {self.resolved_brand()} email is being changed"
+
+    def email_changed_subject(self) -> str:
+        return f"Your {self.resolved_brand()} email was changed"

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { APIRequestContext } from "@playwright/test";
-import { APP, HOST, createFirstOrg, newUser, signUp } from "./helpers";
+import { APP, HOST, createFirstOrg, expectTokenStripped, newUser, signUp } from "./helpers";
 
 /**
  * Email verification, from the inbox.
@@ -45,8 +45,7 @@ test("a new account is unverified until the emailed link is used", async ({ page
   const link = await verifyLink(mail, user.email);
 
   await page.goto(link);
-  // The token must not survive in the address bar.
-  expect(new URL(page.url()).hash).toBe("");
+  await expectTokenStripped(page);
   await page.getByTestId("verify-continue").click();
 
   // The banner is the whole visible outcome — if it is still there, nothing the
