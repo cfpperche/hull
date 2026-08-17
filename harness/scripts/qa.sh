@@ -283,6 +283,56 @@ cmd_note() {
   echo "noted → $run/report.md"
 }
 
+# ── mail ────────────────────────────────────────────────────────────────────
+# The inbox is part of the product now: a reset link only exists in it. Reads
+# Mailpit, which is already up with the stack.
+#
+#   qa.sh mail                      the latest message, in full
+#   qa.sh mail ada@hull.test        the latest one addressed to that person
+#   qa.sh mail --link ada@hull.test the first URL in it, and nothing else
+cmd_mail() {
+  local link=0
+  if [[ "${1:-}" == "--link" ]]; then link=1; shift; fi
+  local to="${1:-}"
+
+  local msgs
+  msgs=$(curl -sk --max-time 5 "https://mail.${HOST}/api/v1/messages?limit=50" 2>/dev/null) \
+    || die "Mailpit did not answer at https://mail.${HOST}/. Is the stack up?"
+
+  python3 - "$msgs" "$to" "$link" "$HOST" <<'PY'
+import json, re, ssl, sys, urllib.request
+
+raw, to, link, host = sys.argv[1], sys.argv[2].lower(), sys.argv[3] == "1", sys.argv[4]
+try:
+    items = json.loads(raw).get("messages", [])
+except json.JSONDecodeError:
+    sys.exit("ERROR: Mailpit returned something that is not JSON.")
+if to:
+    items = [m for m in items if any(a.get("Address", "").lower() == to for a in m.get("To", []))]
+if not items:
+    sys.exit(f"ERROR: no message{' to ' + to if to else ''} in the inbox.")
+
+m = items[0]
+# The lab CA is not in python's trust store and asserting on TLS is smoke.sh's job.
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+url = f"https://mail.{host}/api/v1/message/{m['ID']}"
+body = json.loads(urllib.request.urlopen(url, context=ctx, timeout=5).read()).get("Text", "")
+
+if link:
+    found = re.search(r"https://\S+", body)
+    if not found:
+        sys.exit("ERROR: that message carries no link.")
+    print(found.group(0))
+else:
+    print(f"To:      {m['To'][0]['Address']}")
+    print(f"Subject: {m['Subject']}")
+    print()
+    print(body)
+PY
+}
+
 # ── watch ───────────────────────────────────────────────────────────────────
 # The human opt-in door. Headless is the default because a run should not need a
 # screen; this hands the *same live session* to a person who wants to see it, and
@@ -327,6 +377,7 @@ case "${1:-}" in
   start)  shift; cmd_start "$@" ;;
   env)    shift; cmd_env "$@" ;;
   look)   shift; cmd_look "$@" ;;
+  mail)   shift; cmd_mail "$@" ;;
   note)   shift; cmd_note "$@" ;;
   watch)  shift; cmd_watch "$@" ;;
   stop)   shift; cmd_stop "$@" ;;
@@ -340,6 +391,7 @@ usage: qa.sh <command>
         taint    clean | legacy-cookie | stale | junk | carry
   env                             export lines for the current run
   look <name>                     annotated screenshot into the run directory
+  mail [--link] [address]         read the newest mail Mailpit holds
   note <text>                     append a finding to the run report
   watch                           hand this session to a human (dashboard)
   stop                            save state, close, print the run directory

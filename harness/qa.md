@@ -27,9 +27,14 @@ spec or a pytest case; the harness is where you find it, not where it lives.
 eval "$(./harness/scripts/qa.sh env)"                       # in every shell after
 agent-browser snapshot -i                                   # drive it yourself
 ./harness/scripts/qa.sh look after-signin                   # evidence
+./harness/scripts/qa.sh mail --link ada@hull.test           # the inbox
 ./harness/scripts/qa.sh note "..."                          # findings, as you go
 ./harness/scripts/qa.sh stop
 ```
+
+`mail` reads Mailpit, which is up with the stack. Some flows only exist in an
+inbox — a reset link is not in any response body — so driving them from the
+browser alone stops halfway.
 
 `qa.sh` sets the table. It does not wrap `click`/`fill` — that is `agent-browser`,
 and `agent-browser skills get core --full` already teaches it. What the script

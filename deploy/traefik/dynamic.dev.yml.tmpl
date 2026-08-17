@@ -15,13 +15,18 @@ http:
           Cache-Control: "no-store"
         customRequestHeaders:
           X-Forwarded-Prefix: "/api"
-    # Same limit as prod on purpose. A dev edge that behaves differently from the
-    # real one is where rate-limit surprises come from.
+    # Same limits and the same split as prod on purpose. A dev edge that behaves
+    # differently from the real one is where rate-limit surprises come from.
     auth-ratelimit:
       rateLimit:
         average: 10
         period: 1m
         burst: 20
+    signup-ratelimit:
+      rateLimit:
+        average: 30
+        period: 1m
+        burst: 60
 
   routers:
     hull-www:
@@ -31,9 +36,16 @@ http:
       priority: 1
       tls: {}
     hull-web-auth:
-      rule: "Host(`app.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
+      rule: "Host(`app.__HOST__`) && (Path(`/api/v1/auth/signin`) || Path(`/api/v1/auth/reset`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
       entryPoints: [websecure]
       middlewares: [auth-ratelimit, strip-api, api-headers]
+      service: hull-api
+      priority: 200
+      tls: {}
+    hull-web-signup:
+      rule: "Host(`app.__HOST__`) && (Path(`/api/v1/auth/signup`) || Path(`/api/v1/auth/forgot`))"
+      entryPoints: [websecure]
+      middlewares: [signup-ratelimit, strip-api, api-headers]
       service: hull-api
       priority: 200
       tls: {}
@@ -51,9 +63,16 @@ http:
       priority: 1
       tls: {}
     hull-admin-auth:
-      rule: "Host(`admin.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
+      rule: "Host(`admin.__HOST__`) && (Path(`/api/v1/auth/signin`) || Path(`/api/v1/auth/reset`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
       entryPoints: [websecure]
       middlewares: [auth-ratelimit, strip-api, api-headers]
+      service: hull-api
+      priority: 200
+      tls: {}
+    hull-admin-signup:
+      rule: "Host(`admin.__HOST__`) && (Path(`/api/v1/auth/signup`) || Path(`/api/v1/auth/forgot`))"
+      entryPoints: [websecure]
+      middlewares: [signup-ratelimit, strip-api, api-headers]
       service: hull-api
       priority: 200
       tls: {}

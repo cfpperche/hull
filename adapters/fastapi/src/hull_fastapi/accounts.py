@@ -16,6 +16,10 @@ SESSION_TTL = timedelta(days=14)
 SUPPORT_TTL = timedelta(minutes=45)
 # The hand-off token only has to survive one redirect.
 HANDOFF_TTL = timedelta(seconds=60)
+# A reset link has to survive a trip through a mail client, so it cannot be
+# measured in seconds — but it is the one credential that arrives unauthenticated,
+# so it does not get to live for a day either.
+RESET_TTL = timedelta(minutes=30)
 _USERNAME_RE = re.compile(r"^[a-z0-9_]{3,24}$")
 
 
@@ -395,6 +399,74 @@ def change_password(conn: psycopg.Connection, *, user_id: str, current: str, pas
     token = _insert_session(conn, user_id=user_id, org_id=org_id)
     conn.commit()
     return token
+
+
+def request_password_reset(conn: psycopg.Connection, *, email: str) -> str | None:
+    """Mint a reset token, or None when nobody holds that address.
+
+    Returning None rather than raising is deliberate: the caller answers the same
+    way either way. A "no such account" response turns this endpoint into a free
+    membership oracle for any address someone cares to try.
+    """
+    email_n = normalize_email(email)
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM users WHERE lower(email) = %s", (email_n,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        raw = new_session_secret()
+        cur.execute(
+            """
+            INSERT INTO password_resets (id, token_hash, user_id, expires_at)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (str(uuid.uuid4()), hash_session(raw), str(row["id"]), datetime.now(UTC) + RESET_TTL),
+        )
+    conn.commit()
+    return raw
+
+
+def reset_password(conn: psycopg.Connection, *, raw: str, password: str) -> None:
+    """Redeem a reset token and set a new password.
+
+    Does not sign the caller in. Someone arriving here has just proved control of
+    the mailbox, not of the password they are about to replace — and the sign-in
+    they do next is the cheapest possible confirmation that the new one works.
+    """
+    _require_password(password)
+    if not raw:
+        raise AccountError("unauthenticated", "reset link is invalid or expired")
+    with conn.cursor() as cur:
+        # Claim and consume in one statement, like consume_handoff: two clicks on
+        # the same link cannot both match `used_at IS NULL`.
+        cur.execute(
+            """
+            UPDATE password_resets
+            SET used_at = now()
+            WHERE token_hash = %s AND used_at IS NULL AND expires_at > now()
+            RETURNING user_id
+            """,
+            (hash_session(raw),),
+        )
+        row = cur.fetchone()
+        if not row:
+            conn.rollback()
+            raise AccountError("unauthenticated", "reset link is invalid or expired")
+        user_id = str(row["user_id"])
+        cur.execute(
+            "UPDATE users SET password_hash = %s WHERE id = %s", (hash_password(password), user_id)
+        )
+        # Every session dies. A reset is what someone does when they believe they
+        # have lost control of the account, so leaving the sessions an attacker
+        # may be holding would answer the wrong question.
+        cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
+        # Any other outstanding link for this user dies with it — including the
+        # older ones from a user who clicked "forgot" three times.
+        cur.execute(
+            "UPDATE password_resets SET used_at = now() WHERE user_id = %s AND used_at IS NULL",
+            (user_id,),
+        )
+    conn.commit()
 
 
 def close_account(

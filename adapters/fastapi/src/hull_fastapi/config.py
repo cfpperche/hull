@@ -52,3 +52,6 @@ class Settings(BaseSettings):
 
     def welcome_subject(self) -> str:
         return f"Welcome to {self.resolved_brand()}"
+
+    def reset_subject(self) -> str:
+        return f"Reset your {self.resolved_brand()} password"

@@ -8,9 +8,11 @@ import { SupportBanner } from "./components/SupportBanner";
 import { useSession } from "./lib/session";
 import { AccountPage } from "./pages/Account";
 import { CreateOrgPage } from "./pages/CreateOrg";
+import { ForgotPage } from "./pages/Forgot";
 import { HandoffPage } from "./pages/Handoff";
 import { HomePage } from "./pages/Home";
 import { NotFoundPage } from "./pages/NotFound";
+import { ResetPage } from "./pages/Reset";
 import { SigninPage } from "./pages/Signin";
 import { SignupPage } from "./pages/Signup";
 
@@ -33,6 +35,13 @@ function ClientApp() {
     return <HandoffPage />;
   }
 
+  // Same reason, plus one of its own: the reset link may well be opened in the
+  // browser the user is still signed in on, and the signed-in branch would send
+  // it to Not found — losing the token in the fragment with it.
+  if (window.location.pathname === "/reset") {
+    return <ResetPage />;
+  }
+
   if (!ready) {
     return <div className="text-muted-foreground p-8 text-sm">Loading…</div>;
   }
@@ -47,6 +56,7 @@ function ClientApp() {
       <Routes>
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/signin" element={<SigninPage />} />
+        <Route path="/forgot" element={<ForgotPage />} />
         <Route path="*" element={<SigninPage />} />
       </Routes>
     );

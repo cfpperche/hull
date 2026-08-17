@@ -67,6 +67,22 @@ async function request<T>(
   } catch {
     data = null;
   }
+  if (res.status === 429) {
+    // The edge rate-limits /v1/auth/* and answers "Too Many Requests" as plain
+    // text, so the generic branch below fell through to res.statusText — empty
+    // over HTTP/2 — and every throttled user was told "Request failed". That is
+    // a dead end that invites them to hammer the button. Retry-After is right
+    // there in the response.
+    const after = Number(res.headers.get("retry-after"));
+    const wait =
+      Number.isFinite(after) && after > 0 ? `Try again in ${after}s.` : "Try again shortly.";
+    throw new ApiError({
+      title: "Too many attempts",
+      detail: `Too many attempts. ${wait}`,
+      status: 429,
+      reason_code: "rate_limited",
+    });
+  }
   if (!res.ok) {
     const p = (data && typeof data === "object" ? data : {}) as Partial<Problem>;
     throw new ApiError({
@@ -88,6 +104,12 @@ export function createApi(opts: ClientOpts = {}) {
     signin: (body: { email: string; password: string }) =>
       request<HullMe>(prefix, "/v1/auth/signin", { method: "POST", body: JSON.stringify(body) }),
     signout: () => request<void>(prefix, "/v1/auth/signout", { method: "POST" }),
+    // Resolves the same way whether or not the address has an account. Do not
+    // branch the UI on it — that would put the oracle back in the client.
+    forgotPassword: (body: { email: string }) =>
+      request<void>(prefix, "/v1/auth/forgot", { method: "POST", body: JSON.stringify(body) }),
+    resetPassword: (body: { token: string; password: string }) =>
+      request<void>(prefix, "/v1/auth/reset", { method: "POST", body: JSON.stringify(body) }),
     me: () => request<HullMe>(prefix, "/v1/me"),
     createOrg: (body: { name: string }) =>
       request<HullMe>(prefix, "/v1/orgs", { method: "POST", body: JSON.stringify(body) }),

@@ -73,6 +73,51 @@ paths:
               schema: { $ref: "#/components/schemas/Me" }
         "401":
           $ref: "#/components/responses/Unauthenticated"
+  /v1/auth/forgot:
+    post:
+      operationId: forgotPassword
+      security: []
+      description: >
+        Mail a single-use reset link. Answers 204 whether or not the address has
+        an account — a distinguishable response would make this a membership
+        oracle for any address someone cares to try.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+      responses:
+        "204":
+          description: Accepted, whether or not a mail was sent
+  /v1/auth/reset:
+    post:
+      operationId: resetPassword
+      security: []
+      description: >
+        Redeem a reset token and set a new password. The token arrives in the
+        link's fragment, so it never reaches a server log. Every session of that
+        user ends; the caller signs in with the new password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string }
+      responses:
+        "204":
+          description: Password set, every session ended
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/Invalid"
   /v1/auth/signout:
     post:
       operationId: signout

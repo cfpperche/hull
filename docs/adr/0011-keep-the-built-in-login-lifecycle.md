@@ -1,7 +1,7 @@
 # 0011. Keep the built in login lifecycle
 
-**Status:** Proposed - not decided  
-**Date:** 2026-08-16
+**Status:** Accepted  
+**Date:** 2026-08-16 · decided 2026-08-17
 
 ## Context
 
@@ -12,9 +12,13 @@ verification. The alternative is adopting a self-hosted identity service.
 
 ## Decision
 
-Proposed: keep the built-in lifecycle and add the two missing pieces, reusing the
-single-use token pattern already proven by `support_handoffs` and the existing
-`mail.py`.
+Keep the built-in lifecycle and add the two missing pieces, reusing the single-use
+token pattern already proven by `support_handoffs` and the existing `mail.py`.
+
+Password reset shipped 2026-08-17 on exactly that pattern: `password_resets`
+mirrors `support_handoffs` row for row, redeemed with the same
+`used_at IS NULL … RETURNING`, and the link carries its token in the fragment for
+the same reason the hand-off does. Email verification is the remaining piece.
 
 ## Consequences
 

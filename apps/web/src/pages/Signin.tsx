@@ -55,7 +55,12 @@ export function SigninPage() {
           <Input id="email" data-testid="auth-email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-baseline justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link to="/forgot" className="text-muted-foreground hover:text-foreground text-xs underline" data-testid="auth-to-forgot">
+              Forgot?
+            </Link>
+          </div>
           <Input id="password" data-testid="auth-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         {error ? <p className="text-destructive text-sm">{error}</p> : null}

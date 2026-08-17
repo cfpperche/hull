@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from hull_fastapi.accounts import (
+    RESET_TTL,
     SESSION_TTL,
     SUPPORT_TTL,
     AccountError,
@@ -24,7 +25,9 @@ from hull_fastapi.accounts import (
     list_users,
     load_session,
     me_body,
+    request_password_reset,
     require_admin,
+    reset_password,
     set_avatar_key,
     signin,
     signout,
@@ -89,6 +92,15 @@ class SupportBody(BaseModel):
 
 class HandoffBody(BaseModel):
     token: str
+
+
+class ForgotBody(BaseModel):
+    email: str
+
+
+class ResetBody(BaseModel):
+    token: str
+    password: str
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -328,6 +340,67 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return _account_http(exc)
         _set_cookie(request, response, token)
         return body
+
+    @app.post("/v1/auth/forgot", status_code=204)
+    def auth_forgot(payload: ForgotBody) -> None:
+        """Always 204, whether or not that address has an account.
+
+        The response cannot depend on whether the user exists, or this endpoint
+        tells anyone who asks which addresses are registered. Traefik already
+        rate-limits /v1/auth/*, which is what keeps that from being enumerable by
+        volume instead.
+        """
+        with connection(settings) as conn:
+            token = request_password_reset(conn, email=payload.email)
+            record_event(
+                conn,
+                source="api",
+                event="auth.forgot",
+                payload={"email": payload.email.strip().lower(), "sent": bool(token)},
+            )
+            conn.commit()
+        if not token:
+            return
+        # The token rides in the fragment, like the support hand-off: fragments
+        # are never sent to a server, so it stays out of access logs and out of
+        # the Referer of anything the reset page links to.
+        link = f"{settings.resolved_public_origin()}/reset#{token}"
+        send_mail(
+            settings,
+            to=payload.email.strip().lower(),
+            subject=settings.reset_subject(),
+            text=(
+                f"Use this link to choose a new password:\n\n{link}\n\n"
+                f"It expires in {int(RESET_TTL.total_seconds() // 60)} minutes and works once.\n"
+                "If you did not ask for it, nothing has changed and you can ignore this.\n"
+            ),
+        )
+
+    @app.post("/v1/auth/reset", status_code=204)
+    def auth_reset(payload: ResetBody, request: Request, response: Response) -> None:
+        try:
+            with connection(settings) as conn:
+                reset_password(conn, raw=payload.token, password=payload.password)
+                record_event(conn, source="api", event="auth.reset", payload={})
+                conn.commit()
+        except AccountError as exc:
+            # A 204 route cannot answer with _account_http's JSONResponse — the
+            # declared status would discard the body. Raise, like me_password.
+            status = 401 if exc.reason_code == "unauthenticated" else 422
+            raise StarletteHTTPException(
+                status_code=status,
+                detail={
+                    "type": "about:blank",
+                    "title": "Account error",
+                    "status": status,
+                    "detail": exc.message,
+                    "reason_code": exc.reason_code,
+                },
+            ) from exc
+        # Every session died with the reset, including any this browser was
+        # holding. Clear the cookie so the page that follows is honestly signed
+        # out instead of carrying a token the server has already forgotten.
+        _clear_cookie(request, response)
 
     @app.post("/v1/auth/signout", status_code=204)
     def auth_signout(request: Request, response: Response) -> None:

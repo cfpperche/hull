@@ -16,14 +16,27 @@ http:
         customRequestHeaders:
           X-Forwarded-Prefix: "/api"
 
-    # Credential endpoints only. AGENTS.md forbids adding Redis, so the counter
-    # lives in Traefik's memory — no new service. Default sourceCriterion is the
-    # client IP. Generous for a lab, useless for a password spray.
+    # One bucket per threat, not one bucket for everything.
+    #
+    # Guessing: sign-in, password reset redemption, password change and hand-off
+    # redemption all take a secret and answer whether it was right. This is the
+    # budget that stops a spray, and it stays tight.
     auth-ratelimit:
       rateLimit:
         average: 10
         period: 1m
         burst: 20
+
+    # Abuse: signup and forgot take no secret and answer nothing about one —
+    # signup creates an account, forgot answers 204 either way. What they need
+    # limiting for is spam and mail-bombing, which is a different risk and a
+    # different number. Sharing the guessing budget only meant a burst of new
+    # accounts locked out everyone signing in from the same address.
+    signup-ratelimit:
+      rateLimit:
+        average: 30
+        period: 1m
+        burst: 60
 
   routers:
     hull-www:
@@ -36,9 +49,17 @@ http:
     # Priority 200, above the catch-all /api routers at 100, so the rate limit
     # applies before the general API route matches.
     hull-web-auth:
-      rule: "Host(`app.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
+      rule: "Host(`app.__HOST__`) && (Path(`/api/v1/auth/signin`) || Path(`/api/v1/auth/reset`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
       entryPoints: [websecure]
       middlewares: [auth-ratelimit, strip-api, api-headers]
+      service: hull-api
+      priority: 200
+      tls: {}
+
+    hull-web-signup:
+      rule: "Host(`app.__HOST__`) && (Path(`/api/v1/auth/signup`) || Path(`/api/v1/auth/forgot`))"
+      entryPoints: [websecure]
+      middlewares: [signup-ratelimit, strip-api, api-headers]
       service: hull-api
       priority: 200
       tls: {}
@@ -59,9 +80,17 @@ http:
       tls: {}
 
     hull-admin-auth:
-      rule: "Host(`admin.__HOST__`) && (PathPrefix(`/api/v1/auth/`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
+      rule: "Host(`admin.__HOST__`) && (Path(`/api/v1/auth/signin`) || Path(`/api/v1/auth/reset`) || Path(`/api/v1/me/password`) || Path(`/api/v1/session/handoff`))"
       entryPoints: [websecure]
       middlewares: [auth-ratelimit, strip-api, api-headers]
+      service: hull-api
+      priority: 200
+      tls: {}
+
+    hull-admin-signup:
+      rule: "Host(`admin.__HOST__`) && (Path(`/api/v1/auth/signup`) || Path(`/api/v1/auth/forgot`))"
+      entryPoints: [websecure]
+      middlewares: [signup-ratelimit, strip-api, api-headers]
       service: hull-api
       priority: 200
       tls: {}
