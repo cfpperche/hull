@@ -107,6 +107,13 @@ by printing the page and rasterising it instead, and stamps the run
 `print-fallback` everywhere it is read. Same cause as the browser gate being
 unrunnable here — see *Open, and owned by the operator*.
 
+**What nobody has exercised yet.** `design panel` has never been pointed at this
+product; only `design sense` has. The panel was proven against the harness's own
+fixtures and only through its `identity` lens, so `craft` and `usability` ship as
+prompts no model has run. The `axe` and `vitals` sensors are wired, opt-in, and
+have never returned anything here, because both need the page to paint. Four
+unproven things: say so if you use them, and prove them before you trust them.
+
 ## Asking the other two agents
 
 `./harness/scripts/peer.sh` is the channel between Claude, Codex and Grok, all
@@ -123,6 +130,8 @@ a duel. Protocol: `harness/peer.md`. → ADR-0014.
 ## Next (not started)
 
 - Product module in `modules/` when there is a sold job
+- **Three findings against this build, raised by `design sense` and none of them fixed.** The input border sits at **1.26:1** against its surface where WCAG 1.4.11 wants 3:1 — that is one shadcn token and it is every form in the product, six fields on the account page alone. Muted body copy on `web-account` is **3.99:1** against 4.5:1. No signed-in surface has a `<main>` landmark, so skip-to-content has nowhere to go. Evidence: run `20260817-150605`, and `design sense` reproduces it in about three minutes.
+- **Find out whether the browser gate can be made to run here at all.** Untried levers are in *Open, and owned by the operator*: `--headless=old`, a real display (WSLg or Xvfb with a headed launch), a different WSL kernel. Worth an hour because it currently costs every browser-shaped tool on this machine, not just `ci-e2e`.
 
 ## Later — component lab (do not do now)
 
