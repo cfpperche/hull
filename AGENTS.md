@@ -21,13 +21,25 @@ Do not import a pipeline from another repo.
 
 ## Locks
 
-Hard invariants. Each links to the decision that explains it — change the decision
-first, with a new ADR, not the code.
+**A lock is not "never". It is "not by accident".**
+
+Each of these is a decision that was made once and is easy to erode without
+noticing — because a tutorial did it differently, because a library pulled in a
+dependency, because it was convenient in the moment. The lock exists to stop the
+change that nobody argued for.
+
+A change somebody *does* argue for is normal: write the ADR, mark the old one
+`Superseded`, then change the code. That path is always open, for every line
+below. What is refused is drifting past one silently.
+
+The bar scales with the blast radius — swapping a component library is a
+paragraph, changing how a support operator reaches a customer's data is not — but
+the mechanism is the same one every time.
 
 - Frontend: Vite + React + Tailwind 4 + shadcn **default**. No Next.js. No custom token sheet. → [0001](./docs/adr/0001-vite-react-shadcn-default-no-next.md)
 - Schema: SQL in `schema/`. Migrate with `scripts/migrate.sh`. Do not put DDL in an adapter. → [0002](./docs/adr/0002-sql-in-schema-applied-by-migrate-sh.md)
 - HTTP contract: `contracts/openapi.yaml`. The default adapter is `adapters/fastapi/`. Do not treat that folder as "the API". → [0003](./docs/adr/0003-openapi-yaml-is-the-contract.md)
-- No database microservice. Postgres is the store — until something needs otherwise. → [0004](./docs/adr/0004-postgres-is-the-store.md)
+- No database microservice. Postgres is the store. → [0004](./docs/adr/0004-postgres-is-the-store.md)
 - Edge: Traefik **inside** `deploy/compose.yaml`. Do not join an external Docker network. → [0005](./docs/adr/0005-traefik-inside-the-compose-project.md)
 - White-label **values** live in `.env`. Chrome reads `/config.json`. Do not bake `VITE_HULL_HOST`. → [0006](./docs/adr/0006-white-label-values-at-runtime.md)
 - Hosts: `*.test` (default `hull.test`, RFC 6761). Not `.dev`. Not `.local`. → [0007](./docs/adr/0007-hosts-are-dot-test.md)
@@ -71,6 +83,9 @@ plant a violation and watch it fail before trusting it — several guards in thi
 repo's history passed while testing nothing.
 
 ## Do not
+
+Same rule as Locks: these are refused by default, not forbidden forever. If one
+is genuinely the answer, say why and write it down.
 
 - Add a worker, Redis, or Grafana unless a product module requires it.
 - Observe is JSON stdout + `install_events`. No collector required.

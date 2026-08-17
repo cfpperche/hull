@@ -30,5 +30,5 @@ restart. If Hull ever runs more than one edge, or needs limits that survive a
 restart, that is exactly the kind of "something needs it" this ADR is written to
 allow — write 00NN, mark this superseded, and add the dependency deliberately.
 
-The escape hatch is the point. A rule with no way out gets ignored rather than
-argued with, and then the dependency arrives anyway, undocumented.
+This is not special to storage. Every lock in `AGENTS.md` works the same way — see
+the preamble there.

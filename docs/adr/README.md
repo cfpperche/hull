@@ -14,6 +14,11 @@ to record that a decision had been replaced. See 0008 and 0009 for the shape.
 
 Status is one of `Proposed`, `Accepted`, `Superseded by NNNN`, `Deprecated`.
 
+Superseding is the normal path, not a failure. Every decision here is reversible by
+writing the next one — the format exists so a change is argued and recorded rather
+than smuggled in. A rule with no way out does not get respected; it gets ignored,
+and then the thing it prevented arrives anyway with nothing written down.
+
 | # | Decision | Status |
 |---|---|---|
 | [0001](0001-vite-react-shadcn-default-no-next.md) | Vite + React + shadcn default, no Next.js | Accepted |
