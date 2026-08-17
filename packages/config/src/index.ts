@@ -41,6 +41,24 @@ export function publicConfig(): PublicConfig {
   return cached;
 }
 
+/**
+ * Lab services on the same apex. Kept apart from HullSurface: those are the
+ * three product surfaces, these are the operator's tools that compose brings up
+ * next to them. Both derive from the /config.json host, so a white-label apex
+ * follows without a rebuild.
+ */
+export type HullLabService = "mail" | "objects" | "db";
+
+const LAB_SUBDOMAIN: Record<HullLabService, string> = {
+  mail: "mail",
+  objects: "rustfs",
+  db: "db",
+};
+
+export function labOrigin(service: HullLabService, host = publicConfig().host): string {
+  return `https://${LAB_SUBDOMAIN[service]}.${host}`;
+}
+
 export function originFor(surface: HullSurface, host = publicConfig().host): string {
   if (surface === "www") return `https://${host}`;
   if (surface === "web") return `https://app.${host}`;
