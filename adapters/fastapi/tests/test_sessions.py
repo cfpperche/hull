@@ -208,15 +208,32 @@ def test_last_seen_is_stamped_on_use_but_not_on_every_request(
 def test_a_support_session_is_named_as_one(client, settings, unique: str, outbox) -> None:
     """It belongs to the operator, so it belongs in the operator's list — but as
     an unexplained extra row it would read like a break-in."""
+    # Mint the operator rather than borrowing the seeded one. admin@hull.test
+    # only exists when HULL_SEED_DEMO=1, which CI does not set — the first
+    # version of this test passed here against a row an earlier run had left
+    # behind, and failed on a clean runner.
+    admin_email = f"adm{unique}@hull.test"
     admin = TestClient(create_app(settings))
     assert (
         admin.post(
-            "/v1/auth/signin", json={"email": "admin@hull.test", "password": PASSWORD}
+            "/v1/auth/signup",
+            json={"username": f"adm{unique}", "email": admin_email, "password": PASSWORD},
         ).status_code
+        == 201
+    )
+    with connection(settings) as conn, conn.cursor() as cur:
+        cur.execute(
+            "UPDATE users SET platform_role = 'platform_admin' WHERE lower(email) = %s",
+            (admin_email,),
+        )
+        conn.commit()
+    # Sign in again so the session carries the promoted role.
+    assert (
+        admin.post("/v1/auth/signin", json={"email": admin_email, "password": PASSWORD}).status_code
         == 200
     )
-    # The admin account is shared by the whole run and other tests leave support
-    # sessions behind, so diff against what is already there rather than count.
+    # Diff against what is already there: signup and sign-in have each left a
+    # session, and this test is about the one the hand-off adds.
     before = {r["id"] for r in _sessions(admin)}
 
     _signup(client, unique)
