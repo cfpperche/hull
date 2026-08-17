@@ -1,10 +1,11 @@
 # Hull handoff
 
-**Date:** 2026-08-17  
+**Date:** 2026-08-16  
 **Repo:** `https://github.com/cfpperche/hull` (public)  
 **Workspace:** `/home/goat/hull`
 
-Start of session: read this, then `AGENTS.md`.
+Start of session: read this, then `AGENTS.md`. Decisions and their history are in
+`docs/adr/`; the object model and business rules are in `docs/domain.md`.
 
 ## What it is
 
