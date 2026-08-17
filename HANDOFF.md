@@ -22,6 +22,12 @@ sudo ./scripts/setup-local.sh    # Linux hosts+CA; WSL also Windows UAC
 
 Lab: `ada@hull.test` / `demodemo1`. Admin: `admin@hull.test` / `demodemo1`.
 
+`./scripts/reset-lab.sh` (`make reset`) puts the lab back to that fixture in a
+couple of seconds — database, inbox and avatar bucket — without dropping volumes
+or rebuilding. `migrate.sh` cannot: its seed inserts `WHERE NOT EXISTS` and is
+recorded in `schema_seeds`, so once ada exists with a changed password it is a
+no-op. Refuses outside a `.test` apex, and with `HULL_SEED_DEMO=0`.
+
 This workstation: Hull binds `127.0.0.1:80` and `:443`. Postgres is published on `:55435` when `:5432` is already taken. Another compose project on the same edge must be down first.
 
 Lab services come up with the stack, linked from the admin sidebar: `mail.` (Mailpit), `rustfs.` (objects console), `db.` (dbgate, needs `HULL_DBGATE_USER` / `HULL_DBGATE_PASSWORD`).

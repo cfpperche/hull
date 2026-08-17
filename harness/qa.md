@@ -36,6 +36,11 @@ agent-browser snapshot -i                                   # drive it yourself
 inbox — a reset link is not in any response body — so driving them from the
 browser alone stops halfway.
 
+Exploring changes things. `make reset` puts the lab back to the fixture in a
+couple of seconds, so a run that resets ada's password or fills the inbox costs
+nothing. Reach for it *between* runs, never during one — and remember it also
+throws away the state `--taint carry` exists to reuse.
+
 `qa.sh` sets the table. It does not wrap `click`/`fill` — that is `agent-browser`,
 and `agent-browser skills get core --full` already teaches it. What the script
 owns is the part that is Hull-specific and easy to get wrong: an isolated browser
