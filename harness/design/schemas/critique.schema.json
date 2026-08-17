@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Design critique",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["lens", "verdict", "scores", "findings"],
+  "properties": {
+    "lens": { "type": "string", "description": "craft | usability | identity" },
+    "verdict": {
+      "type": "string",
+      "description": "Two or three sentences. What this set of screens is, what is most wrong with it, and whether you would hand it to a client as it stands."
+    },
+    "scores": {
+      "type": "array",
+      "description": "One entry per criterion in the lens rubric. 0-5, where 3 is 'a competent product ships this'.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["criterion", "score", "why"],
+        "properties": {
+          "criterion": { "type": "string" },
+          "score": { "type": "integer", "minimum": 0, "maximum": 5 },
+          "why": { "type": "string", "description": "One sentence naming the pixels that set this score." }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "severity", "surface", "viewport", "where", "evidence", "expected", "actual", "fix", "confidence"],
+        "properties": {
+          "title": { "type": "string", "description": "One line, the defect itself. Not the fix." },
+          "severity": { "type": "string", "enum": ["blocker", "major", "minor", "nit"] },
+          "surface": { "type": "string", "description": "Surface name from the evidence list." },
+          "viewport": { "type": "string", "description": "Viewport name, or (all)." },
+          "where": { "type": "string", "description": "A CSS selector or a described region of the screenshot. \"the button\" is not a location." },
+          "evidence": { "type": "string", "description": "Which screenshot or which measured fact shows this. Name the file or the number." },
+          "expected": { "type": "string" },
+          "actual": { "type": "string" },
+          "fix": { "type": "string", "description": "The smallest change that resolves it." },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    }
+  }
+}

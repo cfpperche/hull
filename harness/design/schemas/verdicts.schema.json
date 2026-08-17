@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Refutation verdicts",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdicts"],
+  "properties": {
+    "verdicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "verdict", "why", "checked"],
+        "properties": {
+          "id": { "type": "string", "description": "The finding id you were given. Copy it exactly." },
+          "verdict": {
+            "type": "string",
+            "enum": ["confirmed", "refuted", "unverifiable"],
+            "description": "confirmed: the evidence shows it. refuted: the evidence contradicts it, or the claimed location does not exist. unverifiable: the evidence available cannot settle it."
+          },
+          "why": { "type": "string", "description": "One or two sentences citing what you looked at." },
+          "checked": { "type": "string", "description": "What you actually opened or measured to decide." }
+        }
+      }
+    }
+  }
+}

@@ -14,6 +14,7 @@ Read **`HANDOFF.md`** first for what exists and what is next.
 | [`harness/action-feedback.md`](./harness/action-feedback.md) | What every write must confirm. Normative. |
 | [`harness/benchmarks.md`](./harness/benchmarks.md) | Sector research, before pixels. |
 | [`harness/visual-ux.md`](./harness/visual-ux.md) | Driving the browser to judge pixels. |
+| [`harness/design/PROTOCOL.md`](./harness/design/PROTOCOL.md) | Measuring a build, then putting it to a panel of agents. Not CI. |
 | [`harness/qa.md`](./harness/qa.md) | Exploring a live install mid-task, carrying state. Not CI. |
 | [`harness/peer.md`](./harness/peer.md) | Asking one of the other two agents — delegation, audit, adversarial review. Not CI. |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Update under `[Unreleased]` before every push to `main`. |
@@ -62,6 +63,16 @@ refuse. Then implement. Do not invent a third visual language.
 Visual judgment requires **pixels** (`harness/visual-ux.md`, skill `visual-ux`).
 Research is not a screenshot substitute. Drive the browser with **agent-browser**,
 not Playwright MCP.
+
+For a whole pass rather than one screen, `./harness/design/bin/design` measures
+every surface (contrast, hit targets, type scale, layout breaks, the tells that
+make a page look generated) and then puts the pixels to three critics with
+different lenses, an adversary that tries to kill each finding, and an arbiter.
+`sense` is deterministic and costs nothing; `panel` is judgment, costs money and
+is **never** a gate. It is decoupled on purpose: everything it knows about this
+repo is `design.config.json` at the root, and `design selftest` fails if the
+harness itself learns a host, a route or a product name.
+→ [0015](./docs/adr/0015-design-harness-is-decoupled-and-not-a-gate.md)
 
 Every write must confirm — **`harness/action-feedback.md`** is normative.
 

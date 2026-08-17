@@ -76,6 +76,36 @@ them start from an empty browser. Headless by default; `--headed` for a window a
 It is **not** a gate and never runs in CI — a finding worth keeping becomes an
 `e2e/` spec or a pytest case.
 
+## Judging the design
+
+`./harness/design/bin/design` is the pass over the whole product rather than one
+screen. `design sense` measures every surface in `design.config.json` — contrast
+per colour pair, WCAG 2.2 target sizes, type scale, palette, spacing grid, layout
+breaks, the heading ladder as rendered, and the tells that make a page look
+generated — and costs nothing. `design panel` then puts the pixels to three
+critics on three vendors' models, an adversary that tries to kill each finding,
+and an arbiter; it costs money per call and is never a gate. `design diff`
+compares two runs without asking anyone's opinion. Protocol:
+`harness/design/PROTOCOL.md`, decided in ADR-0015.
+
+The harness is deliberately decoupled: `design.config.json` at the root is the
+only file that names a host, a route, a persona or the product, and
+`design selftest` (63 assertions against planted fixtures, run from a scratch
+directory) fails if the tree learns a second seam. To use it in another repo,
+copy `harness/design/` and write one profile.
+
+What its first real pass found here, still unfixed: the input border is
+**1.26:1** against its surface on every form (`web-signin`, `web-signup`,
+`web-account`, `admin-signin`) where WCAG 1.4.11 wants 3:1 — one shadcn token,
+six fields on the account page alone; muted body copy on `web-account` at
+**3.99:1** against 4.5:1; and no `<main>` landmark on any signed-in surface.
+
+**Known gap on this workstation:** `Page.captureScreenshot` times out under WSL2
+for every Chrome build tried, so `design` falls back to printing the page and
+rasterising it with ghostscript, and labels the run `print-fallback` everywhere
+it is read. `capture-ui.sh` hits the same wall with no fallback — if it produces
+no PNGs, that is why.
+
 ## Asking the other two agents
 
 `./harness/scripts/peer.sh` is the channel between Claude, Codex and Grok, all

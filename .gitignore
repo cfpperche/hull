@@ -42,3 +42,8 @@ harness/qa/runs/
 harness/peer/exchanges/
 harness/peer/worktrees/
 harness/peer/schemas/
+# Design harness runs: screenshots, measured facts, what each critic answered.
+# Evidence for the length of a task, not the length of the repo — a finding that
+# should outlive the run becomes a budget in design.config.json, a test, or a
+# line in CHANGELOG.md. The profile itself is tracked; the runs are not.
+.design/runs/

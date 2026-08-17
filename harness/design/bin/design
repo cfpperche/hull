@@ -1,0 +1,282 @@
+#!/usr/bin/env bash
+# design — a multi-agent harness for judging frontend work.
+#
+#   design doctor                     what is installed, what will run, what will be skipped
+#   design sense                      drive the browser: pixels + measured facts + deterministic findings
+#   design panel [--dry-run]          critics, refuters, arbiter — judgment, on the evidence sense produced
+#   design review                     sense + panel + report, the whole loop
+#   design report [--run last]        rebuild report.md and findings.sarif from a run
+#   design diff --before A --after B  what a change fixed, and what it broke
+#   design ls | show <run>            runs on disk
+#   design selftest                   prove the detectors fire, and that this tree is portable
+#
+# It knows nothing about your project. Everything it needs — hosts, routes, how
+# to sign in, what the brand is, which products you copy and which patterns you
+# refuse, what your budgets are — comes from one profile file that lives in the
+# project, not in here. `design selftest` fails if this tree grows a second seam.
+#
+# Two speeds, and the difference matters:
+#
+#   `sense`  is deterministic. Same page in, same findings out, no model, no
+#            money. This is the half you could put in front of a merge.
+#   `panel`  is judgment. Non-deterministic, costs money per call, and its output
+#            is evidence — never a verdict, never a gate.
+#
+# Do not merge them. A harness that fails a build on an opinion teaches everyone
+# to stop reading it.
+set -euo pipefail
+
+DQ_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$DQ_HOME/lib/common.sh"
+. "$DQ_HOME/lib/profile.sh"
+. "$DQ_HOME/lib/driver.sh"
+. "$DQ_HOME/lib/observe.sh"
+. "$DQ_HOME/lib/rules.sh"
+. "$DQ_HOME/lib/panel.sh"
+. "$DQ_HOME/lib/report.sh"
+
+usage() { sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+
+CONFIG="" SURFACES="" LENSES="" RUN_SEL="" FAIL_ON="" DRY=0 PROBE=0 SEED="" STAGES="critics,refute,arbitrate"
+BEFORE="" AFTER=""
+POSITIONAL=()
+CMD="${1:-}"; [[ $# -gt 0 ]] && shift || true
+[[ -z "$CMD" || "$CMD" == -h || "$CMD" == --help ]] && usage 0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --config)  CONFIG="$2"; shift 2 ;;
+    --surface) SURFACES="${SURFACES:+$SURFACES,}$2"; shift 2 ;;
+    --lens)    LENSES="${LENSES:+$LENSES,}$2"; shift 2 ;;
+    --run)     RUN_SEL="$2"; shift 2 ;;
+    --before)  BEFORE="$2"; shift 2 ;;
+    --after)   AFTER="$2"; shift 2 ;;
+    --fail-on) FAIL_ON="$2"; shift 2 ;;
+    --seed)    SEED="$2"; shift 2 ;;
+    --stage)   STAGES="$2"; shift 2 ;;
+    --probe)   PROBE=1; shift ;;
+    --dry-run) DRY=1; shift ;;
+    --version) echo "design $DQ_VERSION"; exit 0 ;;
+    -h|--help) usage 0 ;;
+    -*) die "unknown flag: $1" ;;
+    *) POSITIONAL+=("$1"); shift ;;
+  esac
+done
+set -- "${POSITIONAL[@]+"${POSITIONAL[@]}"}"
+[[ -n "$SEED" ]] && export DQ_SEED="$SEED"
+
+need jq "brew install jq / apt install jq"
+
+resolve_run() { # --run last|<stamp>|<path>
+  local sel="${1:-last}"
+  [[ -z "$sel" ]] && sel=last
+  if [[ "$sel" == last ]]; then
+    local last; last="$(ls -1d "$DQ_OUT"/*/ 2>/dev/null | sort | tail -1 || true)"
+    [[ -z "$last" ]] && die "no runs under $DQ_OUT yet — start with: design sense"
+    echo "${last%/}"
+  elif [[ -d "$sel" ]]; then echo "$(cd "$sel" && pwd)"
+  elif [[ -d "$DQ_OUT/$sel" ]]; then echo "$DQ_OUT/$sel"
+  else die "no run \"$sel\" under $DQ_OUT"
+  fi
+}
+
+new_run() {
+  local run="$DQ_OUT/$(stamp)"
+  mkdir -p "$run"
+  export DQ_RUN="$run"
+  jq -n --arg stamp "$(basename "$run")" --arg project "$(dq_p .project)" \
+        --arg profile "$DQ_PROFILE" --arg agent "$(dq_agent_id)" \
+        --arg version "$DQ_VERSION" --arg started "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --arg git "$(git -C "$DQ_PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)" \
+        --arg dirty "$([[ -n "$(git -C "$DQ_PROJECT_ROOT" status --porcelain 2>/dev/null)" ]] && echo dirty || echo clean)" \
+    '{stamp:$stamp, project:$project, profile:$profile, agent:$agent, harness:$version,
+      started:$started, commit:$git, tree:$dirty}' > "$run/meta.json"
+  dq_span invoke_agent design.run ok "$(jq -cn --arg c "$CMD" '{command:$c}')"
+  echo "$run"
+}
+
+case "$CMD" in
+
+doctor)
+  dq_profile_load "$CONFIG"
+  echo "profile      $DQ_PROFILE"
+  echo "project      $(dq_p .project) — sector: $(dq_p '.sector // "unstated"')"
+  echo "root         $DQ_PROJECT_ROOT"
+  echo "runs         $DQ_OUT"
+  echo "agent        $(dq_agent_id)"
+  echo
+  echo "surfaces     $(dq_p '.surfaces | length') · viewports $(dq_viewports | wc -l) · sensors: $(dq_sensor_list)"
+  dq_p '.surfaces[] | "  - \(.name)  \(.url)  [\(.auth // "anon")]"'
+  echo
+  echo "driver"
+  if command -v agent-browser >/dev/null; then echo "  agent-browser  $(agent-browser --version 2>/dev/null | head -1)"
+  else echo "  agent-browser  MISSING — sense cannot run (npm i -g agent-browser && agent-browser install)"; fi
+  echo
+  echo "panel roster"
+  while IFS='|' read -r name vis model; do
+    if command -v "$name" >/dev/null; then
+      printf '  %-8s installed  · sees screenshots: %s%s\n' "$name" "$vis" "${model:+ · model $model}"
+    else
+      printf '  %-8s MISSING    · lenses assigned to it will be skipped\n' "$name"
+    fi
+  done < <(dq_roster)
+  echo
+  echo "planned lenses"
+  dq_assign "$(tr ',' ' ' <<<"${LENSES:-craft usability identity}")" 2>&1 | sed 's/^/  /' || true
+  echo
+  reach=0
+  while read -r s; do
+    [[ -z "$s" ]] && continue
+    u="$(dq_surface "$s" '.url')"
+    code="$(curl -sk -o /dev/null -w '%{http_code}' --max-time 5 "$u" 2>/dev/null || echo 000)"
+    printf '  %-20s %s  %s\n' "$s" "$code" "$u"
+    [[ "$code" == 000 ]] && reach=$((reach + 1))
+  done < <(dq_surfaces "$SURFACES")
+  if [[ $reach -gt 0 ]]; then
+    echo
+    echo "  $reach surface(s) unreachable — is the app running?"
+  fi
+  # What the browser on THIS host can actually do. Opt-in because probing a
+  # host where painting is broken costs a minute per capability, and the answer
+  # only changes when the machine does.
+  if [[ "$PROBE" == 1 ]]; then
+    echo
+    echo "capabilities (measured, not assumed)"
+    drv_check
+    drv_begin
+    for cap in $(drv_probe); do echo "  ${cap%%=*}: ${cap##*=}"; done
+    drv_end
+    echo "  screenshot=fallback means visual evidence is a PRINT render: same DOM, paper width, not the viewport."
+  else
+    echo
+    echo "  (add --probe to measure whether this host can screenshot, run axe and read vitals)"
+  fi
+  ;;
+
+sense|look)
+  dq_profile_load "$CONFIG"
+  RUN="$(new_run)"
+  note "run: $RUN"
+  dq_observe "$RUN" "$SURFACES"
+  dq_rules_all "$RUN"
+  dq_report "$RUN"
+  dq_fail_on "$RUN" "$FAIL_ON" || exit $?
+  echo "$RUN"
+  ;;
+
+panel)
+  dq_profile_load "$CONFIG"
+  RUN="$(resolve_run "$RUN_SEL")"
+  export DQ_RUN="$RUN"
+  [[ -d "$RUN/facts" ]] || die "$RUN has no facts — run: design sense"
+  [[ ",$STAGES," == *,critics,* ]] && dq_panel "$RUN" "${LENSES:-craft usability identity}" "$DRY"
+  if [[ "$DRY" == 0 ]]; then
+    [[ ",$STAGES," == *,refute,*    ]] && dq_refute "$RUN"
+    [[ ",$STAGES," == *,arbitrate,* ]] && dq_arbitrate "$RUN"
+    dq_report "$RUN"
+    dq_fail_on "$RUN" "$FAIL_ON" || exit $?
+  fi
+  echo "$RUN"
+  ;;
+
+review)
+  dq_profile_load "$CONFIG"
+  RUN="$(new_run)"
+  note "run: $RUN"
+  dq_observe "$RUN" "$SURFACES"
+  dq_rules_all "$RUN"
+  dq_panel "$RUN" "${LENSES:-craft usability identity}" "$DRY"
+  if [[ "$DRY" == 0 ]]; then
+    dq_refute "$RUN"
+    dq_arbitrate "$RUN"
+  fi
+  dq_report "$RUN"
+  dq_fail_on "$RUN" "$FAIL_ON" || exit $?
+  echo "$RUN"
+  ;;
+
+report)
+  dq_profile_load "$CONFIG"
+  RUN="$(resolve_run "$RUN_SEL")"
+  export DQ_RUN="$RUN"
+  dq_report "$RUN"
+  dq_fail_on "$RUN" "$FAIL_ON" || exit $?
+  ;;
+
+# What a change actually did, without asking anyone's opinion: the measured
+# numbers, side by side, plus which deterministic findings disappeared and which
+# are new. This is the loop half of the harness — capture, edit, capture again —
+# and it is deliberately model-free, because "is it better now" answered by the
+# same family that proposed the edit is not evidence.
+diff)
+  dq_profile_load "$CONFIG"
+  A="$(resolve_run "${BEFORE:-}")"; B="$(resolve_run "${AFTER:-last}")"
+  [[ "$A" == "$B" ]] && die "--before and --after resolve to the same run"
+  echo "before  $A"
+  echo "after   $B"
+  echo
+  printf '%-26s %10s %10s %8s\n' "metric" "before" "after" "delta"
+  for f in "$B"/facts/*.json; do
+    key="$(basename "$f" .json)"
+    a="$A/facts/$key.json"
+    [[ -f "$a" ]] || { echo "  $key — new in the after run"; continue; }
+    echo "· $key"
+    for path in '.sensors.census.facts.typeScaleCount|type sizes' \
+                '.sensors.census.facts.paletteCount|colours' \
+                '.sensors.census.facts.radiiCount|radii' \
+                '.sensors.contrast.facts.textPairsFailing|contrast failures' \
+                '.sensors.targets.facts.undersized|small hit targets' \
+                '.sensors.slop.facts.slopWeight|distributional weight' \
+                '.sensors.runtime.facts.cls|layout shift' \
+                '.sensors.runtime.facts.domNodes|dom nodes'; do
+      jqp="${path%%|*}"; label="${path##*|}"
+      va="$(jq -r "$jqp // 0" "$a")"; vb="$(jq -r "$jqp // 0" "$f")"
+      d="$(awk -v x="$vb" -v y="$va" 'BEGIN{printf "%+.3g", x-y}')"
+      [[ "$d" == "+0" ]] && d="="
+      printf '  %-24s %10s %10s %8s\n' "$label" "$va" "$vb" "$d"
+    done
+  done
+  echo
+  if [[ -s "$A/findings.json" && -s "$B/findings.json" ]]; then
+    echo "fixed (present before, gone now):"
+    jq -r -s '(.[0] | map(select(.source=="sensor")) | map({key:(.rule+"|"+.surface+"|"+.where), value:.}) | from_entries) as $a
+              | (.[1] | map(select(.source=="sensor")) | map(.rule+"|"+.surface+"|"+.where)) as $b
+              | [$a | to_entries[] | select(([.key] | inside($b)) | not) | .value]
+              | if length == 0 then "  none" else (.[] | "  - [\(.severity)] \(.title) — \(.surface)") end' \
+      "$A/findings.json" "$B/findings.json"
+    echo "introduced (new in the after run):"
+    jq -r -s '(.[1] | map(select(.source=="sensor")) | map({key:(.rule+"|"+.surface+"|"+.where), value:.}) | from_entries) as $b
+              | (.[0] | map(select(.source=="sensor")) | map(.rule+"|"+.surface+"|"+.where)) as $a
+              | [$b | to_entries[] | select(([.key] | inside($a)) | not) | .value]
+              | if length == 0 then "  none" else (.[] | "  - [\(.severity)] \(.title) — \(.surface)") end' \
+      "$A/findings.json" "$B/findings.json"
+  fi
+  ;;
+
+ls)
+  dq_profile_load "$CONFIG"
+  [[ -d "$DQ_OUT" ]] || die "no runs yet"
+  for d in "$DQ_OUT"/*/; do
+    [[ -f "$d/meta.json" ]] || continue
+    printf '%-18s %s  %s findings  %s\n' "$(basename "$d")" \
+      "$(jq -r .commit "$d/meta.json")" \
+      "$(jq length "$d/findings.json" 2>/dev/null || echo '-')" \
+      "$(jq -r .agent "$d/meta.json")"
+  done
+  ;;
+
+show)
+  dq_profile_load "$CONFIG"
+  RUN="$(resolve_run "${1:-${RUN_SEL:-last}}")"
+  [[ -f "$RUN/report.md" ]] || die "$RUN has no report — run: design report --run $(basename "$RUN")"
+  cat "$RUN/report.md"
+  ;;
+
+selftest)
+  exec "$DQ_HOME/selftest.sh" "$@"
+  ;;
+
+version) echo "design $DQ_VERSION" ;;
+
+*) die "unknown command \"$CMD\" — try: design --help" ;;
+esac

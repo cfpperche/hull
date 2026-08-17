@@ -30,6 +30,7 @@ Status is one of `Proposed`, `Accepted`, `Superseded by NNNN`, `Deprecated`.
 | [0012](0012-browser-e2e-with-playwright.md) | Browser E2E with Playwright, in CI | Accepted |
 | [0013](0013-agentic-qa-harness.md) | An agentic QA harness that starts dirty | Accepted |
 | [0014](0014-cli-peer-harness-for-the-three-agents.md) | A CLI peer harness, so the three agents can ask each other | Accepted |
+| [0015](0015-design-harness-is-decoupled-and-not-a-gate.md) | A multi-agent design harness, decoupled, and not a gate | Accepted |
 
 Business rules and the object model are not decisions — they are in
 [`docs/domain.md`](../domain.md).

@@ -1,4 +1,4 @@
-.PHONY: setup up down dev smoke test images migrate brand prune visual qa peer reset ci ci-e2e
+.PHONY: setup up down dev smoke test images migrate brand prune visual qa peer design reset ci ci-e2e
 
 setup:
 	./scripts/setup-local.sh
@@ -56,3 +56,10 @@ qa:
 # proving they answer. Ask with ./harness/scripts/peer.sh — see harness/peer.md.
 peer:
 	./harness/scripts/peer.sh doctor
+
+# Measuring the product, then putting it to a panel. `make design` reports what
+# is installed and reachable; `design sense` is free and deterministic, and
+# `design panel` is billed per call and is never a gate — see
+# harness/design/PROTOCOL.md.
+design:
+	./harness/design/bin/design doctor
