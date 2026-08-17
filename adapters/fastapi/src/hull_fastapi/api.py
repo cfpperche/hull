@@ -158,6 +158,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return problem(500, "Server error", "unexpected server error", "server_error")
 
     @app.middleware("http")
+    async def retire_duplicate_session_cookie(request: Request, call_next):
+        # A user stuck in the redirect loop never reaches an endpoint that sets a
+        # cookie — they are bounced on GET /v1/me. Two entries of the same name in
+        # the Cookie header is proof a legacy apex cookie is in play, so retire it
+        # here and the very next request resolves to the right session.
+        response = await call_next(request)
+        raw = request.headers.get("cookie") or ""
+        seen = sum(
+            1 for c in raw.split(";") if c.strip().split("=", 1)[0].strip() == settings.cookie_name
+        )
+        if seen > 1 and _under_apex(request):
+            response.delete_cookie(
+                settings.cookie_name, path="/", domain=f".{settings.host.lower()}"
+            )
+        return response
+
+    @app.middleware("http")
     async def cap_upload_body(request: Request, call_next):
         # Refuse an oversized upload before the multipart parser buffers it.
         # The cap inside put_avatar runs after the whole body is already in memory.
@@ -185,6 +202,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             status = 503
         return problem(status, "Account error", exc.message, exc.reason_code)
 
+    def _under_apex(request: Request) -> bool:
+        host = (request.url.hostname or "").lower()
+        apex = settings.host.lower()
+        return host == apex or host.endswith(f".{apex}")
+
+    def _expire_legacy_apex_cookie(request: Request, response: Response) -> None:
+        """Kill the pre-host-scoping cookie.
+
+        Sessions used to be issued with Domain=.<apex>. A browser that signed in
+        before that changed still carries it, and because a Cookie header can
+        hold two entries of the same name, the server sees both and picks the
+        legacy one — so admin.<host> resolves to whatever user it names, bounces
+        to the product surface, which bounces back. Expiring it is the migration
+        that PR #3 should have shipped with the scope change.
+        """
+        if _under_apex(request):
+            response.delete_cookie(
+                settings.cookie_name, path="/", domain=f".{settings.host.lower()}"
+            )
+
     # No domain= anywhere below, on purpose. Scoping the cookie to `.<apex>` sent
     # a live session token to every sibling host — mail., s3., rustfs., db. —
     # none of which authenticate anyone, and SameSite=lax does not separate
@@ -206,6 +243,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             max_age=max_age if max_age is not None else int(SESSION_TTL.total_seconds()),
             path="/",
         )
+        _expire_legacy_apex_cookie(request, response)
 
     def _clear_cookie(request: Request, response: Response) -> None:
         response.delete_cookie(
@@ -215,6 +253,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             samesite="lax",
             secure=request.url.scheme == "https",
         )
+        _expire_legacy_apex_cookie(request, response)
 
     def require_session(request: Request):
         raw = request.cookies.get(settings.cookie_name)
