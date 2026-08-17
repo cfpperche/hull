@@ -1,4 +1,4 @@
-.PHONY: setup up down dev smoke test images migrate brand prune visual qa reset ci ci-e2e
+.PHONY: setup up down dev smoke test images migrate brand prune visual qa peer reset ci ci-e2e
 
 setup:
 	./scripts/setup-local.sh
@@ -50,3 +50,9 @@ visual:
 # with ./harness/scripts/qa.sh start — see harness/qa.md.
 qa:
 	./harness/scripts/qa.sh doctor
+
+# Asking one of the other two agents. Also not a gate, and billed per call:
+# `make peer` only checks who is reachable — add --live to spend one call each
+# proving they answer. Ask with ./harness/scripts/peer.sh — see harness/peer.md.
+peer:
+	./harness/scripts/peer.sh doctor

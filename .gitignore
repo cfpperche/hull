@@ -36,3 +36,9 @@ uv.lock.bak
 harness/visual/current/
 harness/visual/evidence/
 harness/qa/runs/
+# Peer exchanges: what we asked another agent, what it answered, what it cost.
+# Worth keeping for the length of a task, not the length of the repo — a finding
+# that matters becomes a test, an ADR, or a line in CHANGELOG.md.
+harness/peer/exchanges/
+harness/peer/worktrees/
+harness/peer/schemas/

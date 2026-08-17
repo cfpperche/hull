@@ -15,10 +15,13 @@ Read **`HANDOFF.md`** first for what exists and what is next.
 | [`harness/benchmarks.md`](./harness/benchmarks.md) | Sector research, before pixels. |
 | [`harness/visual-ux.md`](./harness/visual-ux.md) | Driving the browser to judge pixels. |
 | [`harness/qa.md`](./harness/qa.md) | Exploring a live install mid-task, carrying state. Not CI. |
+| [`harness/peer.md`](./harness/peer.md) | Asking one of the other two agents — delegation, audit, adversarial review. Not CI. |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Update under `[Unreleased]` before every push to `main`. |
 
 Agent operating model (who plans, who implements, who reviews) is **not defined**.
-Do not import a pipeline from another repo.
+Do not import a pipeline from another repo. `harness/scripts/peer.sh` lets one
+agent ask another — it is a phone line, not an org chart, and turning it into a
+standing pipeline needs its own ADR. → [0014](./docs/adr/0014-cli-peer-harness-for-the-three-agents.md)
 
 ## Locks
 
@@ -71,6 +74,12 @@ To poke a live install while working — signed in, or carrying a cookie from th
 build before — use `./harness/scripts/qa.sh` (**`harness/qa.md`**). It is
 exploration, not a gate: it never runs in CI, and a finding worth keeping becomes
 an `e2e/` spec or a pytest case. → [0013](./docs/adr/0013-agentic-qa-harness.md)
+
+For a second opinion from a different vendor's model — a review, one claim audited,
+or a blind adversarial `duel` — use `./harness/scripts/peer.sh` (**`harness/peer.md`**).
+Reviewers run read-only and the harness proves it by watching the tree, not by
+trusting the flag. Its answers are evidence, never a verdict, and never a gate.
+→ [0014](./docs/adr/0014-cli-peer-harness-for-the-three-agents.md)
 
 Prove a claim against what is running, not against the diff. When you add a guard,
 plant a violation and watch it fail before trusting it — several guards in this

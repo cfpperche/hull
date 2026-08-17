@@ -89,7 +89,7 @@ scripts/          setup, migrate, up, smoke
 CHANGELOG.md      Keep a Changelog — update before push
 AGENTS.md         Claude / Codex / Grok (one source)
 HANDOFF.md        session start
-harness/          benchmarks, visual capture
+harness/          benchmarks, visual capture, live QA, agent-to-agent review
 ```
 
 A future product is a module. The hull does not know what it sells.

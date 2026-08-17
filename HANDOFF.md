@@ -76,6 +76,19 @@ them start from an empty browser. Headless by default; `--headed` for a window a
 It is **not** a gate and never runs in CI — a finding worth keeping becomes an
 `e2e/` spec or a pytest case.
 
+## Asking the other two agents
+
+`./harness/scripts/peer.sh` is the channel between Claude, Codex and Grok, all
+three installed here and all three headless-capable. `ask` delegates, `review`
+reads a diff against a fixed schema, `audit` puts one claim as confirmed /
+refuted / unproven, and `duel` is a blind review by both peers followed by each
+judging the other's claims. Every call leaves an exchange in
+`harness/peer/exchanges/` — request, answer, argv, cost — so a third agent can
+replay it. Reviewers are read-only and the harness proves it by photographing the
+tree, because Grok's permission modes do not block writes (its `--sandbox
+read-only` does). Not a gate, never in CI, and billed per call: budget minutes for
+a duel. Protocol: `harness/peer.md`. → ADR-0014.
+
 ## Next (not started)
 
 - Product module in `modules/` when there is a sold job
