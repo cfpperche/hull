@@ -10,15 +10,32 @@ if [[ "$(id -u)" -ne 0 ]]; then
   exit 1
 fi
 
+# Rotation, not just installation. When the CA has been replaced, the bundle has
+# to be rebuilt rather than appended to: two trusted "Hull Local CA" certificates
+# with different keys is a state nobody enjoys debugging.
+rotated() {
+  local installed="$1"
+  [[ -f "$installed" ]] && ! cmp -s "$installed" "$CA"
+}
+
 if [[ -d /usr/local/share/ca-certificates ]]; then
-  install -m 0644 "$CA" /usr/local/share/ca-certificates/hull-local-ca.crt
-  update-ca-certificates
+  dest=/usr/local/share/ca-certificates/hull-local-ca.crt
+  if rotated "$dest"; then
+    echo "TRUST_ROTATE  replacing the previously trusted Hull CA"
+    install -m 0644 "$CA" "$dest"
+    update-ca-certificates --fresh
+  else
+    install -m 0644 "$CA" "$dest"
+    update-ca-certificates
+  fi
   echo "TRUST_OK debian/ubuntu"
   exit 0
 fi
 
 if command -v update-ca-trust >/dev/null && [[ -d /etc/pki/ca-trust/source/anchors ]]; then
-  install -m 0644 "$CA" /etc/pki/ca-trust/source/anchors/hull-local-ca.crt
+  dest=/etc/pki/ca-trust/source/anchors/hull-local-ca.crt
+  rotated "$dest" && echo "TRUST_ROTATE  replacing the previously trusted Hull CA"
+  install -m 0644 "$CA" "$dest"
   update-ca-trust extract
   echo "TRUST_OK fedora/rhel"
   exit 0

@@ -69,6 +69,10 @@ if (-not $ca -or -not (Test-Path $ca)) {
     exit 1
 }
 
+# Remove before adding. -addstore does not replace an existing certificate with
+# the same subject, so after a CA rotation the Windows ROOT store would hold two
+# "Hull Local CA" entries with different keys and pick whichever it liked.
+certutil -delstore ROOT "Hull Local CA" 2>&1 | Out-Null
 certutil -addstore -f ROOT $ca | Out-Host
 ipconfig /flushdns | Out-Null
 Write-Host "SETUP_OK  www https://${HostName}/  app https://app.${HostName}/  admin https://admin.${HostName}/  mail https://mail.${HostName}/"
