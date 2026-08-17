@@ -1,4 +1,4 @@
-import { Home, UserRound } from "lucide-react";
+import { Home } from "lucide-react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { originFor } from "@hull/config";
 import { ProductShell, useBrand } from "@hull/ui";
@@ -101,7 +101,12 @@ function ClientApp() {
                 <VerifyBanner email={me.user.email} />
               )
             }
-            nav={[{ to: "/", label: "Home", icon: Home, end: true }, { to: "/account", label: "Account", icon: UserRound }]}
+            // Product surfaces only. Account is not one — it is reached from the
+            // avatar menu at the foot of the rail, which is where Vercel, Linear
+            // and Supabase all put it, and where a person already looks for
+            // "things about me" because Sign out lives there too. Listing it
+            // twice made the nav look like the product had two features.
+            nav={[{ to: "/", label: "Home", icon: Home, end: true }]}
             footer={<AvatarMenu />}
           />
         }
