@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
+
+from hull_fastapi.api import create_app
+
 
 def _signup(client, unique: str, tag: str = "a") -> str:
     res = client.post(
@@ -111,3 +115,63 @@ def test_signin_is_constant_time_shaped_for_unknown_accounts(client, unique: str
     )
     assert res.status_code == 401
     assert res.json()["reason_code"] == "unauthenticated"
+
+
+def _apex_client(settings) -> TestClient:
+    """A client whose Host is under the apex.
+
+    The default TestClient talks to `testserver`, which is not under
+    settings.host — and the legacy-cookie retirement is deliberately scoped to
+    the apex, since a Domain cookie for anything else would just be dropped by
+    the browser.
+    """
+    return TestClient(create_app(settings), base_url=f"https://app.{settings.host}")
+
+
+def _domain_cookies(res, settings):
+    return [
+        h
+        for h in res.headers.get_list("set-cookie")
+        if f"{settings.cookie_name}=" in h and "omain" in h
+    ]
+
+
+def test_legacy_apex_cookie_is_retired_when_both_are_sent(settings, unique: str) -> None:
+    """PR #3 host-scoped the cookie without expiring the one it replaced.
+
+    A Cookie header can carry two entries of the same name, the server picks the
+    legacy one, and admin.<host> then bounces to the product surface while the
+    product surface bounces back — a redirect loop for every browser that had
+    signed in before the scope change.
+    """
+    client = _apex_client(settings)
+    _signup(client, unique, "l")
+    name = settings.cookie_name
+    live = client.cookies[name]
+
+    res = client.get("/v1/me", headers={"Cookie": f"{name}={live}; {name}=stale-legacy-token"})
+    expired = _domain_cookies(res, settings)
+    assert expired, res.headers.get_list("set-cookie")
+    assert "Max-Age=0" in expired[0] or "1970" in expired[0], expired[0]
+    assert f".{settings.host}" in expired[0], expired[0]
+
+
+def test_a_single_cookie_is_left_alone(settings, unique: str) -> None:
+    """Do not emit a delete on every ordinary request."""
+    client = _apex_client(settings)
+    _signup(client, unique, "m")
+    res = client.get("/v1/me")
+    assert res.status_code == 200
+    assert not _domain_cookies(res, settings)
+
+
+def test_signin_retires_the_legacy_cookie(settings, unique: str) -> None:
+    client = _apex_client(settings)
+    _signup(client, unique, "n")
+    res = client.post(
+        "/v1/auth/signin", json={"email": f"n{unique}@hull.test", "password": "demodemo1"}
+    )
+    assert res.status_code == 200
+    expired = _domain_cookies(res, settings)
+    assert expired, "signin must retire the pre-host-scoping cookie"
+    assert f".{settings.host}" in expired[0]
