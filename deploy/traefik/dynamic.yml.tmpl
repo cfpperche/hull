@@ -25,13 +25,6 @@ http:
         period: 1m
         burst: 20
 
-    # Second lock on the studio console. dbgate's own LOGIN/PASSWORD is the first;
-    # this one holds even if that image is swapped or its auth is misconfigured.
-    studio-auth:
-      basicAuth:
-        users:
-          - "__DBGATE_USERS__"
-
   routers:
     hull-www:
       rule: "Host(`__HOST__`) || Host(`www.__HOST__`)"
@@ -112,7 +105,6 @@ http:
     hull-db:
       rule: "Host(`db.__HOST__`)"
       entryPoints: [websecure]
-      middlewares: [studio-auth]
       service: hull-dbgate
       priority: 1
       tls: {}

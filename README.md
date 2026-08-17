@@ -21,6 +21,7 @@ sudo ./scripts/setup-local.sh   # Linux hosts + CA; on WSL also opens Windows UA
 | https://mail.hull.test/ | Mailpit |
 | https://s3.hull.test/ | Object store API |
 | https://rustfs.hull.test/ | Object store console |
+| https://db.hull.test/ | dbgate — SQL console (`HULL_DBGATE_USER` / `HULL_DBGATE_PASSWORD`) |
 
 Lab logins after seed: `ada@hull.test` / `demodemo1` (owner of one workspace). `admin@hull.test` / `demodemo1` (platform admin, no workspace).
 
@@ -43,6 +44,7 @@ Change the apex and chrome with `.env` (`HULL_HOST`, `HULL_BRAND`, `HULL_MARK`, 
 | API adapter | FastAPI (uv) — replaceable |
 | Objects | RustFS (S3) |
 | Mail | Mailpit |
+| DB console | dbgate |
 | Edge | Traefik v3 + project CA |
 
 No Next.js. No worker. No billing. No SSO.
