@@ -9,6 +9,7 @@ import { VerifyBanner } from "./components/VerifyBanner";
 import { useSession } from "./lib/session";
 import { AccountPage } from "./pages/Account";
 import { CreateOrgPage } from "./pages/CreateOrg";
+import { EmailChangePage } from "./pages/EmailChange";
 import { ForgotPage } from "./pages/Forgot";
 import { HandoffPage } from "./pages/Handoff";
 import { HomePage } from "./pages/Home";
@@ -48,6 +49,13 @@ function ClientApp() {
   // another device, so it must not depend on a session either way.
   if (window.location.pathname === "/verify") {
     return <VerifyPage />;
+  }
+
+  // And again: this one lands in the new mailbox, which is the address least
+  // likely to have a session here — the whole point is that it has to prove
+  // itself before it becomes the login.
+  if (window.location.pathname === "/email") {
+    return <EmailChangePage />;
   }
 
   if (!ready) {

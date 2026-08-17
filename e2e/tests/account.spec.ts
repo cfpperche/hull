@@ -50,7 +50,9 @@ test("saving the profile confirms, and clearing a name clears it", async ({ page
 test("changing the password keeps this session and invalidates the old one", async ({ page }) => {
   const email = await page.evaluate(() => sessionStorage.getItem("e2e-email"));
   await page.getByLabel("Current").fill("demodemo1");
-  await page.getByLabel("New").fill("demodemo2");
+  // Exact: the page also carries a "New email" field now, and a substring match
+  // resolved to both.
+  await page.getByLabel("New", { exact: true }).fill("demodemo2");
   await page.getByRole("button", { name: /Update password/ }).click();
   await expect(page.getByText("Password updated")).toBeVisible();
 

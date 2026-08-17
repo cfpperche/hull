@@ -41,7 +41,7 @@ Lab services come up with the stack, linked from the admin sidebar: `mail.` (Mai
 - Agent files + visual harness (agent-browser)
 - First visual pass: `@source` for `@hull/ui`, desktop rail, auth frame, quiet empty home
 - Adversarial review and its four follow-up stages (PRs #1–#9). See `CHANGELOG.md` for what changed and why
-- **Account management, two of four pieces.** Password reset and email verification, both on the single-use token pattern `support_handoffs` established: hashed at rest, `used_at IS NULL … RETURNING`, token in the URL fragment. Migrations `003` and `004`. That closes the lifecycle ADR-0011 was about — see *Next* for the two pieces that are left
+- **Account management, three of four pieces.** Password reset, email verification, and changing the address you sign in with — all on the single-use token pattern `support_handoffs` established: hashed at rest, `used_at IS NULL … RETURNING`, token in the URL fragment. Migrations `003`, `004` and `005`. That closes the lifecycle ADR-0011 was about — see *Next* for the one piece that is left
 
 ## How the session works now
 
@@ -51,17 +51,20 @@ Changed by the review — the old notes here described the previous model.
 - Sessions are **per-device**. Signing in elsewhere no longer signs this one out.
 - Support "View as" does not carry a session across hosts. It mints a single-use, 60-second hand-off token (`schema/migrations/002_support_handoff.sql`), passed in a **URL fragment** so it never reaches a server log, and `POST /v1/session/handoff` exchanges it for a 45-minute impersonating session on `app.`. Stop ends that session and returns to the console.
 - `effective_org_id()` in `accounts.py` is **the only supported way** to resolve the org a request operates on. The raw field is named `session_org_id` so a direct read is a loud miss, and a test fails the build if anything outside `accounts.py` touches it. Product modules: use the accessor.
-- **Three token tables, one shape.** `support_handoffs`, `password_resets`, `email_verifications` are hashed at rest and claimed with `UPDATE … WHERE used_at IS NULL AND expires_at > now() … RETURNING`, so two clicks on one link cannot both win. Their links carry the token in the **fragment**, which is never sent to a server: not in an access log, not in a `Referer`. `/reset` and `/verify` strip it during the first render, not in an effect — an effect runs after paint and leaves it in the address bar for a frame. Copy this shape for the next one rather than inventing a fourth.
-- Password reset ends **every** session of that user; a reset is what someone does when they believe an attacker holds one. Verification ends nothing and gates nothing.
-- `email_verifications` stores **the address the link was sent to**, not just the user, so a link minted before an address change cannot confirm the address that replaced it. That column exists for a feature that does not exist yet — see *Next*.
+- **Four token tables, one shape.** `support_handoffs`, `password_resets`, `email_verifications` and `email_changes` are hashed at rest and claimed with `UPDATE … WHERE used_at IS NULL AND expires_at > now() … RETURNING`, so two clicks on one link cannot both win. Their links carry the token in the **fragment**, which is never sent to a server: not in an access log, not in a `Referer`. `/reset`, `/verify` and `/email` strip it during the first render, not in an effect — an effect runs after paint and leaves it in the address bar for a frame. Copy this shape rather than inventing a fifth.
+- Password reset ends **every** session of that user; a reset is what someone does when they believe an attacker holds one. Verification and an email change end nothing: the first grants nothing, and the second is a deliberate edit that would otherwise sign you out of the laptop because you finished on your phone.
+- `email_verifications` stores **the address the link was sent to**, not just the user, so a link minted before an address change cannot confirm the address that replaced it. That column now earns its keep, and `test_email_change.py` walks both layers: the change spends the stale link outright, and with the row un-spent by hand the stored address still refuses it.
+- **Changing the email is a move, not an edit.** The password is confirmed when the change is *asked for* — that is the step a stolen cookie reaches. Nothing changes until the new address redeems its own link; until then the old one still signs in and still gets reset mail. The old address is mailed twice, and **changing the password cancels every pending change**, which is what makes "if this was not you, change your password" a control rather than advice.
 
 ## Gates
 
-`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (54).
-`e2e/` holds 13 browser specs. Keep the split the two mail flows use: what only a
-browser shows goes in `e2e/`, and single use, expiry and the enumeration guard
-stay in pytest — cheaper, deterministic, and they do not spend credential calls
-out of the suite's shared rate-limit budget.
+`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (73).
+`e2e/` holds 14 browser specs. Keep the split the three mail flows use: what only
+a browser shows goes in `e2e/`, and single use, expiry, collisions and the
+enumeration guard stay in pytest — cheaper, deterministic, and they do not spend
+credential calls out of the suite's shared rate-limit budget. Each of those flows
+is one browser spec against ten to nineteen server tests, and that ratio is the
+target, not an accident.
 `make ci` and `make ci-e2e` run exactly what CI runs — the workflow calls those
 same two scripts and contains no gate logic of its own, so the two cannot drift
 and a provider outage does not leave you merging on faith.
@@ -73,7 +76,7 @@ browser does in `e2e/`, and `smoke.sh` stays a small HTTP check of a live instal
 
 **`make ci-e2e` cannot pass on this workstation**, for a reason that has nothing to do with the code — every click times out. Do not chase it here and do not treat a red `ci-e2e` as a review finding until you have read *Open, and owned by the operator* below. `make ci` is unaffected and is the gate to run.
 
-When you add a guard, prove it fails: plant a violation, watch it reject, remove it. Three guards in this repo's history passed while testing nothing.
+When you add a guard, prove it fails: plant a violation, watch it reject, remove it. Four guards in this repo's history passed while testing nothing — the most recent was the email-change browser spec, which moved the address to `moved-${user.username}@host` and then asserted on the *old* one with a substring text match. That string contains the old address, so the assertion was true either way and the spec passed with the change wrongly applied at request time. If a test compares two identifiers, make sure they cannot contain each other, and prefer `toHaveText` on a testid over `getByText`.
 
 ## Exploring by hand (or by agent)
 
@@ -138,27 +141,24 @@ a duel. Protocol: `harness/peer.md`. → ADR-0014.
 ## Next (not started)
 
 **The programme is account management, one piece at a time: build it, drive it in
-a browser, then take the next.** Two are done, two are left, and they are the
-whole of what a user can still not do to their own account.
+a browser, then take the next.** Three are done, one is left.
 
-- **Change your email — take this one first.** The login identifier is immutable
-  today: `ProfileBody` accepts `username` and `name`, nothing else, so an address
-  typo at signup is permanent and a person changing employer has no move. It is
-  next because email verification just unblocked it — `email_verifications`
-  already stores the address a link was sent to, which is exactly the check a
-  change needs. The shape to follow: the new address is **pending** until its own
-  link is redeemed, the old address keeps working meanwhile and gets told what
-  happened, and `users_email_lower_uidx` decides the collision. Confirm the
-  password first, the way `close_account` does — an unattended session must not be
-  able to walk off with the account.
-- **See and revoke sessions.** The `sessions` table has been per-device since
-  PR #5, and nothing surfaces it: a user cannot see where they are signed in or
-  end one. There is no `/v1/me/sessions` in the adapter or the contract. Needs no
-  mail and no new token table — it is a list and a delete — so it is the cheaper
-  of the two and it is why it goes second, not first.
+- **See and revoke sessions — take this one next.** The `sessions` table has been
+  per-device since PR #5 and nothing surfaces it: a user cannot see where they are
+  signed in, and cannot end a session on a laptop they no longer have. There is no
+  `/v1/me/sessions` in the adapter or the contract. It is the last piece and the
+  cheapest — a list and a delete, no mail and no new token table — but it needs
+  two things the row does not carry yet: something to recognise a device by, and
+  which row is *this* one, so the list can say "current" and revoking the others
+  does not sign you out of the browser you are looking at. That means a small
+  migration (a user agent string and a last-seen timestamp, written on use) rather
+  than a pure read. Sessions are already swept on sign-in when expired, so the
+  list only ever shows live rows. Watch the write cost: stamping `last_seen_at` on
+  every authenticated request turns each one into a write, so round it — a minute
+  of granularity is plenty for a list a human reads.
 - Product module in `modules/` when there is a sold job
 - **Three findings against this build, raised by `design sense` and none of them fixed.** The input border sits at **1.26:1** against its surface where WCAG 1.4.11 wants 3:1 — that is one shadcn token and it is every form in the product, six fields on the account page alone. Muted body copy on `web-account` is **3.99:1** against 4.5:1. No signed-in surface has a `<main>` landmark, so skip-to-content has nowhere to go. Evidence: run `20260817-150605`, and `design sense` reproduces it in about three minutes.
-- **Repair the browser on this workstation.** The cause is now narrowed: Chrome's separate GPU process never comes up, and `--in-process-gpu` or a headed launch both dodge it — see *Open, and owned by the operator* for the measurements. What is left is the actual repair, most likely a `wsl --shutdown` and, failing that, `--headless=old` or a different WSL kernel. Worth an hour because it costs every browser-shaped tool here, not just `ci-e2e`.
+- **Repair the browser on this workstation.** The cause is now narrowed: Chrome's separate GPU process never comes up, and `--in-process-gpu` or a headed launch both dodge it — in Playwright *and* in `agent-browser`, via `AGENT_BROWSER_ARGS`. See *Open, and owned by the operator* for the measurements. What is left is the actual repair, most likely a `wsl --shutdown` and, failing that, `--headless=old` or a different WSL kernel. Worth an hour because it costs every browser-shaped tool here, not just `ci-e2e`.
 
 ## Later — component lab (do not do now)
 
@@ -199,6 +199,8 @@ Org isolation, Traefik-in-compose, `config.json` runtime brand, and the session 
 
   **One lever does work, and it names the culprit: `--in-process-gpu`.** Measured 2026-08-17 with all three of `--disable-gpu --disable-software-rasterizer --in-process-gpu`: `Page.captureScreenshot` returns, and `pnpm e2e` went from 12-of-13 failing at 35s each to **13 passing in 9.6s**, three runs out of four. So it is Chrome's *separate* GPU process failing to come up, not the renderer or the code — `--disable-gpu` alone is not enough because it still spawns one. A headed launch works for the same reason and is the other half of the evidence: `agent-browser --headed` screenshots fine.
 
-  It is a diagnosis, not a fix, and it is deliberately **not** in `playwright.config.ts`. CI runs on a clean `ubuntu-latest` where the default works, and tuning the repo around one broken workstation is how a suite ends up passing for reasons nobody can name. Use it ad hoc to get real signal on a spec you are writing, then take it back out. The fourth run in four still lost two tests — including specs untouched that day — so even with the flag the signal here is indicative, not a gate.
+  Reconfirmed 2026-08-17 while building the email change, and the lever now has a second half: **`agent-browser` takes the same flags through `AGENT_BROWSER_ARGS`**, so the QA and visual harnesses recover too. Without it `qa.sh look` dies on `CDP command timed out: Page.captureScreenshot`; with `AGENT_BROWSER_ARGS="--disable-gpu,--disable-software-rasterizer,--in-process-gpu"` exported before `qa.sh start`, screenshots come back. That is the same fault answering to the same lever in a second tool, which is about as confirmed as this gets without repairing the machine.
+
+  It is a diagnosis, not a fix, and it is deliberately **not** in `playwright.config.ts`. CI runs on a clean `ubuntu-latest` where the default works, and tuning the repo around one broken workstation is how a suite ends up passing for reasons nobody can name. Use it ad hoc to get real signal on a spec you are writing, then take it back out: keep the config in a scratch directory with an absolute `testDir` and run `playwright test -c <that>`. Bare `make ci-e2e` on this host today: 13 of 14 failed in 7.8 minutes. The same suite with the flag: 14 passed in 8.9s, repeatedly. Even so the signal here is indicative, not a gate — an earlier session saw one run in four lose two tests with the flag on.
 
   Until it is fixed, the browser layer is only verifiable in GitHub Actions, where it has been green. Nothing in the repo works around this, and nothing should: a suite that passes by skipping every click would be worse than one that cannot run.

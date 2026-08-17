@@ -14,6 +14,11 @@ export function AccountPage() {
   const [username, setUsername] = useState(me?.user.username ?? "");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profilePending, setProfilePending] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPw, setEmailPw] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailPending, setEmailPending] = useState(false);
+  const [emailSent, setEmailSent] = useState<string | null>(null);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [pwError, setPwError] = useState<string | null>(null);
@@ -49,6 +54,27 @@ export function AccountPage() {
       setProfileError(errMsg(err));
     } finally {
       setProfilePending(false);
+    }
+  }
+
+  async function changeEmail(e: React.FormEvent) {
+    e.preventDefault();
+    setEmailError(null);
+    setEmailSent(null);
+    setEmailPending(true);
+    try {
+      const asked = newEmail.trim();
+      await api.changeEmail({ password: emailPw, email: asked });
+      // Deliberately no refreshMe(): the server changed nothing yet, and
+      // re-reading the principal here would only reprint the old address as if
+      // something had happened.
+      setEmailSent(asked);
+      setNewEmail("");
+      setEmailPw("");
+    } catch (err) {
+      setEmailError(errMsg(err));
+    } finally {
+      setEmailPending(false);
     }
   }
 
@@ -132,10 +158,6 @@ export function AccountPage() {
             {avatarError ? <p className="text-destructive text-sm">{avatarError}</p> : null}
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" value={me?.user.email ?? ""} readOnly disabled />
-          </div>
-          <div className="grid gap-1.5">
             <Label htmlFor="name">Name</Label>
             <Input id="name" data-testid="profile-name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
@@ -146,6 +168,54 @@ export function AccountPage() {
           {profileError ? <p className="text-destructive text-sm">{profileError}</p> : null}
           <Button type="submit" className="w-fit" data-testid="profile-save" disabled={profilePending}>
             {profilePending ? "Saving…" : "Save profile"}
+          </Button>
+        </form>
+
+        <form className="grid gap-4 border-t pt-8" onSubmit={(e) => void changeEmail(e)}>
+          <h2 className="text-sm font-medium">Email</h2>
+          <p className="text-muted-foreground text-sm">
+            You sign in with{" "}
+            <span className="text-foreground font-medium" data-testid="account-email">
+              {me?.user.email}
+            </span>
+            , and it is where a password reset is sent.
+          </p>
+          {/* Above the fields, not instead of them: a second attempt with a
+              different address must not need a page reload. */}
+          {emailSent ? (
+            <p className="text-sm" data-testid="email-sent">
+              Check <span className="font-medium">{emailSent}</span> for a link. Nothing has changed yet —{" "}
+              {me?.user.email} keeps working until that link is used.
+            </p>
+          ) : null}
+          <div className="grid gap-1.5">
+            <Label htmlFor="new-email">New email</Label>
+            <Input
+              id="new-email"
+              type="email"
+              data-testid="email-new"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="email-password">Password</Label>
+            <Input
+              id="email-password"
+              type="password"
+              data-testid="email-password"
+              value={emailPw}
+              onChange={(e) => setEmailPw(e.target.value)}
+            />
+          </div>
+          {emailError ? <p className="text-destructive text-sm">{emailError}</p> : null}
+          <Button
+            type="submit"
+            className="w-fit"
+            data-testid="email-submit"
+            disabled={emailPending || !newEmail.trim() || !emailPw}
+          >
+            {emailPending ? "Sending…" : "Change email"}
           </Button>
         </form>
 

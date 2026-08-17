@@ -152,6 +152,61 @@ paths:
           description: Accepted
         "401":
           $ref: "#/components/responses/Unauthenticated"
+  /v1/me/email:
+    post:
+      operationId: changeEmail
+      description: >
+        Ask to move the account to another address. Nothing changes yet: the
+        current address keeps signing in and keeps receiving reset mail until the
+        new one redeems its link. The password is confirmed here, because this is
+        the step a stolen session would reach. The new address is mailed a link;
+        the current one is mailed a notice, and changing the password cancels
+        every pending change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password, email]
+              properties:
+                password: { type: string }
+                email: { type: string, format: email }
+      responses:
+        "204":
+          description: Link mailed to the new address, notice to the current one
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/Invalid"
+  /v1/auth/email:
+    post:
+      operationId: confirmEmailChange
+      security: []
+      description: >
+        Redeem an address-change link. Public for the same reason as
+        /v1/auth/verify — it is opened from the new mailbox, which by definition
+        has no session here yet. The address moves and is marked verified in one
+        step; sessions survive, since this is a deliberate edit rather than a
+        recovery. 409 if somebody claimed the address while the link waited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        "204":
+          description: Address moved and confirmed
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /v1/auth/signout:
     post:
       operationId: signout

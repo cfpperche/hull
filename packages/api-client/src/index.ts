@@ -123,6 +123,14 @@ export function createApi(opts: ClientOpts = {}) {
       request<HullMe>(prefix, "/v1/session/org", { method: "POST", body: JSON.stringify({ id }) }),
     updateMe: (body: { username?: string; name?: string }) =>
       request<HullMe>(prefix, "/v1/me", { method: "PATCH", body: JSON.stringify(body) }),
+    /**
+     * Asks; does not change. The current address stays live until the new one
+     * redeems its link, so do not update anything on-screen from this call.
+     */
+    changeEmail: (body: { password: string; email: string }) =>
+      request<void>(prefix, "/v1/me/email", { method: "POST", body: JSON.stringify(body) }),
+    confirmEmailChange: (token: string) =>
+      request<void>(prefix, "/v1/auth/email", { method: "POST", body: JSON.stringify({ token }) }),
     changePassword: (body: { current: string; password: string }) =>
       request<void>(prefix, "/v1/me/password", { method: "POST", body: JSON.stringify(body) }),
     closeAccount: (body: { password: string }) =>

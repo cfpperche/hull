@@ -28,6 +28,30 @@ the operator sees the product.
 
 Email is unique case-insensitively; username too, when set.
 
+## The email address
+
+The address is the login **and** the recovery route: whoever reads that mailbox
+can reset the password. Everything below follows from that one fact.
+
+**Confirmed, not assumed.** A new account is unverified until the link in its
+welcome mail is redeemed. Being unverified blocks nothing — it is stated in the
+chrome, not enforced at a gate. An install that walls off an unverified account
+locks people out over a mail server they do not run.
+
+**Changing it is a move, not an edit.** The current password is confirmed when
+the change is asked for, because that is the step a stolen session would reach.
+Nothing changes until the *new* address redeems its own link — until then the old
+one still signs in and still receives reset mail. The old address is told twice:
+once while it can still stop the change, and once when it is done.
+
+**Changing the password cancels any pending change.** That is what makes "if this
+was not you, change your password" advice rather than decoration.
+
+Four token tables share one shape: `password_resets`, `email_verifications`,
+`email_changes` and `support_handoffs`. Hashed at rest, single use,
+claimed with `used_at IS NULL` in one statement, delivered in a URL **fragment**
+so the token never reaches a server log. Copy that shape; do not invent a fifth.
+
 ## Isolation
 
 Isolation is `org_id`. Every scoped query filters by the org resolved from the
@@ -56,6 +80,11 @@ A session ends when the user signs out, when it expires, or when the password
 changes — which revokes **every** session, including the one making the request,
 and issues a fresh cookie so the caller stays signed in. A stolen cookie must not
 survive the action taken to revoke it.
+
+Changing the **email** does not end sessions, and that is deliberate. A reset is
+what someone does after losing control; a change is a deliberate edit made from a
+signed-in seat, and ending it would sign the person out of the laptop they
+started on because they finished the job on their phone.
 
 `app.` and `admin.` are separate sessions.
 See [ADR-0009](adr/0009-host-scoped-cookie-and-support-hand-off.md).

@@ -24,6 +24,10 @@ RESET_TTL = timedelta(minutes=30)
 # reached the mailbox, and grants nothing. Signup is also the worst moment to
 # demand promptness — the mail lands while the person is already busy elsewhere.
 VERIFY_TTL = timedelta(days=3)
+# In between the two. Confirming a change moves the address that recovers the
+# account, so it is not a three-day link — but the person is deliberately mid-task
+# with two mailboxes open, and half an hour is not enough to reach a phone.
+EMAIL_CHANGE_TTL = timedelta(hours=2)
 _USERNAME_RE = re.compile(r"^[a-z0-9_]{3,24}$")
 
 
@@ -90,6 +94,13 @@ def _require_name(value: str, field: str) -> str:
     if not name or len(name) > 80:
         raise AccountError("request_validation_error", f"{field} is required")
     return name
+
+
+def _require_email(email: str) -> str:
+    normalized = normalize_email(email)
+    if not normalized or "@" not in normalized:
+        raise AccountError("request_validation_error", "email is required")
+    return normalized
 
 
 def _require_password(password: str) -> None:
@@ -249,9 +260,7 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
 def signup(
     conn: psycopg.Connection, *, username: str, email: str, password: str
 ) -> tuple[dict[str, Any], str]:
-    email_n = normalize_email(email)
-    if not email_n or "@" not in email_n:
-        raise AccountError("request_validation_error", "email is required")
+    email_n = _require_email(email)
     uname = _username(username)
     _require_password(password)
     user_id = str(uuid.uuid4())
@@ -404,6 +413,7 @@ def change_password(conn: psycopg.Connection, *, user_id: str, current: str, pas
             "UPDATE users SET password_hash = %s WHERE id = %s", (hash_password(password), user_id)
         )
         cur.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
+        _cancel_email_changes(cur, user_id)
     token = _insert_session(conn, user_id=user_id, org_id=org_id)
     conn.commit()
     return token
@@ -474,6 +484,7 @@ def reset_password(conn: psycopg.Connection, *, raw: str, password: str) -> None
             "UPDATE password_resets SET used_at = now() WHERE user_id = %s AND used_at IS NULL",
             (user_id,),
         )
+        _cancel_email_changes(cur, user_id)
     conn.commit()
 
 
@@ -540,6 +551,122 @@ def verify_email(conn: psycopg.Connection, *, raw: str) -> str:
         )
     conn.commit()
     return email
+
+
+def _cancel_email_changes(cur: psycopg.Cursor, user_id: str) -> None:
+    """Spend every pending address change for this user.
+
+    Called from both password paths, and that is what makes the warning mail
+    worth sending: "if this was not you, change your password" has to actually
+    stop the change, or it is advice that does nothing.
+    """
+    cur.execute(
+        "UPDATE email_changes SET used_at = now() WHERE user_id = %s AND used_at IS NULL",
+        (user_id,),
+    )
+
+
+def request_email_change(
+    conn: psycopg.Connection, *, user_id: str, password: str, email: str
+) -> tuple[str, str, str]:
+    """Mint a link that moves the account to a new address. Returns (token, new, old).
+
+    The password is confirmed here rather than at redemption, because this is the
+    step an attacker holding a stolen cookie would reach — and it is the only one
+    where the account's real owner is still the only person who can pass. What the
+    link proves afterwards is narrower: that somebody reads the new mailbox.
+
+    Nothing changes yet. The old address keeps signing in, keeps receiving reset
+    mail, and is told what was asked for, until the new one answers.
+    """
+    new_email = _require_email(email)
+    with conn.cursor() as cur:
+        cur.execute("SELECT email, password_hash FROM users WHERE id = %s", (user_id,))
+        row = cur.fetchone()
+        if not row or not verify_password(password, str(row["password_hash"])):
+            raise AccountError("unauthenticated", "password is wrong")
+        old_email = str(row["email"])
+        if normalize_email(old_email) == new_email:
+            raise AccountError("request_validation_error", "that is already your address")
+        # Answering "taken" to a signed-in user who has just proved the password
+        # is not a new oracle — signup tells anyone at all the same thing. What it
+        # buys is that the mail does not go out to somebody else's address.
+        cur.execute(
+            "SELECT 1 FROM users WHERE lower(email) = %s AND id <> %s", (new_email, user_id)
+        )
+        if cur.fetchone():
+            raise AccountError("email_taken", "email is taken")
+        raw = new_session_secret()
+        cur.execute(
+            """
+            INSERT INTO email_changes (id, token_hash, user_id, new_email, old_email, expires_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (
+                str(uuid.uuid4()),
+                hash_session(raw),
+                user_id,
+                new_email,
+                old_email,
+                datetime.now(UTC) + EMAIL_CHANGE_TTL,
+            ),
+        )
+    conn.commit()
+    return raw, new_email, old_email
+
+
+def confirm_email_change(conn: psycopg.Connection, *, raw: str) -> tuple[str, str]:
+    """Redeem the link and move the address. Returns (new, old).
+
+    Sessions survive on purpose. A reset kills them because it is what someone
+    does after losing control; this is a deliberate edit made from a signed-in
+    seat, and ending it would sign the person out of the laptop they started on
+    because they finished the job on their phone.
+    """
+    if not raw:
+        raise AccountError("unauthenticated", "this link is invalid or expired")
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE email_changes
+            SET used_at = now()
+            WHERE token_hash = %s AND used_at IS NULL AND expires_at > now()
+            RETURNING user_id, new_email, old_email
+            """,
+            (hash_session(raw),),
+        )
+        row = cur.fetchone()
+        if not row:
+            conn.rollback()
+            raise AccountError("unauthenticated", "this link is invalid or expired")
+        user_id = str(row["user_id"])
+        new_email, old_email = str(row["new_email"]), str(row["old_email"])
+        try:
+            # Verified in the same statement that moves it: redeeming this link is
+            # the same proof the verification link asks for, so making the person
+            # confirm the address twice would be theatre.
+            cur.execute(
+                "UPDATE users SET email = %s, email_verified_at = now() WHERE id = %s",
+                (new_email, user_id),
+            )
+        except UniqueViolation as exc:
+            # Somebody signed up with that address while the link sat in the
+            # inbox. Rolling back un-spends the token, which is useless now but
+            # honest — the answer is to ask for a different address, not to be
+            # told the link was broken.
+            conn.rollback()
+            raise AccountError("email_taken", "email is taken") from exc
+        _cancel_email_changes(cur, user_id)
+        # Any verification link for the old address dies here too. verify_email
+        # already refuses to stamp an address the user no longer holds, so this
+        # is tidiness rather than the guard — but it keeps "outstanding link" and
+        # "usable link" the same set.
+        cur.execute(
+            "UPDATE email_verifications SET used_at = now() WHERE user_id = %s AND used_at IS NULL",
+            (user_id,),
+        )
+    conn.commit()
+    return new_email, old_email
 
 
 def close_account(
