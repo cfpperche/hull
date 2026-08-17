@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button, ConfirmDialog, Input, Label, Page, ThemePreference } from "@hull/ui";
 import { errMsg } from "@hull/api-client";
+import { SessionList } from "../components/SessionList";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
@@ -239,6 +240,8 @@ export function AccountPage() {
             {pwPending ? "Updating…" : "Update password"}
           </Button>
         </form>
+
+        <SessionList />
 
         <form
           className="grid gap-4 border-t pt-8"

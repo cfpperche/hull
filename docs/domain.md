@@ -81,6 +81,19 @@ changes — which revokes **every** session, including the one making the reques
 and issues a fresh cookie so the caller stays signed in. A stolen cookie must not
 survive the action taken to revoke it.
 
+A user can see their live sessions and end any of them —
+`GET /v1/me/sessions`, `DELETE /v1/me/sessions/{id}`, and `DELETE /v1/me/sessions`
+for everywhere-but-here. **No password on any of them.** Revoking only ever takes
+access away, and putting a credential in front of the safe action is backwards at
+the moment somebody has stopped trusting a device. Ownership is enforced inside
+the delete, not checked around it, because the id is in the URL and is not a
+secret. A row is recognised by its `User-Agent` — self-reported, so the label is a
+hint, not evidence — and by `last_seen_at`, stamped on use at most once a minute
+so an authenticated GET does not become a write.
+
+An operator's support session appears in the operator's own list, marked as one.
+It is theirs; an unexplained extra row would read like a break-in.
+
 Changing the **email** does not end sessions, and that is deliberate. A reset is
 what someone does after losing control; a change is a deliberate edit made from a
 signed-in seat, and ending it would sign the person out of the laptop they
