@@ -53,7 +53,7 @@ Changed by the review — the old notes here described the previous model.
 
 ## Gates
 
-`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (34).
+`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (54).
 `make ci` and `make ci-e2e` run exactly what CI runs — the workflow calls those
 same two scripts and contains no gate logic of its own, so the two cannot drift
 and a provider outage does not leave you merging on faith.
@@ -62,6 +62,8 @@ other two cannot reach. Keep the boundary: adapter behaviour in pytest, what a
 browser does in `e2e/`, and `smoke.sh` stays a small HTTP check of a live install. CI also builds all three frontends and one frontend image, which is what catches drift in the hardcoded importer list in `deploy/docker/frontend.Dockerfile`.
 
 `smoke.sh` validates TLS against the system trust store (`curl` without `-k`), so it doubles as the trust check. `capture-ui.sh` asserts sign-in out of band — `agent-browser` exits 0 on a failed step, so an in-batch check cannot fail it.
+
+**`make ci-e2e` cannot pass on this workstation**, for a reason that has nothing to do with the code — every click times out. Do not chase it here and do not treat a red `ci-e2e` as a review finding until you have read *Open, and owned by the operator* below. `make ci` is unaffected and is the gate to run.
 
 When you add a guard, prove it fails: plant a violation, watch it reject, remove it. Three guards in this repo's history passed while testing nothing.
 
@@ -100,11 +102,10 @@ What its first real pass found here, still unfixed: the input border is
 six fields on the account page alone; muted body copy on `web-account` at
 **3.99:1** against 4.5:1; and no `<main>` landmark on any signed-in surface.
 
-**Known gap on this workstation:** `Page.captureScreenshot` times out under WSL2
-for every Chrome build tried, so `design` falls back to printing the page and
-rasterising it with ghostscript, and labels the run `print-fallback` everywhere
-it is read. `capture-ui.sh` hits the same wall with no fallback — if it produces
-no PNGs, that is why.
+**On this workstation** the browser never presents a frame, so `design` captures
+by printing the page and rasterising it instead, and stamps the run
+`print-fallback` everywhere it is read. Same cause as the browser gate being
+unrunnable here — see *Open, and owned by the operator*.
 
 ## Asking the other two agents
 
@@ -137,3 +138,27 @@ Org isolation, Traefik-in-compose, `config.json` runtime brand, and the session 
 
 - `capture-ui.sh` sets `AGENT_BROWSER_IGNORE_HTTPS_ERRORS`, so it cannot tell a trusted certificate from an untrusted one. Left as is: judging pixels and testing TLS are different jobs, and `smoke.sh` already covers the second.
 - The CA on this workstation was rotated to a name-constrained one. A fresh clone gets constraints on first issue; an older install is detected and told how to rotate.
+- **Headless Chrome never presents a frame here, and that takes the browser gate with it.** Measured 2026-08-17. `requestAnimationFrame` is never called back — a promise waiting on one still has not resolved after three seconds. Playwright's actionability check waits for an element's box to be unchanged across **two consecutive animation frames** before it will click, so on this host every click waits out its timeout: `pnpm e2e` failed 12 of 13, each at exactly 35s, all with `waiting for element to be visible, enabled and stable`. The one that passed is the only one that never clicks — it drives the API and asserts visibility.
+
+  It is the machine, not Hull. Reproduced against a page with no Hull code, no JS, no CSS and no network in it:
+
+  ```
+  pnpm --filter @hull/e2e exec node -e '
+  const { chromium } = require("@playwright/test");
+  (async () => {
+    const b = await chromium.launch(); const p = await b.newPage();
+    await p.setContent("<button id=b style=\"width:200px;height:60px\">click me</button>");
+    console.log(await p.evaluate(() => Promise.race([
+      new Promise(r => requestAnimationFrame(() => r("rAF fired"))),
+      new Promise(r => setTimeout(() => r("rAF NEVER fired in 3000ms"), 3000))])));
+    try { await p.click("#b", { timeout: 8000 }); console.log("clicked"); }
+    catch (e) { console.log("click timed out"); }
+    await b.close();
+  })();'
+  ```
+
+  Same defect, same day, in three other places: `Page.captureScreenshot` times out (so `capture-ui.sh` produces no PNGs and `design` falls back to printing), and `agent-browser a11y` and `agent-browser vitals` both hang, because axe and the vitals probe need the page to paint. `Page.printToPDF` takes a different path through the renderer and works, which is the whole reason the design harness can still see anything.
+
+  Tried and did not fix it: `--disable-gpu`, `--disable-software-rasterizer`, a second Chromium build (Playwright's 1237 as well as system Chrome), fresh browser sessions, and `agent-browser doctor`, which reports every check passing including its own headless launch test. **Not tried:** `--headless=old`, a real display (WSLg or Xvfb with a headed launch), or a different WSL kernel — that is where to start.
+
+  Until it is fixed, the browser layer is only verifiable in GitHub Actions, where it has been green. Nothing in the repo works around this, and nothing should: a suite that passes by skipping every click would be worse than one that cannot run.
