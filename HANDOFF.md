@@ -1,6 +1,6 @@
 # Hull handoff
 
-**Date:** 2026-08-16  
+**Date:** 2026-08-17  
 **Repo:** `https://github.com/cfpperche/hull` (public)  
 **Workspace:** `/home/goat/hull`
 
@@ -41,6 +41,7 @@ Lab services come up with the stack, linked from the admin sidebar: `mail.` (Mai
 - Agent files + visual harness (agent-browser)
 - First visual pass: `@source` for `@hull/ui`, desktop rail, auth frame, quiet empty home
 - Adversarial review and its four follow-up stages (PRs #1–#9). See `CHANGELOG.md` for what changed and why
+- **Account management, two of four pieces.** Password reset and email verification, both on the single-use token pattern `support_handoffs` established: hashed at rest, `used_at IS NULL … RETURNING`, token in the URL fragment. Migrations `003` and `004`. That closes the lifecycle ADR-0011 was about — see *Next* for the two pieces that are left
 
 ## How the session works now
 
@@ -50,10 +51,17 @@ Changed by the review — the old notes here described the previous model.
 - Sessions are **per-device**. Signing in elsewhere no longer signs this one out.
 - Support "View as" does not carry a session across hosts. It mints a single-use, 60-second hand-off token (`schema/migrations/002_support_handoff.sql`), passed in a **URL fragment** so it never reaches a server log, and `POST /v1/session/handoff` exchanges it for a 45-minute impersonating session on `app.`. Stop ends that session and returns to the console.
 - `effective_org_id()` in `accounts.py` is **the only supported way** to resolve the org a request operates on. The raw field is named `session_org_id` so a direct read is a loud miss, and a test fails the build if anything outside `accounts.py` touches it. Product modules: use the accessor.
+- **Three token tables, one shape.** `support_handoffs`, `password_resets`, `email_verifications` are hashed at rest and claimed with `UPDATE … WHERE used_at IS NULL AND expires_at > now() … RETURNING`, so two clicks on one link cannot both win. Their links carry the token in the **fragment**, which is never sent to a server: not in an access log, not in a `Referer`. `/reset` and `/verify` strip it during the first render, not in an effect — an effect runs after paint and leaves it in the address bar for a frame. Copy this shape for the next one rather than inventing a fourth.
+- Password reset ends **every** session of that user; a reset is what someone does when they believe an attacker holds one. Verification ends nothing and gates nothing.
+- `email_verifications` stores **the address the link was sent to**, not just the user, so a link minted before an address change cannot confirm the address that replaced it. That column exists for a feature that does not exist yet — see *Next*.
 
 ## Gates
 
 `scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (54).
+`e2e/` holds 13 browser specs. Keep the split the two mail flows use: what only a
+browser shows goes in `e2e/`, and single use, expiry and the enumeration guard
+stay in pytest — cheaper, deterministic, and they do not spend credential calls
+out of the suite's shared rate-limit budget.
 `make ci` and `make ci-e2e` run exactly what CI runs — the workflow calls those
 same two scripts and contains no gate logic of its own, so the two cannot drift
 and a provider outage does not leave you merging on faith.
@@ -129,9 +137,28 @@ a duel. Protocol: `harness/peer.md`. → ADR-0014.
 
 ## Next (not started)
 
+**The programme is account management, one piece at a time: build it, drive it in
+a browser, then take the next.** Two are done, two are left, and they are the
+whole of what a user can still not do to their own account.
+
+- **Change your email — take this one first.** The login identifier is immutable
+  today: `ProfileBody` accepts `username` and `name`, nothing else, so an address
+  typo at signup is permanent and a person changing employer has no move. It is
+  next because email verification just unblocked it — `email_verifications`
+  already stores the address a link was sent to, which is exactly the check a
+  change needs. The shape to follow: the new address is **pending** until its own
+  link is redeemed, the old address keeps working meanwhile and gets told what
+  happened, and `users_email_lower_uidx` decides the collision. Confirm the
+  password first, the way `close_account` does — an unattended session must not be
+  able to walk off with the account.
+- **See and revoke sessions.** The `sessions` table has been per-device since
+  PR #5, and nothing surfaces it: a user cannot see where they are signed in or
+  end one. There is no `/v1/me/sessions` in the adapter or the contract. Needs no
+  mail and no new token table — it is a list and a delete — so it is the cheaper
+  of the two and it is why it goes second, not first.
 - Product module in `modules/` when there is a sold job
 - **Three findings against this build, raised by `design sense` and none of them fixed.** The input border sits at **1.26:1** against its surface where WCAG 1.4.11 wants 3:1 — that is one shadcn token and it is every form in the product, six fields on the account page alone. Muted body copy on `web-account` is **3.99:1** against 4.5:1. No signed-in surface has a `<main>` landmark, so skip-to-content has nowhere to go. Evidence: run `20260817-150605`, and `design sense` reproduces it in about three minutes.
-- **Find out whether the browser gate can be made to run here at all.** Untried levers are in *Open, and owned by the operator*: `--headless=old`, a real display (WSLg or Xvfb with a headed launch), a different WSL kernel. Worth an hour because it currently costs every browser-shaped tool on this machine, not just `ci-e2e`.
+- **Repair the browser on this workstation.** The cause is now narrowed: Chrome's separate GPU process never comes up, and `--in-process-gpu` or a headed launch both dodge it — see *Open, and owned by the operator* for the measurements. What is left is the actual repair, most likely a `wsl --shutdown` and, failing that, `--headless=old` or a different WSL kernel. Worth an hour because it costs every browser-shaped tool here, not just `ci-e2e`.
 
 ## Later — component lab (do not do now)
 
@@ -168,6 +195,10 @@ Org isolation, Traefik-in-compose, `config.json` runtime brand, and the session 
 
   Same defect, same day, in three other places: `Page.captureScreenshot` times out (so `capture-ui.sh` produces no PNGs and `design` falls back to printing), and `agent-browser a11y` and `agent-browser vitals` both hang, because axe and the vitals probe need the page to paint. `Page.printToPDF` takes a different path through the renderer and works, which is the whole reason the design harness can still see anything.
 
-  Tried and did not fix it: `--disable-gpu`, `--disable-software-rasterizer`, a second Chromium build (Playwright's 1237 as well as system Chrome), fresh browser sessions, and `agent-browser doctor`, which reports every check passing including its own headless launch test. **Not tried:** `--headless=old`, a real display (WSLg or Xvfb with a headed launch), or a different WSL kernel — that is where to start.
+  Tried and did not fix it: `--disable-gpu`, `--disable-software-rasterizer`, a second Chromium build (Playwright's 1237 as well as system Chrome), fresh browser sessions, and `agent-browser doctor`, which reports every check passing including its own headless launch test. **Not tried:** `--headless=old`, or a different WSL kernel.
+
+  **One lever does work, and it names the culprit: `--in-process-gpu`.** Measured 2026-08-17 with all three of `--disable-gpu --disable-software-rasterizer --in-process-gpu`: `Page.captureScreenshot` returns, and `pnpm e2e` went from 12-of-13 failing at 35s each to **13 passing in 9.6s**, three runs out of four. So it is Chrome's *separate* GPU process failing to come up, not the renderer or the code — `--disable-gpu` alone is not enough because it still spawns one. A headed launch works for the same reason and is the other half of the evidence: `agent-browser --headed` screenshots fine.
+
+  It is a diagnosis, not a fix, and it is deliberately **not** in `playwright.config.ts`. CI runs on a clean `ubuntu-latest` where the default works, and tuning the repo around one broken workstation is how a suite ends up passing for reasons nobody can name. Use it ad hoc to get real signal on a spec you are writing, then take it back out. The fourth run in four still lost two tests — including specs untouched that day — so even with the flag the signal here is indicative, not a gate.
 
   Until it is fixed, the browser layer is only verifiable in GitHub Actions, where it has been green. Nothing in the repo works around this, and nothing should: a suite that passes by skipping every click would be worse than one that cannot run.
