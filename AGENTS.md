@@ -112,6 +112,12 @@ Prove a claim against what is running, not against the diff. When you add a guar
 plant a violation and watch it fail before trusting it — several guards in this
 repo's history passed while testing nothing.
 
+`hull_test` is never dropped, so it keeps rows between runs; CI starts empty and
+migrates with `HULL_SEED_DEMO=0`. **`ada@hull.test` and `admin@hull.test` do not
+exist on the runner.** Do not sign in as either — mint the account you need, the
+way `test_handoff.py::_admin` does. `HANDOFF.md` has the one-liner that
+reproduces a clean database before you trust a green run.
+
 ## Do not
 
 Same rule as Locks: these are refused by default, not forbidden forever. If one

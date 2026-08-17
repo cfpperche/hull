@@ -123,7 +123,32 @@ with `build-images.sh` and restarted directly — which skips the migration
 `docker logs hull-api --tail 5` says which it is. Restart the stack with
 `./scripts/up.sh`, not `docker compose up -d`, and this cannot happen.
 
-When you add a guard, prove it fails: plant a violation, watch it reject, remove it. Four guards in this repo's history passed while testing nothing — the most recent was the email-change browser spec, which moved the address to `moved-${user.username}@host` and then asserted on the *old* one with a substring text match. That string contains the old address, so the assertion was true either way and the spec passed with the change wrongly applied at request time. If a test compares two identifiers, make sure they cannot contain each other, and prefer `toHaveText` on a testid over `getByText`.
+**Green here is not green in CI, and the difference is the test database.**
+`hull_test` is never dropped — `scripts/test.sh` reuses the container and only
+re-runs migrations — so rows survive between runs and across branches. CI starts
+empty, and it migrates with `HULL_SEED_DEMO=0`, so **`ada@hull.test` and
+`admin@hull.test` do not exist there.** A test that signs in as either passes
+here and fails on the runner. That is exactly how the sessions merge went red:
+`test_a_support_session_is_named_as_one` borrowed the seeded admin and was
+sitting on a row an earlier session had left behind.
+
+Before trusting any test that touches a seeded account, reproduce the runner:
+
+```bash
+PGPASSWORD=hull psql -h 127.0.0.1 -p "${HULL_TEST_PG_PORT:-55434}" -U hull -d hull_test \
+  -c "DELETE FROM users WHERE lower(email) IN ('ada@hull.test','admin@hull.test');"
+./scripts/test.sh          # expect 1 skipped — the lab-seed test guards itself
+```
+
+Better still, do not borrow them. `test_handoff.py::_admin` signs up an account
+and promotes it with one UPDATE; copy that. The only fixture allowed to *assume*
+the seed is the one that calls `pytest.skip` when it is missing.
+
+**And read the run, do not just start it.** `gh run watch` can be killed and
+leave you believing a push was green. `gh run list --limit 1` after it finishes
+is the check that costs nothing.
+
+When you add a guard, prove it fails: plant a violation, watch it reject, remove it. Five guards in this repo's history passed while testing nothing — the most recent was the email-change browser spec, which moved the address to `moved-${user.username}@host` and then asserted on the *old* one with a substring text match. That string contains the old address, so the assertion was true either way and the spec passed with the change wrongly applied at request time. If a test compares two identifiers, make sure they cannot contain each other, and prefer `toHaveText` on a testid over `getByText`. The one before that was the support-session test above, which asserted nothing on a clean database because it never got past sign-in.
 
 ## Exploring by hand (or by agent)
 
