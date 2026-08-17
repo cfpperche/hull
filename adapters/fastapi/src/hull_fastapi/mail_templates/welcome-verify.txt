@@ -1,0 +1,14 @@
+{{brand}}
+
+
+Your account is ready
+
+Name a workspace to continue.
+
+Confirm this is your address so we can reach you about the account.
+
+{{link}}
+
+The link works once and expires in {{verify_days}} days.
+
+{{brand}} · {{host}}

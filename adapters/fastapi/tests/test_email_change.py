@@ -18,8 +18,8 @@ from hull_fastapi.db import connection
 def outbox(monkeypatch) -> list[dict[str, str]]:
     sent: list[dict[str, str]] = []
 
-    def capture(settings, *, to: str, subject: str, text: str) -> str:
-        sent.append({"to": to, "subject": subject, "text": text})
+    def capture(settings, *, to: str, subject: str, text: str, html: str | None = None) -> str:
+        sent.append({"to": to, "subject": subject, "text": text, "html": html or ""})
         return "sent"
 
     monkeypatch.setattr("hull_fastapi.api.send_mail", capture)

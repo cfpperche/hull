@@ -1,0 +1,14 @@
+{{brand}}
+
+
+Your email is being changed
+
+Someone asked to change this account's email to {{new_email}}.
+
+Nothing has changed yet — {{old_email}} still signs in, and the change only happens if that address confirms it.
+
+----------------------------------------
+
+If this was not you, change your password now. That cancels the request and ends every other session.
+
+{{brand}} · {{host}}

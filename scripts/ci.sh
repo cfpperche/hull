@@ -15,6 +15,13 @@ pnpm install --frozen-lockfile
 step "typecheck"
 pnpm typecheck
 
+# The mail bodies are react-email JSX rendered into the Python adapter, so the
+# generated files are the ones that actually ship. Editing the JSX and forgetting
+# to rebuild would leave the templates silently one version behind — the sort of
+# drift you only notice in somebody's inbox.
+step "email templates match their JSX"
+pnpm --filter @hull/email check
+
 step "build the three surfaces"
 for app in www web admin; do
   pnpm --filter "@hull/${app}" build
