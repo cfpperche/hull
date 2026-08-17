@@ -1,4 +1,4 @@
-.PHONY: setup up down dev smoke test images migrate brand prune visual qa ci ci-e2e
+.PHONY: setup up down dev smoke test images migrate brand prune visual qa reset ci ci-e2e
 
 setup:
 	./scripts/setup-local.sh
@@ -8,6 +8,12 @@ brand:
 
 migrate:
 	./scripts/migrate.sh
+
+# Back to the demo fixture in seconds, without dropping volumes. `migrate` cannot
+# do this: its seed inserts WHERE NOT EXISTS and is recorded, so it only ever
+# creates the fixture when missing.
+reset:
+	./scripts/reset-lab.sh
 
 images:
 	./scripts/build-images.sh
