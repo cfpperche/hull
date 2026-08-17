@@ -47,7 +47,10 @@ Changed by the review — the old notes here described the previous model.
 
 ## Gates
 
-`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (34). CI also builds all three frontends and one frontend image, which is what catches drift in the hardcoded importer list in `deploy/docker/frontend.Dockerfile`.
+`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (34).
+`pnpm e2e` runs the browser suite in `e2e/` against a live stack — the layer the
+other two cannot reach. Keep the boundary: adapter behaviour in pytest, what a
+browser does in `e2e/`, and `smoke.sh` stays a small HTTP check of a live install. CI also builds all three frontends and one frontend image, which is what catches drift in the hardcoded importer list in `deploy/docker/frontend.Dockerfile`.
 
 `smoke.sh` validates TLS against the system trust store (`curl` without `-k`), so it doubles as the trust check. `capture-ui.sh` asserts sign-in out of band — `agent-browser` exits 0 on a failed step, so an in-batch check cannot fail it.
 
@@ -55,7 +58,7 @@ When you add a guard, prove it fails: plant a violation, watch it reject, remove
 
 ## Next (not started)
 
-- **Dogfood skill (browser signup).** The visual loop is stable enough now. Design it to cover **inherited state**, not just a clean profile: the redirect loop in PR #9 survived review, 34 tests, smoke, the harness and green CI because all of them start from an empty browser, and it only existed for browsers carrying a cookie from the previous build.
+- **An agentic QA harness** — a way for an agent to drive these flows on demand while working on a task, as opposed to the deterministic suite CI runs. Not designed yet. Whatever it becomes, it has to cover **inherited state**: the redirect loop in PR #9 survived review, 34 tests, smoke, the harness and green CI because all of them start from an empty browser.
 - Product module in `modules/` when there is a sold job
 
 ## Later — component lab (do not do now)

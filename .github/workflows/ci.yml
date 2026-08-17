@@ -38,3 +38,47 @@ jobs:
       # Dockerfile, which nothing else in CI touches.
       - run: docker build -f deploy/docker/frontend.Dockerfile --build-arg SHELL=web -t hull-web:ci .
       - run: ./scripts/test.sh
+
+  # Separate job on purpose: the checks above give feedback in ~90s and must not
+  # wait on a compose stack. E2E covers the layer none of them can reach - what a
+  # browser actually does. See docs/adr/0012-browser-e2e-with-playwright.md.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Traefik routes by Host, so the names have to resolve. The CA is not
+      # trusted here; Playwright ignores certificate errors, and asserting trust
+      # is smoke.sh's job.
+      - name: Resolve the Hull hostnames
+        run: |
+          sudo tee -a /etc/hosts >/dev/null <<'EOF'
+          127.0.0.1 hull.test www.hull.test app.hull.test admin.hull.test
+          127.0.0.1 mail.hull.test s3.hull.test rustfs.hull.test db.hull.test
+          EOF
+
+      - run: cp .env.example .env
+      - name: Bring up the stack
+        run: ./scripts/up.sh
+
+      - run: pnpm --filter @hull/e2e exec playwright install --with-deps chromium
+      - run: pnpm e2e
+
+      - if: failure()
+        run: docker compose --env-file .env -f deploy/compose.yaml -p hull logs --tail 200
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7

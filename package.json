@@ -9,7 +9,8 @@
     "build": "pnpm -r --if-present run build",
     "dev:www": "pnpm --filter @hull/www dev",
     "dev:web": "pnpm --filter @hull/web dev",
-    "dev:admin": "pnpm --filter @hull/admin dev"
+    "dev:admin": "pnpm --filter @hull/admin dev",
+    "e2e": "pnpm --filter @hull/e2e test"
   },
   "engines": {
     "node": ">=20"
