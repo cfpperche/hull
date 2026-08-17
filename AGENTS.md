@@ -27,7 +27,7 @@ first, with a new ADR, not the code.
 - Frontend: Vite + React + Tailwind 4 + shadcn **default**. No Next.js. No custom token sheet. → [0001](./docs/adr/0001-vite-react-shadcn-default-no-next.md)
 - Schema: SQL in `schema/`. Migrate with `scripts/migrate.sh`. Do not put DDL in an adapter. → [0002](./docs/adr/0002-sql-in-schema-applied-by-migrate-sh.md)
 - HTTP contract: `contracts/openapi.yaml`. The default adapter is `adapters/fastapi/`. Do not treat that folder as "the API". → [0003](./docs/adr/0003-openapi-yaml-is-the-contract.md)
-- No database microservice, no Redis, no queue. Postgres is the store. → [0004](./docs/adr/0004-postgres-is-the-store.md)
+- No database microservice. Postgres is the store — until something needs otherwise. → [0004](./docs/adr/0004-postgres-is-the-store.md)
 - Edge: Traefik **inside** `deploy/compose.yaml`. Do not join an external Docker network. → [0005](./docs/adr/0005-traefik-inside-the-compose-project.md)
 - White-label **values** live in `.env`. Chrome reads `/config.json`. Do not bake `VITE_HULL_HOST`. → [0006](./docs/adr/0006-white-label-values-at-runtime.md)
 - Hosts: `*.test` (default `hull.test`, RFC 6761). Not `.dev`. Not `.local`. → [0007](./docs/adr/0007-hosts-are-dot-test.md)
