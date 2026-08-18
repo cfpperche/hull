@@ -337,6 +337,36 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         return sess
 
+    def require_verified(sess=Depends(require_session)):
+        """A session, and an address somebody has proved they read.
+
+        The product is behind this; the account is not. Someone who mistyped
+        their address at signup has to be able to change it, ask for another
+        link, and sign out — lock those behind verification and the only way out
+        of a typo is a support ticket.
+
+        A wall in React is not a wall. The screen that stops an unverified person
+        is a courtesy to them; this is the part that means it, because the cookie
+        works perfectly well from curl.
+
+        An impersonating operator passes on their own verification, which is
+        theirs and was checked when they signed in. The customer's state is not
+        consulted, because the operator is not the customer.
+        """
+        if sess.email_verified_at is None:
+            raise StarletteHTTPException(
+                status_code=403,
+                detail={
+                    "type": "about:blank",
+                    "title": "Email not confirmed",
+                    "status": 403,
+                    "detail": "confirm your email address first",
+                    "reason_code": "email_unverified",
+                    "message_key": "error.emailUnverified",
+                },
+            )
+        return sess
+
     def _verify_link(token: str) -> str:
         # Fragment, for the same reason the reset and hand-off links use one: it
         # is never sent to a server, so it stays out of access logs and Referer.
@@ -798,7 +828,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/v1/orgs", status_code=201)
     def orgs_create(
-        payload: OrgBody, request: Request, sess=Depends(require_session)
+        payload: OrgBody, request: Request, sess=Depends(require_verified)
     ) -> dict[str, Any]:
         raw = request.cookies.get(settings.cookie_name) or ""
         try:
@@ -812,7 +842,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/v1/session/org")
     def session_org(
-        payload: SwitchBody, request: Request, sess=Depends(require_session)
+        payload: SwitchBody, request: Request, sess=Depends(require_verified)
     ) -> dict[str, Any]:
         raw = request.cookies.get(settings.cookie_name) or ""
         try:

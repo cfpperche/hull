@@ -3,10 +3,9 @@ import type { APIRequestContext } from "@playwright/test";
 import {
   APP,
   HOST,
-  createFirstOrg,
   expectTokenStripped,
   newUser,
-  signUp,
+  signUpUnconfirmed,
 } from "./helpers";
 
 /**
@@ -47,27 +46,43 @@ async function verifyLink(
   throw new Error(`no verify link mailed to ${address}`);
 }
 
-test("a new account is unverified until the emailed link is used", async ({
+test("an unconfirmed account cannot reach the product, on either side", async ({
   page,
   playwright,
 }) => {
   const user = newUser("emv");
-  await signUp(page, user);
-  await createFirstOrg(page, "Verified Co");
+  await signUpUnconfirmed(page, user);
 
-  const banner = page.getByTestId("verify-banner");
-  await expect(banner).toContainText(user.email);
+  // The wall, naming the address it is waiting on.
+  await expect(page.getByTestId("confirm-wall")).toContainText(user.email);
+  // And no way around it by asking for a route directly.
+  await page.goto(`${APP}/account`);
+  await expect(page.getByTestId("confirm-wall")).toBeVisible();
+
+  // The half that means it. The screen is a courtesy; the cookie works fine from
+  // outside the browser, so a wall that only exists in React is not a wall.
+  const api = await page.request.post(`${APP}/api/v1/orgs`, {
+    data: { name: "Should Not Exist" },
+  });
+  expect(api.status()).toBe(403);
+  expect((await api.json()).message_key).toBe("error.emailUnverified");
+
+  // Saying "I have confirmed it" before confirming anything has to say so
+  // rather than quietly do nothing.
+  await page.getByTestId("confirm-recheck").click();
+  await expect(
+    page.getByText("Not confirmed yet — open the link we sent."),
+  ).toBeVisible();
 
   const mail = await playwright.request.newContext({ ignoreHTTPSErrors: true });
   const link = await verifyLink(mail, user.email);
-
   await page.goto(link);
   await expectTokenStripped(page);
   await page.getByTestId("verify-continue").click();
 
-  // The banner is the whole visible outcome — if it is still there, nothing the
-  // API reported actually reached the chrome.
-  await expect(page.getByTestId("verify-banner")).toBeHidden();
+  // Through: the wall is gone and the first-run screen is what stands there now.
+  await expect(page.getByTestId("confirm-wall")).toBeHidden();
+  await expect(page.getByTestId("org-name")).toBeVisible();
 
   await mail.dispose();
 });

@@ -148,11 +148,31 @@ and the password again. Everything else moved to the first-run screen.
   name and a workspace name; only the workspace is required, and it always was.
   Deliberately no username field — putting it back on the way in, even optional,
   reintroduces the rejection this work removed.
-- **Nothing else blocks the way in, and that is a property of email.** With an
-  address on every account, recovery always exists, so nothing on this screen
-  earns the right to stop somebody. An identity with no address behind it — a
-  phone, when that lands — is the case that would have to change this, because
-  password reset has no other channel.
+- **The product is closed until the address is confirmed**, and the wall stands
+  *before* the first-run screen: nobody should be asked to name themselves and
+  their workspace and then be told they cannot come in.
+
+  **A wall in React is not a wall.** `require_verified` in the adapter is the
+  half that means it, because the cookie works perfectly well from curl — it
+  guards `POST /v1/orgs` and `POST /v1/session/org`, and any product endpoint
+  added later takes it too. The *account* stays open on purpose: somebody who
+  mistyped their address at signup has to be able to move it, ask for another
+  link and sign out, or the only way out of a typo is a support ticket.
+
+  Not while impersonating. `me.user` is the operator during a support session
+  and their address was checked when they signed in; the customer's state is not
+  the operator's to be stopped by.
+
+  The console is deliberately **not** gated. It is where you go when mail is
+  broken, and locking it behind mail delivery is how an operator loses access to
+  their own install.
+
+  Consequences worth knowing: every account unverified at deploy time is locked
+  out until it confirms — there is no grandfather clause, by choice. `signUp` in
+  `e2e/tests/helpers.ts` now walks the inbox, and `smoke.sh` does too, which
+  made the smoke cover SMTP delivery and the verify endpoint for the first time.
+  Tests whose subject is something else use the `confirm_email` fixture in
+  `conftest.py` rather than twenty copies of the redemption flow.
 - **The password is asked twice** wherever it is set: signup, reset, and the
   account page. One key for the mismatch (`auth.passwordMismatch`), and the
   comparison never leaves the browser — it guards a typo, not an attacker.

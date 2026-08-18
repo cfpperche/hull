@@ -7,13 +7,16 @@ def test_health(client) -> None:
     assert res.json()["status"] == "ok"
 
 
-def test_signup_signin_org_isolation(client, unique: str) -> None:
+def test_signup_signin_org_isolation(client, unique: str, confirm_email) -> None:
     a = client.post(
         "/v1/auth/signup",
         json={"email": f"a{unique}@hull.test", "password": "demodemo1"},
     )
     assert a.status_code == 201, a.text
     assert a.json()["org"] is None
+    # The product is closed until the address is confirmed; this test is about
+    # isolation between two accounts, not about the gate in front of them.
+    confirm_email(f"a{unique}@hull.test")
     org = client.post("/v1/orgs", json={"name": f"Org A {unique}"})
     assert org.status_code == 201
     org_id = org.json()["org"]["id"]
@@ -25,6 +28,10 @@ def test_signup_signin_org_isolation(client, unique: str) -> None:
         json={"email": f"b{unique}@hull.test", "password": "demodemo1"},
     )
     assert other.status_code == 201
+    # B as well, and for a sharper reason than A: unverified, B is refused by the
+    # wall before the membership check ever runs, and this test would be
+    # asserting the gate rather than the isolation it is named for.
+    confirm_email(f"b{unique}@hull.test")
     stolen = client.post("/v1/session/org", json={"id": org_id})
     assert stolen.status_code == 404
 

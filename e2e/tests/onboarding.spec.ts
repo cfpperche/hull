@@ -129,7 +129,9 @@ test("the repeat field waits for a pause before calling you wrong", async ({
 
   await page.getByTestId("auth-password-again").fill("demodemo1");
   await page.getByTestId("auth-submit").click();
-  await page.getByTestId("org-name").waitFor();
+  // The wall, not the first-run screen: these two are about the form, and the
+  // account they create has not confirmed anything yet.
+  await page.getByTestId("confirm-wall").waitFor();
 });
 
 test("the button is dead only while a reason is on screen", async ({
@@ -164,7 +166,9 @@ test("the button is dead only while a reason is on screen", async ({
   await page.getByTestId("auth-password-again").fill("demodemo1");
   await expect(submit).toBeEnabled();
   await submit.click();
-  await page.getByTestId("org-name").waitFor();
+  // The wall, not the first-run screen: these two are about the form, and the
+  // account they create has not confirmed anything yet.
+  await page.getByTestId("confirm-wall").waitFor();
 });
 
 test("submitting inside the pause is still refused", async ({ page }) => {

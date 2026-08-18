@@ -33,6 +33,7 @@
     "error.photoUnreadable",
     "error.photoNotFound",
     "error.storageOff",
+    "error.emailUnverified",
     "error.unauthenticated",
     "error.notFound",
     "error.server",

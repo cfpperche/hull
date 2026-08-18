@@ -31,6 +31,15 @@ def _customer_org(settings, unique: str) -> str:
         "/v1/auth/signup",
         json={"email": f"c{unique}@hull.test", "password": "demodemo1"},
     )
+    # The product is closed until the address is confirmed. This helper builds a
+    # customer to be impersonated, not a verification story — see the conftest
+    # fixture for why the column is written rather than the link walked.
+    with connection(settings) as conn, conn.cursor() as cur:
+        cur.execute(
+            "UPDATE users SET email_verified_at = now() WHERE lower(email) = %s",
+            (f"c{unique}@hull.test",),
+        )
+        conn.commit()
     res = other.post("/v1/orgs", json={"name": f"Acme {unique}"})
     assert res.status_code == 201, res.text
     return res.json()["org"]["id"]

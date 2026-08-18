@@ -91,6 +91,10 @@ def test_no_declared_error_key_is_dead() -> None:
         "error.requestFailed",
         "error.server",
         "error.unauthenticated",
+        # Raised by the require_verified dependency rather than by an exception
+        # class, for the same reason as the 401 above it: it is a gate on the
+        # route, not a mistake inside a call.
+        "error.emailUnverified",
         # Minted in the client: the edge answers 429 as plain text, so
         # api-client builds this one itself.
         "error.rateLimited",

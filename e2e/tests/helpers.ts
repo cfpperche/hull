@@ -22,13 +22,72 @@ export function newUser(tag: string) {
   return { email: `${id}@${HOST}`, password: LAB_PASSWORD };
 }
 
-export async function signUp(page: Page, user: ReturnType<typeof newUser>) {
+/**
+ * Fill the form and stop at the wall. What a person sees before their inbox.
+ *
+ * Separate from `signUp` because one spec needs the unconfirmed state itself —
+ * and folding "and then confirm" into the only entry point would leave that spec
+ * reconstructing the form by hand, which is how a helper and the screen it
+ * drives drift apart.
+ */
+export async function signUpUnconfirmed(
+  page: Page,
+  user: ReturnType<typeof newUser>,
+) {
   await page.goto(`${APP}/signup`);
   await page.getByTestId("auth-email").fill(user.email);
   await page.getByTestId("auth-password").fill(user.password);
   await page.getByTestId("auth-password-again").fill(user.password);
   await page.getByTestId("auth-submit").click();
   await page.getByTestId("auth-submit").waitFor({ state: "detached" });
+}
+
+/**
+ * Sign up and come out the other side of the wall, with a usable session.
+ *
+ * Every account lands on the wall now, so every spec that wants the product has
+ * to go through the inbox the way a person would. Kept here rather than bolted
+ * onto each spec: a helper that stops short of a usable session is one every
+ * caller has to remember to finish, and whoever forgets gets a failure that
+ * reads as a broken product.
+ */
+export async function signUp(page: Page, user: ReturnType<typeof newUser>) {
+  await signUpUnconfirmed(page, user);
+  await confirmEmail(page, user.email);
+}
+
+/**
+ * Redeem the confirmation link out of Mailpit, then come back.
+ *
+ * Filtered by recipient and by the link's shape rather than taking the newest
+ * message: the lab inbox is shared across the whole run, and "newest" is a race
+ * that lands on somebody else's mail.
+ */
+export async function confirmEmail(page: Page, address: string) {
+  const wanted = /https:\/\/\S*\/verify#\S+/;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const list = await (
+      await page.request.get(`https://mail.${HOST}/api/v1/messages?limit=50`)
+    ).json();
+    const mine = list.messages.filter((m: { To: { Address: string }[] }) =>
+      m.To.some((t) => t.Address.toLowerCase() === address.toLowerCase()),
+    );
+    for (const m of mine) {
+      const full = await (
+        await page.request.get(`https://mail.${HOST}/api/v1/message/${m.ID}`)
+      ).json();
+      const found = wanted.exec(full.Text as string);
+      if (found) {
+        await page.goto(found[0]);
+        await page.getByTestId("verify-continue").click();
+        // Back at the product, past the wall.
+        await page.getByTestId("confirm-wall").waitFor({ state: "detached" });
+        return;
+      }
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error(`no confirmation link mailed to ${address}`);
 }
 
 /**
