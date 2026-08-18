@@ -8,6 +8,7 @@ import {
   useBrand,
   useT,
   useErrMsg,
+  usePasswordMatch,
 } from "@hull/ui";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
@@ -20,6 +21,7 @@ export function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const match = usePasswordMatch(password, confirm);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -30,12 +32,13 @@ export function SignupPage() {
       setError(t("signup.invalid"));
       return;
     }
-    // Before the request, and inline rather than a toast: this is field
-    // validation. The server never sees the second box — it guards against a
-    // typo locking somebody out of an account they just created, which is not
-    // a security control and should not pretend to be one.
-    if (password !== confirm) {
-      setError(t("auth.passwordMismatch"));
+    // The truth rather than the debounced message: somebody who types two
+    // different passwords and presses the button inside the wait must still be
+    // refused, and `reveal` puts the reason on screen without the pause. The
+    // server never sees the second box — this guards a typo locking someone out
+    // of an account created seconds ago, not an attacker.
+    if (!match.ok) {
+      match.reveal();
       return;
     }
     setPending(true);
@@ -102,7 +105,23 @@ export function SignupPage() {
             autoComplete="new-password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
+            aria-invalid={match.message ? true : undefined}
+            aria-describedby={
+              match.message ? "password-again-error" : undefined
+            }
           />
+          {/* Under the field it belongs to, not in the form's error slot:
+              harness/action-feedback.md puts schema validation next to the
+              field, and the slot below is for what the API refused. */}
+          {match.message ? (
+            <p
+              id="password-again-error"
+              data-testid="auth-password-mismatch"
+              className="text-destructive text-sm"
+            >
+              {match.message}
+            </p>
+          ) : null}
         </div>
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
         <Button type="submit" data-testid="auth-submit" disabled={pending}>

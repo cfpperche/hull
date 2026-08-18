@@ -5,6 +5,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { useErrMsg, useT } from "../LocaleProvider";
+import { usePasswordMatch } from "../../lib/use-password-match";
 
 /**
  * Change the password.
@@ -23,6 +24,7 @@ export function PasswordForm({
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
+  const match = usePasswordMatch(next, confirm);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -32,8 +34,8 @@ export function PasswordForm({
     // Costlier to get wrong here than on any other screen: a change ends every
     // other session, so a typo signs the person out of their other devices and
     // leaves them holding a password they cannot reproduce.
-    if (next !== confirm) {
-      setError(t("auth.passwordMismatch"));
+    if (!match.ok) {
+      match.reveal();
       return;
     }
     setPending(true);
@@ -80,7 +82,18 @@ export function PasswordForm({
           data-testid="password-again"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
+          aria-invalid={match.message ? true : undefined}
+          aria-describedby={match.message ? "next-again-error" : undefined}
         />
+        {match.message ? (
+          <p
+            id="next-again-error"
+            data-testid="password-mismatch"
+            className="text-destructive text-sm"
+          >
+            {match.message}
+          </p>
+        ) : null}
       </div>
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
       <Button type="submit" className="w-fit" disabled={pending}>

@@ -156,6 +156,21 @@ and the password again. Everything else moved to the first-run screen.
 - **The password is asked twice** wherever it is set: signup, reset, and the
   account page. One key for the mismatch (`auth.passwordMismatch`), and the
   comparison never leaves the browser — it guards a typo, not an attacker.
+- **`usePasswordMatch` says it at the right moment, and the delay is one-way.**
+  Comparing on every keystroke is worse than not comparing: the second box
+  differs from the first from its opening character, so the form calls the person
+  wrong while they are still answering it. Complaining waits out
+  `MATCH_DELAY_MS`; withdrawing the complaint does not, because holding red text
+  after somebody has fixed it reads as the form not noticing.
+
+  Two lines carry that and they are not the same line. `message: differ && shown`
+  is what makes the retraction instant — the effect's `setShown(false)` does
+  something else, which is to reset the state so a *second* mistake waits like
+  the first instead of appearing the moment it happens. A plant against the
+  effect alone passes; the spec covers both cycles for that reason.
+
+  The submit guard reads `ok`, never `message`: the button can be pressed inside
+  the wait, and `reveal()` is what puts the reason on screen without it.
 
 ## Language
 

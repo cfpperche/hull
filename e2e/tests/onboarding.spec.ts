@@ -71,6 +71,75 @@ test("sign out and back in returns to the same workspace", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Repeat" })).toBeVisible();
 });
 
+/**
+ * Kept in step with MATCH_DELAY_MS in packages/ui/src/lib/use-password-match.ts.
+ * Not imported: e2e does not depend on the component kit, and a spec that waits
+ * an arbitrary amount is one that goes flaky the day the real number moves — so
+ * if this drifts, the halves below start failing rather than passing quietly.
+ */
+const MATCH_DELAY_MS = 500;
+
+test("the repeat field waits for a pause before calling you wrong", async ({
+  page,
+}) => {
+  const user = newUser("ob");
+  await page.goto(`${APP}/signup`);
+  await page.getByTestId("auth-email").fill(user.email);
+  await page.getByTestId("auth-password").fill("demodemo1");
+
+  // Typed one character at a time, which is the case the debounce exists for:
+  // the second box differs from the first from its very first keystroke, and a
+  // naive comparison calls the person wrong while they are still answering.
+  await page
+    .getByTestId("auth-password-again")
+    .pressSequentially("demo", { delay: 30 });
+  await expect(page.getByTestId("auth-password-mismatch")).toBeHidden();
+
+  // And then it does appear — without this half, the assertion above would pass
+  // against an element that never exists at all.
+  await expect(page.getByTestId("auth-password-mismatch")).toBeVisible({
+    timeout: MATCH_DELAY_MS * 4,
+  });
+
+  // Withdrawing the complaint is not debounced. A timeout shorter than the wait
+  // is the assertion: if the retraction were delayed like the complaint, this
+  // fails.
+  await page.getByTestId("auth-password-again").fill("demodemo1");
+  await expect(page.getByTestId("auth-password-mismatch")).toBeHidden({
+    timeout: MATCH_DELAY_MS - 200,
+  });
+
+  // Break it a second time. The message must wait again rather than snap back
+  // from the state it was left in — `setShown(false)` on the way out is what
+  // buys that, and without it the second mistake is announced instantly while
+  // the first one was not.
+  await page
+    .getByTestId("auth-password-again")
+    .pressSequentially("x", { delay: 30 });
+  await expect(page.getByTestId("auth-password-mismatch")).toBeHidden();
+  await expect(page.getByTestId("auth-password-mismatch")).toBeVisible({
+    timeout: MATCH_DELAY_MS * 4,
+  });
+
+  await page.getByTestId("auth-password-again").fill("demodemo1");
+  await page.getByTestId("auth-submit").click();
+  await page.getByTestId("org-name").waitFor();
+});
+
+test("submitting inside the pause is still refused", async ({ page }) => {
+  const user = newUser("ob");
+  await page.goto(`${APP}/signup`);
+  await page.getByTestId("auth-email").fill(user.email);
+  await page.getByTestId("auth-password").fill("demodemo1");
+  await page.getByTestId("auth-password-again").fill("demodemo2");
+  // No wait: the button is pressed while the message is still holding its
+  // tongue. The guard reads the truth, not the debounced text.
+  await page.getByTestId("auth-submit").click();
+
+  await expect(page.getByTestId("auth-password-mismatch")).toBeVisible();
+  await expect(page).toHaveURL(/\/signup$/);
+});
+
 test("signup refuses an email already taken, inline", async ({ page }) => {
   const user = newUser("ob");
   await signUp(page, user);
