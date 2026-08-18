@@ -11,7 +11,6 @@ def _signup(client, unique: str, tag: str = "a") -> str:
     res = client.post(
         "/v1/auth/signup",
         json={
-            "username": f"u{unique}{tag}",
             "email": f"{tag}{unique}@hull.test",
             "password": "demodemo1",
         },
@@ -76,16 +75,18 @@ def test_omitted_field_is_left_alone(client, unique: str) -> None:
     assert res.json()["user"]["name"] == "Ada"
 
 
-def test_malformed_org_id_is_422_not_500(client, unique: str) -> None:
+def test_malformed_org_id_is_422_not_500(client, unique: str, confirm_email) -> None:
     """A non-UUID id used to reach Postgres and raise an uncaught 500."""
     _signup(client, unique)
+    confirm_email(f"a{unique}@hull.test")
     res = client.post("/v1/session/org", json={"id": "not-a-uuid"})
     assert res.status_code == 422, res.text
     assert res.json()["reason_code"] == "request_validation_error"
 
 
-def test_wellformed_but_unknown_org_id_is_still_404(client, unique: str) -> None:
+def test_wellformed_but_unknown_org_id_is_still_404(client, unique: str, confirm_email) -> None:
     _signup(client, unique)
+    confirm_email(f"a{unique}@hull.test")
     res = client.post("/v1/session/org", json={"id": "11111111-1111-4111-8111-111111111111"})
     assert res.status_code == 404
     assert res.json()["reason_code"] == "not_found"

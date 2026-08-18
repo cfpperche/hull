@@ -5,13 +5,13 @@ import { ProductShell, useBrand, useT } from "@hull/ui";
 import { AvatarMenu } from "./components/AvatarMenu";
 import { OrgSwitcher } from "./components/OrgSwitcher";
 import { SupportBanner } from "./components/SupportBanner";
-import { VerifyBanner } from "./components/VerifyBanner";
 import { useSession } from "./lib/session";
 import { AccountPage } from "./pages/Account";
 import { CreateOrgPage } from "./pages/CreateOrg";
 import { EmailChangePage } from "./pages/EmailChange";
 import { ForgotPage } from "./pages/Forgot";
 import { HandoffPage } from "./pages/Handoff";
+import { ConfirmPage } from "./pages/Confirm";
 import { HomePage } from "./pages/Home";
 import { NotFoundPage } from "./pages/NotFound";
 import { ResetPage } from "./pages/Reset";
@@ -85,6 +85,18 @@ function ClientApp() {
     );
   }
 
+  // Before the first-run screen, not after it: nobody should be asked to name
+  // themselves and their workspace and then be told they cannot come in.
+  //
+  // Not while impersonating. `me.user` is the operator during a support session,
+  // their address was verified when they signed in, and the customer's state is
+  // not the operator's to be stopped by — but the guard is written rather than
+  // assumed, because the day an operator's own address lapses this is the line
+  // that decides whether support still works.
+  if (!me?.acting && !me?.user.email_verified) {
+    return <ConfirmPage />;
+  }
+
   if (!me?.org && !me?.acting) {
     return <CreateOrgPage />;
   }
@@ -105,15 +117,12 @@ function ClientApp() {
                 <OrgSwitcher />
               )
             }
-            banner={
-              acting ? (
-                <SupportBanner orgName={acting.name} />
-              ) : me.user.email_verified ? undefined : (
-                // Impersonation wins the slot: an operator viewing someone
-                // else needs to know that before anything about their own inbox.
-                <VerifyBanner email={me.user.email} />
-              )
-            }
+            // Only impersonation reaches this slot now. The unverified banner
+            // used to share it, and the wall above made it unreachable: nobody
+            // who has not confirmed gets as far as the shell. A banner that can
+            // never render is worse than no banner, so it went with the reason
+            // for it.
+            banner={acting ? <SupportBanner orgName={acting.name} /> : undefined}
             // Product surfaces only. Account is not one — it is reached from the
             // avatar menu at the foot of the rail, which is where Vercel, Linear
             // and Supabase all put it, and where a person already looks for

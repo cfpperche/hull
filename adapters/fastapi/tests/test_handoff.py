@@ -14,7 +14,7 @@ def _admin(client, settings, unique: str) -> str:
     """Sign up, promote to platform_admin, return the org id of a second user."""
     client.post(
         "/v1/auth/signup",
-        json={"username": f"a{unique}", "email": f"a{unique}@hull.test", "password": "demodemo1"},
+        json={"email": f"a{unique}@hull.test", "password": "demodemo1"},
     )
     with connection(settings) as conn, conn.cursor() as cur:
         cur.execute(
@@ -29,8 +29,17 @@ def _customer_org(settings, unique: str) -> str:
     other = TestClient(create_app(settings))
     other.post(
         "/v1/auth/signup",
-        json={"username": f"c{unique}", "email": f"c{unique}@hull.test", "password": "demodemo1"},
+        json={"email": f"c{unique}@hull.test", "password": "demodemo1"},
     )
+    # The product is closed until the address is confirmed. This helper builds a
+    # customer to be impersonated, not a verification story — see the conftest
+    # fixture for why the column is written rather than the link walked.
+    with connection(settings) as conn, conn.cursor() as cur:
+        cur.execute(
+            "UPDATE users SET email_verified_at = now() WHERE lower(email) = %s",
+            (f"c{unique}@hull.test",),
+        )
+        conn.commit()
     res = other.post("/v1/orgs", json={"name": f"Acme {unique}"})
     assert res.status_code == 201, res.text
     return res.json()["org"]["id"]
@@ -113,7 +122,7 @@ def test_non_admin_cannot_mint_a_handoff(client, settings, unique: str) -> None:
     org_id = _customer_org(settings, unique)
     client.post(
         "/v1/auth/signup",
-        json={"username": f"n{unique}", "email": f"n{unique}@hull.test", "password": "demodemo1"},
+        json={"email": f"n{unique}@hull.test", "password": "demodemo1"},
     )
     res = client.post("/v1/admin/support", json={"org_id": org_id})
     assert res.status_code == 403
@@ -134,7 +143,7 @@ def test_cookie_is_host_scoped(client, unique: str) -> None:
     """No Domain attribute: the apex scope handed the token to mail./s3./rustfs."""
     res = client.post(
         "/v1/auth/signup",
-        json={"username": f"h{unique}", "email": f"h{unique}@hull.test", "password": "demodemo1"},
+        json={"email": f"h{unique}@hull.test", "password": "demodemo1"},
     )
     assert res.status_code == 201
     set_cookie = res.headers["set-cookie"]

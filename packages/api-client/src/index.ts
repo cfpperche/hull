@@ -143,7 +143,7 @@ export function createApi(opts: ClientOpts = {}) {
   const prefix = opts.prefix ?? "/api";
   return {
     health: () => request<{ status: string }>(prefix, "/health"),
-    signup: (body: { username: string; email: string; password: string }) =>
+    signup: (body: { email: string; password: string }) =>
       request<HullMe>(prefix, "/v1/auth/signup", {
         method: "POST",
         body: JSON.stringify(body),

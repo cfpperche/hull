@@ -43,3 +43,28 @@ def client(settings: Settings) -> TestClient:
 @pytest.fixture
 def unique() -> str:
     return uuid.uuid4().hex[:10]
+
+
+@pytest.fixture
+def confirm_email(settings: Settings):
+    """Mark an address confirmed, without walking the link.
+
+    The product is closed until an address is verified, so most tests here need a
+    confirmed account to reach anything — and having twenty of them each redeem a
+    token would be twenty copies of a flow that `test_email_verification.py`
+    already owns, all of them failing together the day it changes.
+
+    Deliberately the column rather than the endpoint: this is a fixture for tests
+    whose subject is something else. The tests whose subject *is* verification
+    use the real link, and one of them proves this shortcut agrees with it.
+    """
+
+    def confirm(email: str) -> None:
+        with connection(settings) as conn, conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET email_verified_at = now() WHERE lower(email) = %s",
+                (email.strip().lower(),),
+            )
+            conn.commit()
+
+    return confirm

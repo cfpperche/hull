@@ -122,7 +122,7 @@ test("a Portuguese browser is welcomed in Portuguese", async ({
   // Straight off the header, with no account choice made yet: the signup screen
   // hands this browser a Portuguese workspace prompt.
   await expect(
-    page.getByRole("heading", { name: "Dê um nome ao seu espaço de trabalho" }),
+    page.getByRole("heading", { name: "Falta um passo" }),
   ).toBeVisible();
 
   const request = await playwright.request.newContext({

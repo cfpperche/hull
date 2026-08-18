@@ -32,7 +32,7 @@ def _signup(client, unique: str, tag: str = "v") -> str:
     email = f"{tag}{unique}@hull.test"
     res = client.post(
         "/v1/auth/signup",
-        json={"username": f"{tag}{unique}", "email": email, "password": "demodemo1"},
+        json={"email": email, "password": "demodemo1"},
     )
     assert res.status_code == 201, res.text
     return email
@@ -167,3 +167,71 @@ def test_the_seeded_lab_users_are_verified(client, settings) -> None:
     if not rows:
         pytest.skip("lab seed not applied to this database")
     assert all(r["email_verified_at"] is not None for r in rows)
+
+
+def _verify(settings, token: str) -> None:
+    anon = TestClient(create_app(settings))
+    assert anon.post("/v1/auth/verify", json={"token": token}).status_code == 204
+
+
+def test_the_product_is_closed_until_the_address_is_confirmed(client, unique, outbox) -> None:
+    """A wall in the browser is not a wall.
+
+    The screen that stops an unverified person is a courtesy to them; this is the
+    part that means it, because the cookie works perfectly well from curl.
+    """
+    _signup(client, unique)
+    res = client.post("/v1/orgs", json={"name": "Should Not Exist"})
+    assert res.status_code == 403, res.text
+    assert res.json()["reason_code"] == "email_unverified"
+    assert res.json()["message_key"] == "error.emailUnverified"
+
+
+def test_the_account_stays_open_while_the_product_is_closed(
+    client, settings, unique, outbox
+) -> None:
+    """The way out of a typo.
+
+    Somebody who mistyped their address at signup can never confirm it. Lock the
+    account endpoints behind verification and the only remaining move is a
+    support ticket, so `/v1/me`, the resend, the address change and sign-out all
+    stay reachable to an unverified session on purpose.
+    """
+    _signup(client, unique)
+    assert client.get("/v1/me").status_code == 200
+    assert client.post("/v1/me/verify").status_code == 204
+    assert client.patch("/v1/me", json={"name": "Typo Haver"}).status_code == 200
+    moved = client.post(
+        "/v1/me/email",
+        json={"password": "demodemo1", "email": f"moved{unique}@hull.test"},
+    )
+    assert moved.status_code == 204, moved.text
+
+
+def test_confirming_opens_it(client, settings, unique, outbox) -> None:
+    """The other half. Without it the test above passes on a product that is
+    closed to everybody."""
+    _signup(client, unique)
+    assert client.post("/v1/orgs", json={"name": "Too Early"}).status_code == 403
+    _verify(settings, _link_token(outbox))
+    res = client.post("/v1/orgs", json={"name": "Now Fine"})
+    assert res.status_code == 201, res.text
+
+
+def test_switching_workspace_is_closed_too(client, settings, unique, outbox) -> None:
+    """Creating is not the only door into the product. A guard on one endpoint
+    and not its neighbour is the shape that gets found later, from the outside."""
+    _signup(client, unique)
+    _verify(settings, _link_token(outbox))
+    org = client.post("/v1/orgs", json={"name": "Somewhere"}).json()["org"]["id"]
+
+    # Back to unverified, the way an address change would leave it.
+    with connection(settings) as conn, conn.cursor() as cur:
+        cur.execute(
+            "UPDATE users SET email_verified_at = NULL WHERE lower(email) = %s",
+            (f"v{unique}@hull.test",),
+        )
+        conn.commit()
+    res = client.post("/v1/session/org", json={"id": org})
+    assert res.status_code == 403, res.text
+    assert res.json()["message_key"] == "error.emailUnverified"

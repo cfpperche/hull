@@ -35,7 +35,7 @@ def _signup(client, unique: str, tag: str = "s") -> str:
     email = f"{tag}{unique}@hull.test"
     res = client.post(
         "/v1/auth/signup",
-        json={"username": f"{tag}{unique}", "email": email, "password": PASSWORD},
+        json={"email": email, "password": PASSWORD},
     )
     assert res.status_code == 201, res.text
     return email
@@ -238,7 +238,7 @@ def test_a_support_session_is_named_as_one(client, settings, unique: str, outbox
     assert (
         admin.post(
             "/v1/auth/signup",
-            json={"username": f"adm{unique}", "email": admin_email, "password": PASSWORD},
+            json={"email": admin_email, "password": PASSWORD},
         ).status_code
         == 201
     )
@@ -257,8 +257,18 @@ def test_a_support_session_is_named_as_one(client, settings, unique: str, outbox
     # session, and this test is about the one the hand-off adds.
     before = {r["id"] for r in _sessions(admin)}
 
-    _signup(client, unique)
-    client.post("/v1/orgs", json={"name": f"Co {unique}"})
+    customer_email = _signup(client, unique)
+    # The customer has to be past the wall to own a workspace; without this the
+    # org is never created and the hand-off has nothing to impersonate. The
+    # subject here is the support session, not the gate.
+    with connection(settings) as conn, conn.cursor() as cur:
+        cur.execute(
+            "UPDATE users SET email_verified_at = now() WHERE lower(email) = %s",
+            (customer_email,),
+        )
+        conn.commit()
+    created = client.post("/v1/orgs", json={"name": f"Co {unique}"})
+    assert created.status_code == 201, created.text
     org_id = client.get("/v1/me").json()["org"]["id"]
 
     handoff = admin.post("/v1/admin/support", json={"org_id": org_id}).json()["handoff"]

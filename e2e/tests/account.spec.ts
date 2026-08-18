@@ -62,6 +62,25 @@ test("saving the profile confirms, and clearing a name clears it", async ({
   await expect(page.getByTestId("profile-name")).toHaveValue("");
 });
 
+test("a mistyped repeat stops the password change before it is sent", async ({
+  page,
+}) => {
+  await page.goto(`${APP}/account`);
+  await page.getByLabel("Current").fill("demodemo1");
+  await page.getByLabel("New", { exact: true }).fill("demodemo2");
+  await page.getByTestId("password-again").fill("demodemo3");
+  await page.getByRole("button", { name: /Update password/ }).click();
+
+  await expect(
+    page.getByText("Those two passwords are different."),
+  ).toBeVisible();
+  // Never sent: a change that reached the server would have ended every other
+  // session and rotated this cookie. The absence of the success toast is the
+  // weaker half of this assertion; still being able to use the old password on
+  // the next test is the real one.
+  await expect(page.getByText("Password updated")).toHaveCount(0);
+});
+
 test("changing the password keeps this session and invalidates the old one", async ({
   page,
 }) => {
@@ -70,6 +89,7 @@ test("changing the password keeps this session and invalidates the old one", asy
   // Exact: the page also carries a "New email" field now, and a substring match
   // resolved to both.
   await page.getByLabel("New", { exact: true }).fill("demodemo2");
+  await page.getByTestId("password-again").fill("demodemo2");
   await page.getByRole("button", { name: /Update password/ }).click();
   await expect(page.getByText("Password updated")).toBeVisible();
 

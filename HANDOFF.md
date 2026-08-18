@@ -134,6 +134,74 @@ The console's page has no **Close account** — `close_account` refuses a
 `platform_admin`, so the button would exist only to answer 403. There is a
 browser test asserting its absence.
 
+## Signing up
+
+The form asks for the least an account can be made of: an address, a password,
+and the password again. Everything else moved to the first-run screen.
+
+- **No username at signup.** It was the only field that could be refused for a
+  reason that is not the applicant's fault, and it had rules of its own on top.
+  The column has been nullable since 001 with a partial unique index, so nothing
+  in the schema changed — signup stopped asking. It is still offered on the
+  account page, and `username_taken` now only comes out of `PATCH /v1/me`.
+- **`CreateOrgPage` is the completion step**, not a second wall. It asks for a
+  name and a workspace name; only the workspace is required, and it always was.
+  Deliberately no username field — putting it back on the way in, even optional,
+  reintroduces the rejection this work removed.
+- **The product is closed until the address is confirmed**, and the wall stands
+  *before* the first-run screen: nobody should be asked to name themselves and
+  their workspace and then be told they cannot come in.
+
+  **A wall in React is not a wall.** `require_verified` in the adapter is the
+  half that means it, because the cookie works perfectly well from curl — it
+  guards `POST /v1/orgs` and `POST /v1/session/org`, and any product endpoint
+  added later takes it too. The *account* stays open on purpose: somebody who
+  mistyped their address at signup has to be able to move it, ask for another
+  link and sign out, or the only way out of a typo is a support ticket.
+
+  Not while impersonating. `me.user` is the operator during a support session
+  and their address was checked when they signed in; the customer's state is not
+  the operator's to be stopped by.
+
+  The console is deliberately **not** gated. It is where you go when mail is
+  broken, and locking it behind mail delivery is how an operator loses access to
+  their own install.
+
+  Consequences worth knowing: every account unverified at deploy time is locked
+  out until it confirms — there is no grandfather clause, by choice. `signUp` in
+  `e2e/tests/helpers.ts` now walks the inbox, and `smoke.sh` does too, which
+  made the smoke cover SMTP delivery and the verify endpoint for the first time.
+  Tests whose subject is something else use the `confirm_email` fixture in
+  `conftest.py` rather than twenty copies of the redemption flow.
+- **The password is asked twice** wherever it is set: signup, reset, and the
+  account page. One key for the mismatch (`auth.passwordMismatch`), and the
+  comparison never leaves the browser — it guards a typo, not an attacker.
+- **`usePasswordMatch` says it at the right moment, and the delay is one-way.**
+  Comparing on every keystroke is worse than not comparing: the second box
+  differs from the first from its opening character, so the form calls the person
+  wrong while they are still answering it. Complaining waits out
+  `MATCH_DELAY_MS`; withdrawing the complaint does not, because holding red text
+  after somebody has fixed it reads as the form not noticing.
+
+  Two lines carry that and they are not the same line. `message: differ && shown`
+  is what makes the retraction instant — the effect's `setShown(false)` does
+  something else, which is to reset the state so a *second* mistake waits like
+  the first instead of appearing the moment it happens. A plant against the
+  effect alone passes; the spec covers both cycles for that reason.
+
+  The submit guard reads `ok`, never `message`: the button can be pressed inside
+  the wait, and `reveal()` is what puts the reason on screen without it.
+- **The submit button is disabled on what is visible, never on the truth.** A
+  dead control with nothing on screen to explain it is what makes disabled
+  buttons bad advice, and the debounce creates exactly that window — the
+  mismatch is real for half a second before it is stated. So the rule is
+  `Boolean(match.message)`, not `!match.ok`: empty fields explain themselves, a
+  shown mismatch has its sentence, and the eight-character minimum is the one
+  condition with nothing on screen to point at, so it is left to submit and
+  answered by `signup.invalid`. The pattern already had precedent here —
+  `EmailSection` and the close-account form both gate on required fields being
+  filled.
+
 ## Language
 
 Everything a person reads comes from `packages/i18n`. `en` and `pt-BR`.
@@ -182,8 +250,8 @@ Everything a person reads comes from `packages/i18n`. `en` and `pt-BR`.
 
 ## Gates
 
-`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (171).
-`e2e/` holds 19 browser specs, pinned to `en-US` in `playwright.config.ts` —
+`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (173).
+`e2e/` holds 22 browser specs, pinned to `en-US` in `playwright.config.ts` —
 several find a control by the words on it, and without the pin a developer whose
 machine is set to Portuguese would watch the suite fail for a reason unrelated to
 the code. Keep the split the three mail flows use: what only

@@ -158,6 +158,11 @@ export const en = {
   "auth.signOut": "Sign out",
   "auth.email": "Email",
   "auth.password": "Password",
+  "auth.passwordAgain": "Repeat the password",
+  // One key, three screens. Signup, reset and change-password all ask twice
+  // and all fail the same way; three spellings of one sentence is how a
+  // catalog starts disagreeing with itself.
+  "auth.passwordMismatch": "Those two passwords are different.",
   "auth.noAccount": "No account?",
   "auth.createOne": "Create one",
   "auth.haveAccount": "Already have an account?",
@@ -166,12 +171,10 @@ export const en = {
   "auth.goToSignIn": "Go to sign in",
 
   "signup.title": "Create account",
-  "signup.description":
-    "Username, email, password. You name the workspace next.",
-  "signup.username": "Username",
+  "signup.description": "An email and a password. Nothing else.",
   "signup.submit": "Create account",
   "signup.pending": "Creating…",
-  "signup.invalid": "Username, email, and a password of at least 8 characters.",
+  "signup.invalid": "An email address, and a password of at least 8 characters.",
 
   "forgot.title": "Reset your password",
   "forgot.description": "We'll email you a link.",
@@ -190,7 +193,6 @@ export const en = {
   "reset.confirm": "Repeat it",
   "reset.submit": "Set the password",
   "reset.pending": "Saving…",
-  "reset.mismatch": "Those two passwords are different.",
   "reset.done": "Password changed",
   "reset.noTokenTitle": "That link is incomplete",
   "reset.noTokenDescription": "Reset links carry a token. Ask for a new one.",
@@ -204,7 +206,11 @@ export const en = {
     "Confirmation links are single use and expire after three days.",
   "verify.noToken":
     "This link has no token. Ask for a new one from your account.",
-  "verify.banner": "Confirm {email} — check your inbox.",
+  "verify.wallTitle": "Confirm your email",
+  "verify.wallBody": "We sent a link to {email}. Open it and you are in.",
+  "verify.recheck": "I have confirmed it",
+  "verify.stillWaiting": "Not confirmed yet — open the link we sent.",
+  "verify.wrongAddress": "Wrong address? Change it on your account, or sign out.",
   "verify.resend": "Send again",
   "verify.resending": "Sending…",
   "verify.resent": "Confirmation sent",
@@ -227,11 +233,11 @@ export const en = {
 
   // ---- Workspaces --------------------------------------------------------
 
-  "org.createTitle": "Name your workspace",
-  "org.createDescription": "One field. You can add more later.",
+  "org.createTitle": "One more step",
+  "org.createDescription": "A name for you, and a name for your workspace.",
+  "org.yourNameRequired": "Enter your name.",
   "org.name": "Workspace name",
   "org.creating": "Creating…",
-  "org.nameRequired": "Name is required",
   "org.fallback": "Workspace",
   "org.switching": "Switching…",
   "org.new": "New workspace",
@@ -339,6 +345,7 @@ export const en = {
   "error.photoUnreadable": "That photo could not be read.",
   "error.photoNotFound": "No photo.",
   "error.storageOff": "The object store is not configured.",
+  "error.emailUnverified": "Confirm your email address to continue.",
   "error.unauthenticated": "Sign in again.",
   "error.notFound": "Not found.",
   "error.server": "Something went wrong on our side.",

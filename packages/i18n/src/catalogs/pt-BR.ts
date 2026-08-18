@@ -155,6 +155,8 @@ export const ptBR: Catalog = {
   "auth.signOut": "Sair",
   "auth.email": "E-mail",
   "auth.password": "Senha",
+  "auth.passwordAgain": "Repita a senha",
+  "auth.passwordMismatch": "As duas senhas são diferentes.",
   "auth.noAccount": "Não tem conta?",
   "auth.createOne": "Crie uma",
   "auth.haveAccount": "Já tem uma conta?",
@@ -163,13 +165,10 @@ export const ptBR: Catalog = {
   "auth.goToSignIn": "Ir para o login",
 
   "signup.title": "Criar conta",
-  "signup.description":
-    "Nome de usuário, e-mail e senha. O espaço de trabalho você nomeia em seguida.",
-  "signup.username": "Nome de usuário",
+  "signup.description": "Um e-mail e uma senha. Nada além disso.",
   "signup.submit": "Criar conta",
   "signup.pending": "Criando…",
-  "signup.invalid":
-    "Nome de usuário, e-mail e uma senha de pelo menos 8 caracteres.",
+  "signup.invalid": "Um endereço de e-mail e uma senha de pelo menos 8 caracteres.",
 
   "forgot.title": "Redefina sua senha",
   "forgot.description": "Enviaremos um link por e-mail.",
@@ -188,7 +187,6 @@ export const ptBR: Catalog = {
   "reset.confirm": "Repita",
   "reset.submit": "Definir a senha",
   "reset.pending": "Salvando…",
-  "reset.mismatch": "As duas senhas são diferentes.",
   "reset.done": "Senha alterada",
   "reset.noTokenTitle": "Este link está incompleto",
   "reset.noTokenDescription":
@@ -203,7 +201,11 @@ export const ptBR: Catalog = {
   "verify.failedDescription":
     "Links de confirmação valem uma vez e expiram em três dias.",
   "verify.noToken": "Este link não tem código. Peça um novo na sua conta.",
-  "verify.banner": "Confirme {email} — veja sua caixa de entrada.",
+  "verify.wallTitle": "Confirme seu e-mail",
+  "verify.wallBody": "Enviamos um link para {email}. Abra ele e você entra.",
+  "verify.recheck": "Já confirmei",
+  "verify.stillWaiting": "Ainda não foi confirmado — abra o link que enviamos.",
+  "verify.wrongAddress": "Endereço errado? Troque na sua conta, ou saia.",
   "verify.resend": "Enviar de novo",
   "verify.resending": "Enviando…",
   "verify.resent": "Confirmação enviada",
@@ -226,11 +228,11 @@ export const ptBR: Catalog = {
 
   // ---- Workspaces --------------------------------------------------------
 
-  "org.createTitle": "Dê um nome ao seu espaço de trabalho",
-  "org.createDescription": "Um campo só. Dá para adicionar mais depois.",
+  "org.createTitle": "Falta um passo",
+  "org.createDescription": "Um nome para você, e um nome para o seu espaço de trabalho.",
+  "org.yourNameRequired": "Informe seu nome.",
   "org.name": "Nome do espaço de trabalho",
   "org.creating": "Criando…",
-  "org.nameRequired": "O nome é obrigatório",
   "org.fallback": "Espaço de trabalho",
   "org.switching": "Trocando…",
   "org.new": "Novo espaço de trabalho",
@@ -333,6 +335,7 @@ export const ptBR: Catalog = {
   "error.photoUnreadable": "Não deu para ler esta foto.",
   "error.photoNotFound": "Sem foto.",
   "error.storageOff": "O armazenamento de objetos não está configurado.",
+  "error.emailUnverified": "Confirme seu endereço de e-mail para continuar.",
   "error.unauthenticated": "Entre novamente.",
   "error.notFound": "Não encontrado.",
   "error.server": "Algo deu errado do nosso lado.",
