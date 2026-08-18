@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { APP, createFirstOrg, newUser, signIn, signUp } from "./helpers";
+import type { APIRequestContext } from "@playwright/test";
+import { APP, HOST, createFirstOrg, newUser, signIn, signUp } from "./helpers";
 
 /**
  * Which language the account reads.
@@ -49,4 +50,57 @@ test("the language follows the account, not the browser", async ({ page, browser
   // And back, so the account is left as it was found.
   await page.getByTestId("locale-en").click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
+});
+
+
+/** The newest mail to this address, once one has arrived. Mailpit ingests a
+ *  moment after the API answers, so a single read is a race. */
+async function mailFor(request: APIRequestContext, address: string) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const list = await (await request.get(`https://mail.${HOST}/api/v1/messages?limit=50`)).json();
+    const mine = list.messages.find((m: { To: { Address: string }[] }) =>
+      m.To.some((t) => t.Address.toLowerCase() === address.toLowerCase()),
+    );
+    if (mine) {
+      const full = await (await request.get(`https://mail.${HOST}/api/v1/message/${mine.ID}`)).json();
+      return { subject: mine.Subject as string, text: full.Text as string, html: full.HTML as string };
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error(`no mail arrived for ${address}`);
+}
+
+/**
+ * The end of the chain, and the reason the mail was done before the screens.
+ *
+ * A real browser set to Portuguese, a real signup, and the message read out of
+ * the lab inbox the way a person would. Nothing here can pass on a mocked
+ * locale: the header is the browser's, the account row is the server's, the
+ * template was chosen at build time, and the delivery is SMTP.
+ */
+test("a Portuguese browser is welcomed in Portuguese", async ({ browser, playwright }) => {
+  const context = await browser.newContext({ ignoreHTTPSErrors: true, locale: "pt-BR" });
+  const page = await context.newPage();
+  const user = newUser("mail");
+  await signUp(page, user);
+  await expect(page.locator("html")).toHaveAttribute("lang", "pt-BR");
+
+  const request = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  const mail = await mailFor(request, user.email);
+
+  expect(mail.subject).toContain("Bem-vindo");
+  expect(mail.text).toContain("Sua conta está pronta");
+  // Disjoint from the Portuguese, deliberately: "Confirme" contains "Confirm",
+  // and an assertion that passes in either language proves nothing.
+  expect(mail.text).not.toContain("Your account is ready");
+  // The document language travels with the message — a screen reader picks its
+  // voice from this, and there is no browser on the receiving end to correct it.
+  expect(mail.html).toContain('lang="pt-BR"');
+  // Nothing shipped a hole. This is the failure that reaches an inbox looking
+  // like a defect rather than like a bug.
+  expect(mail.text).not.toContain("{{");
+  expect(mail.html).not.toContain("{{");
+
+  await request.dispose();
+  await context.close();
 });

@@ -537,6 +537,23 @@ def change_password(
     return token
 
 
+def user_locale(conn: psycopg.Connection, *, email: str) -> str:
+    """The language the holder of this address reads.
+
+    For the two mails whose sender is holding an address and nothing else: the
+    reset, which arrives unauthenticated, and the "your email was changed"
+    notice, which is triggered by a link click that may carry no session.
+
+    An unknown address answers with the default rather than raising, and that is
+    not an oracle: the caller answers its own request identically either way, and
+    this value only ever picks a template for a message that is not sent.
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT locale FROM users WHERE lower(email) = %s", (normalize_email(email),))
+        row = cur.fetchone()
+    return resolve(row["locale"]) if row else resolve(None)
+
+
 def request_password_reset(conn: psycopg.Connection, *, email: str) -> str | None:
     """Mint a reset token, or None when nobody holds that address.
 

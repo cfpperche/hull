@@ -1,4 +1,5 @@
-import { Divider, Layout, P } from "../Layout";
+import { DEFAULT_LOCALE, createT, type T } from "@hull/i18n";
+import { Divider, Fill, Layout, P } from "../Layout";
 import { V } from "../vars";
 
 /**
@@ -8,26 +9,22 @@ import { V } from "../vars";
  * action in a "was this you?" mail teaches exactly the reflex phishing depends
  * on. It says what to do; the person navigates there themselves.
  */
-export default function EmailChangeNotice() {
+export default function EmailChangeNotice({ t = createT(DEFAULT_LOCALE) }: { t?: T }) {
   return (
     <Layout
-      title="Your email is being changed"
-      preview={`Nothing has changed yet. ${V.oldEmail} still signs in.`}
+      t={t}
+      title={t("mail.changeNotice.title")}
+      preview={t("mail.changeNotice.preview", { oldEmail: V.oldEmail })}
       lead={
-        <>
-          Someone asked to change this account&apos;s email to <strong>{V.newEmail}</strong>.
-        </>
+        <Fill
+          parts={t.parts("mail.changeNotice.lead")}
+          nodes={{ newEmail: <strong>{V.newEmail}</strong> }}
+        />
       }
     >
-      <P>
-        Nothing has changed yet — {V.oldEmail} still signs in, and the change only happens if that
-        address confirms it.
-      </P>
+      <P>{t("mail.changeNotice.body", { oldEmail: V.oldEmail })}</P>
       <Divider />
-      <P>
-        If this was not you, change your password now. That cancels the request and ends every other
-        session.
-      </P>
+      <P>{t("mail.changeNotice.warn")}</P>
     </Layout>
   );
 }

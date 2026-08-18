@@ -1,20 +1,23 @@
+import { DEFAULT_LOCALE, createT, type T } from "@hull/i18n";
 import { Button, Divider, FallbackLink, Layout, P } from "../Layout";
 import { V } from "../vars";
 
 /** The one mail that arrives unauthenticated and hands back an account. */
-export default function PasswordReset() {
+export default function PasswordReset({ t = createT(DEFAULT_LOCALE) }: { t?: T }) {
   return (
     <Layout
-      // Not "Choose a new password": the button says that, and a heading that
-      // repeats its own button word for word reads like a rendering fault.
-      title="Reset your password"
-      preview={`The link works once and expires in ${V.resetMinutes} minutes.`}
+      t={t}
+      // Not the button's words: a heading that repeats its own button verbatim
+      // reads like a rendering fault. The catalog keeps them as separate keys so
+      // a translator cannot collapse them by accident.
+      title={t("mail.reset.title")}
+      preview={t("mail.reset.preview", { minutes: V.resetMinutes })}
     >
-      <Button href={V.link}>Choose a new password</Button>
-      <FallbackLink href={V.link} />
-      <P muted>It expires in {V.resetMinutes} minutes and works once.</P>
+      <Button href={V.link}>{t("mail.reset.button")}</Button>
+      <FallbackLink t={t} href={V.link} />
+      <P muted>{t("mail.reset.expiry", { minutes: V.resetMinutes })}</P>
       <Divider />
-      <P muted>If you did not ask for it, nothing has changed and you can ignore this.</P>
+      <P muted>{t("mail.reset.ignore")}</P>
     </Layout>
   );
 }

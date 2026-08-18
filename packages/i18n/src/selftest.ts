@@ -52,6 +52,15 @@ export function selftest(): number {
   // Standing, not blanked: "Hello {name}" gets reported, "Hello " ships.
   is(fill("Hello {name}", {}), "Hello {name}", "an unfilled hole survives");
   is(fill("{{link}} stays", {}), "{{link}} stays", "the sender's holes are a different layer");
+  // The nested case, which is the ordinary one for mail: a catalog hole filled
+  // with a value that is itself a hole for the adapter.
+  is(fill("so {brand} can", { brand: "{{brand}}" }), "so {{brand}} can", "a hole filled with a hole");
+  is(holes("{{brand}} and {name}"), ["name"], "a doubled brace is not a catalog hole");
+  is(
+    segments("so {{brand}} can move {oldEmail}"),
+    ["so {{brand}} can move ", { hole: "oldEmail" }],
+    "segments does not cut a sender hole in half",
+  );
   is(holes("move {old} to {new}"), ["old", "new"], "holes are listed in order");
 
   is(segments("a {x} b"), ["a ", { hole: "x" }, " b"], "split at the hole");

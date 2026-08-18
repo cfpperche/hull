@@ -1,10 +1,9 @@
 from hull_fastapi.config import Settings
 
 
-def test_mail_from_and_welcome_follow_brand() -> None:
+def test_mail_from_and_origin_follow_brand() -> None:
     s = Settings(host="acme.test", brand="Acme", mail_from="", public_origin="")
     assert s.resolved_mail_from() == "Acme <noreply@acme.test>"
-    assert s.welcome_subject() == "Welcome to Acme"
     assert s.resolved_public_origin() == "https://app.acme.test"
     assert s.resolved_mark() == "A"
 

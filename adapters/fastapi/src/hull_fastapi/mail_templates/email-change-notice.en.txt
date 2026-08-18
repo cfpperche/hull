@@ -5,7 +5,7 @@ Your email is being changed
 
 Someone asked to change this account's email to {{new_email}}.
 
-Nothing has changed yet — {{old_email}} still signs in, and the change only happens if that address confirms it.
+Nothing has changed yet — {{old_email}} still signs in, and the change only happens if the new address confirms it.
 
 ----------------------------------------
 

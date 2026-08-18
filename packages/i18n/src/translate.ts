@@ -14,7 +14,18 @@ export function catalog(locale: Locale): Catalog {
 
 export type Values = Record<string, string | number>;
 
-const HOLE = /\{([a-zA-Z][a-zA-Z0-9]*)\}/g;
+/**
+ * `{name}`, but never the `{name}` inside a `{{name}}`.
+ *
+ * The two layers nest: a mail string is filled here at build time with values
+ * that are themselves `{{holes}}` for `hull_fastapi` to fill at send. Without
+ * the lookarounds, `segments` splits `{{brand}}` into three pieces, React puts
+ * its comment separators between adjacent text nodes, and the generated HTML
+ * carries `{<!-- -->{brand}<!-- -->}` — a hole the adapter can no longer see and
+ * a brand name delivered as literal braces. Found by a test, in a message that
+ * had already been rendered.
+ */
+const HOLE = /(?<!\{)\{([a-zA-Z][a-zA-Z0-9]*)\}(?!\})/g;
 
 /** The names a phrase expects. Used by `check` to compare locales, and by the
  *  mail build to prove the JSX is passing what the sentence asks for. */

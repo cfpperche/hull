@@ -42,6 +42,7 @@ from hull_fastapi.accounts import (
     support_stop,
     switch_org,
     update_profile,
+    user_locale,
     verify_email,
 )
 from hull_fastapi.config import Settings
@@ -353,14 +354,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # One mail, not two. A welcome and a "confirm your address" arriving
         # together is the pattern people learn to ignore, and the link is the
         # only part of either that does anything.
-        text, html = mail_compose.welcome(
+        subject, text, html = mail_compose.welcome(
             settings,
+            locale=body["user"]["locale"],
             verify_link=_verify_link(verification[0]) if verification else None,
         )
         send_mail(
             settings,
             to=payload.email.strip().lower(),
-            subject=settings.welcome_subject(),
+            subject=subject,
             text=text,
             html=html,
         )
@@ -400,6 +402,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """
         with connection(settings) as conn:
             token = request_password_reset(conn, email=payload.email)
+            # Read inside the same connection, and before the branch below, so
+            # the timing of a hit and a miss stays the same shape.
+            locale = user_locale(conn, email=payload.email)
             record_event(
                 conn,
                 source="api",
@@ -413,11 +418,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # are never sent to a server, so it stays out of access logs and out of
         # the Referer of anything the reset page links to.
         link = f"{settings.resolved_public_origin()}/reset#{token}"
-        text, html = mail_compose.password_reset(settings, link=link)
+        subject, text, html = mail_compose.password_reset(settings, locale=locale, link=link)
         send_mail(
             settings,
             to=payload.email.strip().lower(),
-            subject=settings.reset_subject(),
+            subject=subject,
             text=text,
             html=html,
         )
@@ -481,11 +486,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not verification:
             return
         token, email = verification
-        text, html = mail_compose.verify_email(settings, link=_verify_link(token))
+        subject, text, html = mail_compose.verify_email(
+            settings, locale=sess.locale, link=_verify_link(token)
+        )
         send_mail(
             settings,
             to=email,
-            subject=settings.verify_subject(),
+            subject=subject,
             text=text,
             html=html,
         )
@@ -519,26 +526,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "reason_code": exc.reason_code,
                 },
             ) from exc
-        text, html = mail_compose.email_change_confirm(
-            settings, link=_email_change_link(token), old_email=old_email
+        # Both mails go to the same person — one address gaining the account,
+        # one losing it — so the caller's own language is the recipient's.
+        subject, text, html = mail_compose.email_change_confirm(
+            settings, locale=sess.locale, link=_email_change_link(token), old_email=old_email
         )
         send_mail(
             settings,
             to=new_email,
-            subject=settings.email_change_subject(),
+            subject=subject,
             text=text,
             html=html,
         )
         # The address that is losing the account hears about it while it can still
         # do something. Changing the password cancels every pending change, so
         # this is an instruction rather than a condolence.
-        text, html = mail_compose.email_change_notice(
-            settings, old_email=old_email, new_email=new_email
+        notice_subject, text, html = mail_compose.email_change_notice(
+            settings, locale=sess.locale, old_email=old_email, new_email=new_email
         )
         send_mail(
             settings,
             to=old_email,
-            subject=settings.email_change_notice_subject(),
+            subject=notice_subject,
             text=text,
             html=html,
         )
@@ -554,6 +563,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             with connection(settings) as conn:
                 new_email, old_email = confirm_email_change(conn, raw=payload.token)
+                # After the move, so it is looked up by the address that now
+                # holds the account. This request arrives from a mail client and
+                # carries no session, so there is nobody to ask but the row.
+                changed_locale = user_locale(conn, email=new_email)
                 record_event(
                     conn,
                     source="api",
@@ -575,11 +588,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             ) from exc
         # The last mail the old address gets. It is the one that says an account
         # it can no longer reach has been taken over, if that is what happened.
-        text, html = mail_compose.email_changed(settings, old_email=old_email, new_email=new_email)
+        subject, text, html = mail_compose.email_changed(
+            settings, locale=changed_locale, old_email=old_email, new_email=new_email
+        )
         send_mail(
             settings,
             to=old_email,
-            subject=settings.email_changed_subject(),
+            subject=subject,
             text=text,
             html=html,
         )

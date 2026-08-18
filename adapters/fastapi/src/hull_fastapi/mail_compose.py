@@ -7,6 +7,22 @@ Node behind SMTP would mean a second runtime in the compose group for six
 transactional messages. This module is the other half — it loads those files and
 fills the holes.
 
+**Nothing here translates anything.** Every message is rendered once per locale
+at build time, so choosing a language is choosing a filename:
+`password-reset.pt-BR.html` rather than `password-reset.en.html`. That is the
+whole of the server's part, and it is what keeps a second catalog — and an i18n
+library — out of Python. → ADR-0016
+
+The locale is the *recipient's*, never the caller's. A support operator working
+in English who triggers a notice to a Brazilian customer sends it in Portuguese;
+there is no browser on the receiving end to ask, which is why the language lives
+on the account.
+
+The subject travels with the body for the same reason. It used to be built in
+`Settings`, which put one half of every message in Python and the other half in
+the JSX — and a subject promising what the body no longer says is exactly the
+drift nobody notices, because the two are only read together in an inbox.
+
 Editing an email means editing the JSX and running
 `pnpm --filter @hull/email build`, which rewrites `mail_templates/`. Do not edit
 those files by hand; `pnpm --filter @hull/email check` fails the build if they
@@ -27,6 +43,7 @@ from pathlib import Path
 
 from hull_fastapi.accounts import EMAIL_CHANGE_TTL, RESET_TTL, VERIFY_TTL
 from hull_fastapi.config import Settings
+from hull_fastapi.locales import default_locale, resolve
 
 log = logging.getLogger("hull.mail")
 
@@ -42,8 +59,18 @@ CHANGE_HOURS = int(EMAIL_CHANGE_TTL.total_seconds() // 3600)
 
 
 @cache
-def _raw(key: str, suffix: str) -> str:
-    return (TEMPLATES / f"{key}.{suffix}").read_text(encoding="utf-8")
+def _raw(key: str, locale: str, suffix: str) -> str:
+    """The generated file for this message in this language.
+
+    Falls back to the default locale rather than raising. A missing file means
+    the build did not run for that language — the honest failure there is an
+    English password-reset mail, not a 500 that costs somebody their account.
+    """
+    path = TEMPLATES / f"{key}.{locale}.{suffix}"
+    if not path.exists():
+        log.warning("no %s template for locale %s, falling back", key, locale)
+        path = TEMPLATES / f"{key}.{default_locale()}.{suffix}"
+    return path.read_text(encoding="utf-8")
 
 
 def _fill(body: str, values: dict[str, str], *, as_html: bool) -> str:
@@ -73,8 +100,12 @@ def _fill(body: str, values: dict[str, str], *, as_html: bool) -> str:
     return filled
 
 
-def _compose(settings: Settings, key: str, values: dict[str, str]) -> tuple[str, str]:
-    """Returns (text, html). Text first, because it is the required half."""
+def _compose(
+    settings: Settings, key: str, locale: str, values: dict[str, str]
+) -> tuple[str, str, str]:
+    """Returns (subject, text, html). Text before html, because it is the
+    required half — see mail.send_mail."""
+    loc = resolve(locale)
     common = {
         "brand": settings.resolved_brand(),
         "mark": settings.resolved_mark(),
@@ -82,45 +113,62 @@ def _compose(settings: Settings, key: str, values: dict[str, str]) -> tuple[str,
     }
     merged = {**common, **values}
     return (
-        _fill(_raw(key, "txt"), merged, as_html=False),
-        _fill(_raw(key, "html"), merged, as_html=True),
+        # Not escaped: a subject is a header, not markup. `send_mail` collapses
+        # whitespace in it, which is what stops a newline becoming a second header.
+        _fill(_raw(key, loc, "subject"), merged, as_html=False).strip(),
+        _fill(_raw(key, loc, "txt"), merged, as_html=False),
+        _fill(_raw(key, loc, "html"), merged, as_html=True),
     )
 
 
-def welcome(settings: Settings, *, verify_link: str | None) -> tuple[str, str]:
+def welcome(settings: Settings, *, locale: str, verify_link: str | None) -> tuple[str, str, str]:
     """Signup. One mail, not two — the welcome carries the confirmation link,
     because a welcome and a separate "confirm your address" arriving together is
     the pair people learn to ignore."""
     if not verify_link:
-        return _compose(settings, "welcome", {})
+        return _compose(settings, "welcome", locale, {})
     return _compose(
         settings,
         "welcome-verify",
+        locale,
         {"link": verify_link, "verify_days": str(VERIFY_DAYS)},
     )
 
 
-def password_reset(settings: Settings, *, link: str) -> tuple[str, str]:
-    return _compose(settings, "password-reset", {"link": link, "reset_minutes": str(RESET_MINUTES)})
+def password_reset(settings: Settings, *, locale: str, link: str) -> tuple[str, str, str]:
+    return _compose(
+        settings, "password-reset", locale, {"link": link, "reset_minutes": str(RESET_MINUTES)}
+    )
 
 
-def verify_email(settings: Settings, *, link: str) -> tuple[str, str]:
-    return _compose(settings, "verify-email", {"link": link, "verify_days": str(VERIFY_DAYS)})
+def verify_email(settings: Settings, *, locale: str, link: str) -> tuple[str, str, str]:
+    return _compose(
+        settings, "verify-email", locale, {"link": link, "verify_days": str(VERIFY_DAYS)}
+    )
 
 
-def email_change_confirm(settings: Settings, *, link: str, old_email: str) -> tuple[str, str]:
+def email_change_confirm(
+    settings: Settings, *, locale: str, link: str, old_email: str
+) -> tuple[str, str, str]:
     return _compose(
         settings,
         "email-change-confirm",
+        locale,
         {"link": link, "old_email": old_email, "change_hours": str(CHANGE_HOURS)},
     )
 
 
-def email_change_notice(settings: Settings, *, old_email: str, new_email: str) -> tuple[str, str]:
+def email_change_notice(
+    settings: Settings, *, locale: str, old_email: str, new_email: str
+) -> tuple[str, str, str]:
     return _compose(
-        settings, "email-change-notice", {"old_email": old_email, "new_email": new_email}
+        settings, "email-change-notice", locale, {"old_email": old_email, "new_email": new_email}
     )
 
 
-def email_changed(settings: Settings, *, old_email: str, new_email: str) -> tuple[str, str]:
-    return _compose(settings, "email-changed", {"old_email": old_email, "new_email": new_email})
+def email_changed(
+    settings: Settings, *, locale: str, old_email: str, new_email: str
+) -> tuple[str, str, str]:
+    return _compose(
+        settings, "email-changed", locale, {"old_email": old_email, "new_email": new_email}
+    )

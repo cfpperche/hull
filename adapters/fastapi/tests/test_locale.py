@@ -11,6 +11,7 @@ the round trip.
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -142,3 +143,105 @@ def test_an_account_predating_the_column_reads_english(client, settings, unique:
     with connection(settings) as conn, conn.cursor() as cur:
         cur.execute("SELECT locale FROM users WHERE id = %s", (user_id,))
         assert cur.fetchone()["locale"] == default_locale()
+
+
+# --- the mail, which is where the language actually has to travel ------------
+
+
+@pytest.fixture
+def outbox(monkeypatch) -> list[dict[str, str]]:
+    sent: list[dict[str, str]] = []
+
+    def capture(settings, *, to: str, subject: str, text: str, html: str | None = None) -> str:
+        sent.append({"to": to, "subject": subject, "text": text, "html": html or ""})
+        return "sent"
+
+    monkeypatch.setattr("hull_fastapi.api.send_mail", capture)
+    return sent
+
+
+def test_the_welcome_arrives_in_the_language_the_browser_asked_for(
+    client, unique: str, outbox
+) -> None:
+    """The whole reason the locale is read from the header at signup: this mail
+    goes out inside that request, before anyone could have chosen anything."""
+    _signup(client, unique, headers={"accept-language": "pt-BR,pt;q=0.9"})
+    assert len(outbox) == 1
+    assert "Bem-vindo" in outbox[0]["subject"]
+    assert "Sua conta está pronta" in outbox[0]["text"]
+    assert "Your account is ready" not in outbox[0]["text"]
+
+
+def test_english_is_still_english(client, unique: str, outbox) -> None:
+    """The other half of the pair. A t() that returned Portuguese for everything
+    would pass the test above."""
+    _signup(client, unique, headers={"accept-language": "en-GB,en;q=0.9"})
+    assert "Welcome to" in outbox[0]["subject"]
+    assert "Your account is ready" in outbox[0]["text"]
+
+
+def test_a_reset_is_written_in_the_account_language_not_the_requesters(
+    client, settings, unique: str, outbox
+) -> None:
+    """Forgot-password arrives unauthenticated, from any browser. The language
+    has to come off the account, which is the reason it is a column at all."""
+    email = _signup(client, unique, headers={"accept-language": "pt-BR"})
+    outbox.clear()
+
+    # A different, English browser asking for the reset.
+    anon = TestClient(create_app(settings))
+    res = anon.post(
+        "/v1/auth/forgot",
+        json={"email": email},
+        headers={"accept-language": "en-US,en;q=0.9"},
+    )
+    assert res.status_code == 204, res.text
+    assert len(outbox) == 1
+    assert "Redefina sua senha" in outbox[0]["subject"]
+    assert "Redefina sua senha" in outbox[0]["text"]
+    assert "Reset your password" not in outbox[0]["text"]
+
+
+def test_the_change_notice_reaches_the_old_address_in_its_own_language(
+    client, unique: str, outbox
+) -> None:
+    """Two mails, two addresses, one account — so one language for both.
+
+    Asserted with phrases that share no substring across the two languages.
+    "Confirm" is a substring of "Confirme", so the obvious negative assertion
+    here passes whatever language is sent — the same trap that once made an
+    email-change spec in `e2e/` pass with a planted violation.
+    """
+    old = _signup(client, unique, headers={"accept-language": "pt-BR"})
+    new = f"novo{unique}@hull.test"
+    outbox.clear()
+
+    res = client.post("/v1/me/email", json={"password": "demodemo1", "email": new})
+    assert res.status_code == 204, res.text
+    assert len(outbox) == 2
+
+    confirm = next(m for m in outbox if m["to"] == new)
+    assert "Confirme seu novo e-mail" in confirm["text"]
+    assert "your new email" not in confirm["text"].lower()
+
+    # The address losing the account, which is the one that has to understand a
+    # warning. It reads the account's language because it *is* the account.
+    notice = next(m for m in outbox if m["to"] == old)
+    assert "está sendo alterado" in notice["text"]
+    assert "is being changed" not in notice["text"].lower()
+    assert "troque sua senha agora" in notice["text"].lower()
+
+
+def test_no_message_ships_a_hole_in_either_language(client, unique: str, outbox) -> None:
+    """The failure mode that reaches an inbox looking like a defect: `{{brand}}`
+    or `{oldEmail}` delivered literally. Asserted on the message the API actually
+    sent, not on the template it was built from."""
+    _signup(client, unique, headers={"accept-language": "pt-BR"})
+    client.post("/v1/me/email", json={"password": "demodemo1", "email": f"h{unique}@hull.test"})
+    assert outbox
+    for mail in outbox:
+        for half in ("subject", "text", "html"):
+            assert "{{" not in mail[half], f"{mail['subject']}: {half} kept a sender hole"
+            assert not re.search(r"(?<!\{)\{[a-zA-Z][a-zA-Z0-9]*\}(?!\})", mail[half]), (
+                f"{mail['subject']}: {half} kept a catalog hole"
+            )

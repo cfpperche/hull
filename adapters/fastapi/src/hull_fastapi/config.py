@@ -50,23 +50,7 @@ class Settings(BaseSettings):
             return raw
         return f"https://app.{self.host}"
 
-    def welcome_subject(self) -> str:
-        return f"Welcome to {self.resolved_brand()}"
-
-    def reset_subject(self) -> str:
-        return f"Reset your {self.resolved_brand()} password"
-
-    def verify_subject(self) -> str:
-        return f"Confirm your {self.resolved_brand()} email"
-
-    def email_change_subject(self) -> str:
-        return f"Confirm your new {self.resolved_brand()} email"
-
-    # Two notices to the address that is losing the account, and they are not the
-    # same mail: the first is the one somebody can still act on, the second is the
-    # one that says it is done.
-    def email_change_notice_subject(self) -> str:
-        return f"Your {self.resolved_brand()} email is being changed"
-
-    def email_changed_subject(self) -> str:
-        return f"Your {self.resolved_brand()} email was changed"
+    # No subject builders here any more. Every message's subject is generated
+    # beside its body by `packages/email`, in each locale, because a subject
+    # written in Python and a body written in JSX drift — and the two are only
+    # ever read together, in an inbox. → ADR-0016

@@ -55,8 +55,9 @@ the mechanism is the same one every time.
 - Objects: **User** = login, **Org** = workspace, **Install** = this compose. No Company/Store. → [`docs/domain.md`](./docs/domain.md)
 - Support impersonates an **org**. Do not mint the customer's session. → [`docs/domain.md`](./docs/domain.md)
 - Mail bodies are **react-email JSX** in `packages/email`, rendered into the adapter by
-  `pnpm --filter @hull/email build`. Do not hand-edit `hull_fastapi/mail_templates/` — it is
-  generated, and CI fails when it has drifted. No runtime editor, no Node behind SMTP.
+  `pnpm --filter @hull/email build` — once per locale, subject included. Do not hand-edit
+  `hull_fastapi/mail_templates/` — it is generated, and CI fails when it has drifted. No
+  runtime editor, no Node behind SMTP. A message goes in the **recipient's** language.
 - Every user-visible string lives in `packages/i18n`, one catalog per locale. The server
   **never translates** — it picks a pre-rendered file. No i18n library; completeness is a
   build gate. A key names a whole phrase, not a fragment. → [0016](./docs/adr/0016-one-catalog-per-locale-the-server-never-translates.md)

@@ -68,17 +68,40 @@ carry an address change. Every one is `multipart/alternative`.
   always sent. The HTML is an alternative, never a replacement — order matters,
   because a client takes the last part it understands.
 - **Bodies are react-email JSX in `packages/email`.** `pnpm --filter @hull/email
-  build` renders them once into `adapters/fastapi/src/hull_fastapi/mail_templates/`
-  with `{{name}}` where a value goes; `mail_compose` fills the holes at send.
-  React is not in the request path — putting Node behind SMTP would mean a second
-  runtime in the compose group for six messages. Preview them with
-  `pnpm --filter @hull/email dev` on :3300.
+  build` renders them **once per locale** into
+  `adapters/fastapi/src/hull_fastapi/mail_templates/` — `password-reset.pt-BR.html`,
+  `.txt` and `.subject`, seven messages × two languages × three parts — with
+  `{{name}}` where a value goes; `mail_compose` fills the holes at send. React is
+  not in the request path, and neither is any translation: choosing a language
+  here is choosing a filename. Preview with `pnpm --filter @hull/email dev` on
+  :3300, which is why every template defaults its catalog.
+- **The language is the recipient's, never the caller's.** An operator working in
+  English who triggers a notice to a Brazilian customer sends it in Portuguese.
+  There is no browser on the receiving end to ask, which is the whole reason
+  `users.locale` is a column. The two mails that arrive with no session — the
+  reset and the "your email was changed" notice — read it with
+  `accounts.user_locale(conn, email=…)`.
+- **The subject travels with the body.** It used to be built in `Settings`, which
+  put one half of every message in Python and the other in the JSX. A subject
+  promising what the body no longer says is exactly the drift nobody notices,
+  because the two are only ever read together in an inbox.
 - **That directory is generated. Do not hand-edit it.** `pnpm --filter @hull/email
   check` runs in `ci.sh` and fails when it has drifted from the JSX.
-- **Two build-time guards.** A placeholder not declared in `src/vars.ts` fails the
-  build, because a mistyped `{{lnk}}` is delivered literally in the mail whose
-  only job is to carry a URL. And a known placeholder nobody passed a value for is
-  caught by `test_mail_design.py`, which asserts no message keeps a hole.
+- **Three build-time guards, and they are not the same hole.** A placeholder not
+  declared in `src/vars.ts` fails the build, because a mistyped `{{lnk}}` is
+  delivered literally in the mail whose only job is to carry a URL. A *catalog*
+  hole — `{oldEmail}` — that the JSX never gave a value to fails it too. And a
+  known `{{hole}}` nobody passed a value for is caught by `test_mail_design.py`,
+  which now runs every design assertion once per locale: a second language is a
+  second set of generated files, and "the English one is safe" says nothing
+  about them.
+- **The two layers of hole nest, and getting that wrong is silent.** A catalog
+  string is filled at build time with values that are themselves `{{holes}}` for
+  the adapter. `segments()` in `@hull/i18n` must not cut inside a doubled brace —
+  when it did, React put its comment separators between the pieces and the
+  generated HTML carried `{<!-- -->{brand}<!-- -->}`, a hole `mail_compose` can
+  no longer see. Caught by a test, in a message that had already rendered
+  cleanly.
 - **No runtime editor, deliberately.** An install that can rewrite its own
   password-reset mail while running has a new way to lose account recovery. If
   that changes, it is an ADR — and the template language would need to stay a
@@ -113,8 +136,8 @@ browser test asserting its absence.
 
 ## Gates
 
-`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (104).
-`e2e/` holds 16 browser specs. Keep the split the three mail flows use: what only
+`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (133).
+`e2e/` holds 18 browser specs. Keep the split the three mail flows use: what only
 a browser shows goes in `e2e/`, and single use, expiry, collisions and the
 enumeration guard stay in pytest — cheaper, deterministic, and they do not spend
 credential calls out of the suite's shared rate-limit budget. Each of those flows
