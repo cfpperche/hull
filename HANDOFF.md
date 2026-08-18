@@ -337,14 +337,24 @@ Org isolation, Traefik-in-compose, `config.json` runtime brand, and the session 
   could have three quarters of the disk and took it. `up.sh` rebuilds four
   images every run, so this repo feeds it faster than most.
 
-  The fix is machine-wide and needs a password, so it is the operator's:
-  `/etc/docker/daemon.json` gains a `builder.gc.policy` capping the cache at
-  20 GB with a 20 GB free-space floor, plus `log-opts` so `json-file` stops
-  growing without bound. Validate before restarting — `dockerd --validate
-  --config-file=…` catches a malformed file, and `docker buildx inspect default`
-  after the restart prints the policy actually in force, which is the only way
-  to know it was read. Note that `--validate` checks top-level keys only: a
-  typo *inside* `builder.gc.policy` passes it and is then silently ignored.
+  **`./scripts/docker-limits.sh` does it**, and it is the one script in this repo
+  that writes machine-global state — opt-in, never called by `setup-local.sh`,
+  because `/etc/docker/daemon.json` belongs to every project on the box.
+  `preflight.sh` names it when the cache passes 25 GB and is silent otherwise.
+
+  It merges rather than replaces (this machine's file carried an nvidia runtime),
+  sizes the cap from the actual volume, validates, restarts, reads the policy
+  back out of `docker buildx inspect`, and restores the previous file if the
+  daemon refuses to start.
+
+  That last part is not theoretical. **`dockerd --validate` checks top-level keys
+  only.** A GC rule carrying three `type==` filters passes it and is then refused
+  at startup with `filters expect only one value` — which took Docker down on
+  this machine for every project, not just Hull, on 2026-08-18. The display
+  format of `docker buildx inspect` shows the stock filters comma-joined on one
+  line, and reading that as the *input* format is the trap. The script writes no
+  `filter` key at all, and `--self-test` writes that exact broken config on
+  purpose to prove the rollback still works.
 
   Two things it does not cover. `docker volume prune -f` is safe — it removes
   only anonymous volumes — but **`docker volume prune -a` is not**: this machine

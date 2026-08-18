@@ -36,3 +36,29 @@ fi
 if ! getent hosts "$HOST" >/dev/null 2>&1; then
   echo "WARNING: ${HOST} does not resolve. Run:  sudo $ROOT/scripts/setup-local.sh" >&2
 fi
+
+# BuildKit's stock GC policy is sized from the disk — on 1 TB it allows 750 GiB
+# of build cache — and `up.sh` rebuilds four images every run, so this repo fills
+# it faster than most. Measured 2026-08-18 on this workstation: 71.7 GB, and the
+# cache was nowhere near its limit.
+#
+# The size, not the policy: reading the cap back means parsing
+# `docker buildx inspect`, and the number that actually hurts is on disk. The
+# threshold sits above any cap docker-limits.sh would set, so once that has run
+# this stays quiet instead of nagging forever.
+cache_bytes() {
+  docker system df --format '{{.Type}}|{{.Size}}' 2>/dev/null \
+    | awk -F'|' '$1 == "Build Cache" { print $2 }' \
+    | awk '
+        /GB$/  { printf "%.0f", $0 * 1000000000; exit }
+        /MB$/  { printf "%.0f", $0 * 1000000;    exit }
+        /kB$/  { printf "%.0f", $0 * 1000;       exit }
+        /B$/   { printf "%.0f", $0;              exit }
+      '
+}
+cache="$(cache_bytes || true)"
+if [[ -n "$cache" ]] && (( cache > 25000000000 )); then
+  echo "WARNING: Docker's build cache is $(( cache / 1000000000 ))GB and uncapped." >&2
+  echo "         Reclaim now:  docker builder prune -f" >&2
+  echo "         Cap it:       $ROOT/scripts/docker-limits.sh" >&2
+fi

@@ -64,6 +64,9 @@ the mechanism is the same one every time.
   hatch). A key names a whole phrase, not a fragment; a count takes `t.plural`, not a
   ternary. → [0016](./docs/adr/0016-one-catalog-per-locale-the-server-never-translates.md)
 - Compose project name is **`hull`**. Never `docker run` a Hull process.
+- Nothing in `setup-local.sh` writes machine-global config beyond `/etc/hosts` and the
+  trust store. `scripts/docker-limits.sh` is the one script that touches
+  `/etc/docker/daemon.json`, it is opt-in, and it merges, validates and rolls back.
 - Windows Chrome does not use WSL `/etc/hosts`. `setup-local.sh` on WSL must open UAC (`setup-windows-from-wsl.sh`).
 
 ## Surfaces

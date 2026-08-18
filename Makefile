@@ -1,4 +1,4 @@
-.PHONY: setup up down dev smoke test images migrate brand prune visual qa peer design reset ci ci-e2e
+.PHONY: setup up down dev smoke test images migrate brand prune docker-limits visual qa peer design reset ci ci-e2e
 
 setup:
 	./scripts/setup-local.sh
@@ -42,6 +42,11 @@ ci-e2e:
 
 prune:
 	./scripts/prune.sh
+
+# Machine-global, and the only target here that is. Deliberately not part of
+# `setup`: /etc/docker/daemon.json belongs to every project on the box.
+docker-limits:
+	./scripts/docker-limits.sh
 
 visual:
 	./harness/scripts/capture-ui.sh
