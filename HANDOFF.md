@@ -165,6 +165,20 @@ Everything a person reads comes from `packages/i18n`. `en` and `pt-BR`.
   attribute, child first.
 - **The browser suite is pinned to `en-US`.** Several specs find a control by the
   words on it. `language.spec.ts` opens its own `pt-BR` context.
+- **The seeded `ada@hull.test` reads English in a Portuguese browser, and that is
+  not a bug.** `users.locale` is `NOT NULL DEFAULT 'en'`, so every account that
+  existed when 007 ran holds an answer — and a stored answer is the top rung of
+  the ladder, which is the whole point of it. A *new* signup in a Portuguese
+  browser gets `pt-BR` off the header and Portuguese screens; the fixture
+  predates the column. Sign up rather than sign in as `ada` when demonstrating
+  this.
+
+  Making the column nullable so "never chosen" could fall through to the browser
+  was considered and rejected. Mail has no browser to ask, so a null account
+  would read Portuguese on screen and receive English in its inbox — the
+  half-translated split ADR-0016 exists to remove, moved up one level. The
+  default keeps the screens and the mail agreeing, and the cost is that accounts
+  older than the feature start in English until somebody picks.
 
 ## Gates
 
