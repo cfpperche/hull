@@ -32,7 +32,7 @@ def _signup(client, unique: str, tag: str = "r") -> str:
     email = f"{tag}{unique}@hull.test"
     res = client.post(
         "/v1/auth/signup",
-        json={"username": f"{tag}{unique}", "email": email, "password": "demodemo1"},
+        json={"email": email, "password": "demodemo1"},
     )
     assert res.status_code == 201, res.text
     return email

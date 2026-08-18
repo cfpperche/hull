@@ -35,7 +35,7 @@ def _signup(client, unique: str, tag: str = "s") -> str:
     email = f"{tag}{unique}@hull.test"
     res = client.post(
         "/v1/auth/signup",
-        json={"username": f"{tag}{unique}", "email": email, "password": PASSWORD},
+        json={"email": email, "password": PASSWORD},
     )
     assert res.status_code == 201, res.text
     return email
@@ -238,7 +238,7 @@ def test_a_support_session_is_named_as_one(client, settings, unique: str, outbox
     assert (
         admin.post(
             "/v1/auth/signup",
-            json={"username": f"adm{unique}", "email": admin_email, "password": PASSWORD},
+            json={"email": admin_email, "password": PASSWORD},
         ).status_code
         == 201
     )

@@ -63,7 +63,6 @@ log = logging.getLogger("hull.api")
 
 
 class SignupBody(BaseModel):
-    username: str
     email: str
     password: str
 
@@ -356,7 +355,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             with connection(settings) as conn:
                 body, token = signup(
                     conn,
-                    username=payload.username,
                     email=payload.email,
                     password=payload.password,
                     user_agent=request.headers.get("user-agent"),

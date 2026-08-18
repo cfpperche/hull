@@ -33,7 +33,7 @@ def _signup(client, unique: str, tag: str = "c") -> str:
     email = f"{tag}{unique}@hull.test"
     res = client.post(
         "/v1/auth/signup",
-        json={"username": f"{tag}{unique}", "email": email, "password": PASSWORD},
+        json={"email": email, "password": PASSWORD},
     )
     assert res.status_code == 201, res.text
     return email
@@ -259,7 +259,7 @@ def test_an_address_taken_while_the_link_waited_is_a_conflict(client, unique: st
     client.post("/v1/auth/signout")
     res = client.post(
         "/v1/auth/signup",
-        json={"username": f"r{unique}", "email": contested, "password": PASSWORD},
+        json={"email": contested, "password": PASSWORD},
     )
     assert res.status_code == 201
 

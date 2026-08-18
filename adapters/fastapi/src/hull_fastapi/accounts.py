@@ -361,35 +361,39 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
 def signup(
     conn: psycopg.Connection,
     *,
-    username: str,
     email: str,
     password: str,
     user_agent: str | None = None,
     locale: str | None = None,
 ) -> tuple[dict[str, Any], str]:
+    """Create an account from the least it can be made of.
+
+    No username. The column has been nullable since 001 with a partial unique
+    index, so nothing here had to change for that — what changed is that signup
+    stopped asking. It was the only field on the form that could be refused for a
+    reason that is not the applicant's fault ("already taken") and that carried
+    rules of its own, and a form that can say no is a form people abandon. It is
+    still offered, on the account page, to anyone who wants one.
+    """
     email_n = _require_email(email)
-    uname = _username(username)
     _require_password(password)
     user_id = str(uuid.uuid4())
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO users (id, email, username, password_hash, locale)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO users (id, email, password_hash, locale)
+                VALUES (%s, %s, %s, %s)
                 """,
-                (user_id, email_n, uname, hash_password(password), resolve(locale)),
+                (user_id, email_n, hash_password(password), resolve(locale)),
             )
         token = _insert_session(conn, user_id=user_id, org_id=None, user_agent=user_agent)
         conn.commit()
     except UniqueViolation as exc:
+        # Only one unique column is written here now, so there is nothing to
+        # disambiguate. `username_taken` still exists — `update_profile` raises it
+        # — but it can no longer come out of signup.
         conn.rollback()
-        constraint = getattr(exc, "diag", None)
-        name = getattr(constraint, "constraint_name", "") if constraint else ""
-        if name and "username" in name:
-            raise AccountError(
-                "username_taken", "username is taken", "error.usernameTaken"
-            ) from exc
         raise AccountError("email_taken", "email is taken", "error.emailTaken") from exc
     sess = load_session(conn, token)
     assert sess is not None

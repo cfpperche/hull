@@ -171,12 +171,10 @@ export const en = {
   "auth.goToSignIn": "Go to sign in",
 
   "signup.title": "Create account",
-  "signup.description":
-    "Username, email, password. You name the workspace next.",
-  "signup.username": "Username",
+  "signup.description": "An email and a password. Nothing else.",
   "signup.submit": "Create account",
   "signup.pending": "Creating…",
-  "signup.invalid": "Username, email, and a password of at least 8 characters.",
+  "signup.invalid": "An email address, and a password of at least 8 characters.",
 
   "forgot.title": "Reset your password",
   "forgot.description": "We'll email you a link.",

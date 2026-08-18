@@ -165,13 +165,10 @@ export const ptBR: Catalog = {
   "auth.goToSignIn": "Ir para o login",
 
   "signup.title": "Criar conta",
-  "signup.description":
-    "Nome de usuário, e-mail e senha. O espaço de trabalho você nomeia em seguida.",
-  "signup.username": "Nome de usuário",
+  "signup.description": "Um e-mail e uma senha. Nada além disso.",
   "signup.submit": "Criar conta",
   "signup.pending": "Criando…",
-  "signup.invalid":
-    "Nome de usuário, e-mail e uma senha de pelo menos 8 caracteres.",
+  "signup.invalid": "Um endereço de e-mail e uma senha de pelo menos 8 caracteres.",
 
   "forgot.title": "Redefina sua senha",
   "forgot.description": "Enviaremos um link por e-mail.",

@@ -17,7 +17,6 @@ export function SignupPage() {
   const errMsg = useErrMsg();
   const { refreshMe } = useSession();
   const navigate = useNavigate();
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -27,7 +26,7 @@ export function SignupPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!username.trim() || !email.trim() || password.length < 8) {
+    if (!email.trim() || password.length < 8) {
       setError(t("signup.invalid"));
       return;
     }
@@ -41,11 +40,7 @@ export function SignupPage() {
     }
     setPending(true);
     try {
-      await api.signup({
-        username: username.trim(),
-        email: email.trim(),
-        password,
-      });
+      await api.signup({ email: email.trim(), password });
       await refreshMe();
       navigate("/", { replace: true });
     } catch (err) {
@@ -76,16 +71,6 @@ export function SignupPage() {
       }
     >
       <form className="grid gap-4" onSubmit={(e) => void onSubmit(e)}>
-        <div className="grid gap-1.5">
-          <Label htmlFor="username">{t("signup.username")}</Label>
-          <Input
-            id="username"
-            data-testid="auth-username"
-            autoComplete="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-        </div>
         <div className="grid gap-1.5">
           <Label htmlFor="email">{t("auth.email")}</Label>
           <Input

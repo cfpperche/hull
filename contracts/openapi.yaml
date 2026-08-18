@@ -31,6 +31,11 @@ paths:
       operationId: signup
       security: []
       description: |
+        The least an account can be made of: an address and a password. No
+        username — it was the only field that could be refused for a reason that
+        is not the applicant's fault, and it is offered on `PATCH /v1/me`
+        instead. Nothing about the column changed; signup stopped asking.
+
         The new account's locale is taken from `Accept-Language`, not from the
         body. The welcome mail goes out inside this request, so a client that
         forgot to send one would silently mail a Portuguese reader in English.
@@ -40,9 +45,8 @@ paths:
           application/json:
             schema:
               type: object
-              required: [username, email, password]
+              required: [email, password]
               properties:
-                username: { type: string, pattern: "^[a-z0-9_]{3,24}$" }
                 email: { type: string }
                 password: { type: string, minLength: 8 }
       responses:

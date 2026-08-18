@@ -25,7 +25,7 @@ def _signup(client, unique: str, *, headers: dict[str, str] | None = None) -> st
     email = f"loc{unique}@hull.test"
     res = client.post(
         "/v1/auth/signup",
-        json={"username": f"loc{unique}", "email": email, "password": "demodemo1"},
+        json={"email": email, "password": "demodemo1"},
         headers=headers or {},
     )
     assert res.status_code == 201, res.text

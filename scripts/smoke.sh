@@ -23,13 +23,13 @@ resp=$(mktemp)
 trap 'rm -f "$jar_a" "$jar_b" "$resp"' EXIT
 
 signup() {
-  local jar="$1" user="$2" email="$3"
+  local jar="$1" email="$2"
   curl -fsS -c "$jar" -b "$jar" -H 'content-type: application/json' \
-    -d "{\"username\":\"${user}\",\"email\":\"${email}\",\"password\":\"demodemo1\"}" \
+    -d "{\"email\":\"${email}\",\"password\":\"demodemo1\"}" \
     "${APP}/api/v1/auth/signup" >/dev/null
 }
 
-signup "$jar_a" "a${uniq}" "$a_email"
+signup "$jar_a" "$a_email"
 org=$(curl -fsS -c "$jar_a" -b "$jar_a" -H 'content-type: application/json' \
   -d "{\"name\":\"Smoke ${uniq}\"}" "${APP}/api/v1/orgs")
 org_id=$(printf '%s' "$org" | sed -n 's/.*"org":{"id":"\([^"]*\)".*/\1/p')
@@ -42,7 +42,7 @@ own=$(curl -sS -o /dev/null -w '%{http_code}' -c "$jar_a" -b "$jar_a" \
   -d "{\"id\":\"${org_id}\"}" "${APP}/api/v1/session/org")
 [[ "$own" == "200" ]] || fail "switch to own org expected 200 got ${own}"
 
-signup "$jar_b" "b${uniq}" "$b_email"
+signup "$jar_b" "$b_email"
 body=$(curl -sS -o "$resp" -w '%{http_code}' -c "$jar_b" -b "$jar_b" \
   -H 'content-type: application/json' \
   -d "{\"id\":\"${org_id}\"}" "${APP}/api/v1/session/org")

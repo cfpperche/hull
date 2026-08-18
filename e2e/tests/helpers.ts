@@ -17,16 +17,13 @@ export function unique(tag: string) {
 export function newUser(tag: string) {
   const id =
     `${tag}${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`.toLowerCase();
-  return {
-    username: id.slice(0, 24),
-    email: `${id}@${HOST}`,
-    password: LAB_PASSWORD,
-  };
+  // No username. Signup stopped asking for one, and a helper that still made
+  // them up would keep every spec written against a form that no longer exists.
+  return { email: `${id}@${HOST}`, password: LAB_PASSWORD };
 }
 
 export async function signUp(page: Page, user: ReturnType<typeof newUser>) {
   await page.goto(`${APP}/signup`);
-  await page.getByTestId("auth-username").fill(user.username);
   await page.getByTestId("auth-email").fill(user.email);
   await page.getByTestId("auth-password").fill(user.password);
   await page.getByTestId("auth-password-again").fill(user.password);

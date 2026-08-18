@@ -11,7 +11,6 @@ def _signup(client, unique: str, tag: str = "a") -> str:
     res = client.post(
         "/v1/auth/signup",
         json={
-            "username": f"u{unique}{tag}",
             "email": f"{tag}{unique}@hull.test",
             "password": "demodemo1",
         },
