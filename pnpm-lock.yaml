@@ -245,6 +245,9 @@ importers:
       '@hull/config':
         specifier: workspace:*
         version: link:../config
+      '@hull/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

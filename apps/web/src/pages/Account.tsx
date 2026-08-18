@@ -5,6 +5,7 @@ import {
   ConfirmDialog,
   EmailSection,
   Input,
+  LanguagePreference,
   Label,
   Page,
   PasswordForm,
@@ -53,6 +54,14 @@ export function AccountPage() {
         />
 
         <EmailSection api={api} email={me?.user.email ?? ""} />
+
+        {/* Above Appearance, and separated from it on purpose: the theme is
+            this browser, the language is the account — it follows you to any
+            browser, and it is what the mail is written in. */}
+        <div className="grid gap-2 border-t pt-8">
+          <h2 className="text-sm font-medium">Language</h2>
+          <LanguagePreference api={api} onSaved={async () => void (await refreshMe())} />
+        </div>
 
         <div className="grid gap-2 border-t pt-8">
           <h2 className="text-sm font-medium">Appearance</h2>

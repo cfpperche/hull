@@ -14,6 +14,7 @@ import { en } from "./catalogs/en";
 import { ptBR } from "./catalogs/pt-BR";
 import { LOCALES, DEFAULT_LOCALE, type Locale } from "./locales";
 import { holes } from "./translate";
+import { MANIFEST, current } from "./manifest";
 import { selftest } from "./selftest";
 
 const assertions = selftest();
@@ -31,6 +32,13 @@ for (const key of baseKeys) {
 for (const locale of LOCALES) {
   if (locale === DEFAULT_LOCALE) continue;
   const strings = CATALOGS[locale];
+  // A locale added to LOCALES with no catalog behind it. Reported rather than
+  // left to crash on the first lookup: the stack trace names `check.ts`, which
+  // is the one file that is not the problem.
+  if (!strings) {
+    problems.push(`${locale}: listed in LOCALES but has no catalog in src/catalogs/`);
+    continue;
+  }
 
   for (const key of baseKeys) {
     if (!(key in strings)) {
@@ -56,6 +64,12 @@ for (const locale of LOCALES) {
   for (const key of Object.keys(strings)) {
     if (!(key in base)) problems.push(`${locale}: ${key} is not a key in ${DEFAULT_LOCALE}`);
   }
+}
+
+// The list Python reads. Generated, so the two cannot disagree — but only if
+// somebody reran the build after adding a locale.
+if (!current()) {
+  problems.push(`${MANIFEST} is out of date — run: pnpm --filter @hull/i18n build`);
 }
 
 if (problems.length) {

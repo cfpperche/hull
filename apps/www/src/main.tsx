@@ -2,7 +2,7 @@ import { ThemeProvider } from "next-themes";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { themeStorageKey } from "@hull/config";
-import { BrandGate, useBrand } from "@hull/ui";
+import { BrandGate, LocaleProvider, useBrand } from "@hull/ui";
 import { App } from "./App";
 import "./index.css";
 
@@ -22,7 +22,11 @@ createRoot(root).render(
   <StrictMode>
     <BrandGate>
       <Themed>
-        <App />
+        {/* No session on this host, so there is nothing above the browser's own
+            preference to read. */}
+        <LocaleProvider>
+          <App />
+        </LocaleProvider>
       </Themed>
     </BrandGate>
   </StrictMode>,

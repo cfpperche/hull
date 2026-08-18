@@ -1,0 +1,11 @@
+{
+  "default": "en",
+  "locales": [
+    "en",
+    "pt-BR"
+  ],
+  "names": {
+    "en": "English",
+    "pt-BR": "Português (Brasil)"
+  }
+}

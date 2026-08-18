@@ -46,6 +46,7 @@ from hull_fastapi.accounts import (
 )
 from hull_fastapi.config import Settings
 from hull_fastapi.db import connection
+from hull_fastapi.locales import negotiate
 from hull_fastapi.mail import send_mail
 from hull_fastapi.observe import record_event
 from hull_fastapi.storage import StorageError, delete_avatar, get_avatar, put_avatar, s3_enabled
@@ -82,6 +83,7 @@ class SwitchBody(BaseModel):
 class ProfileBody(BaseModel):
     username: str | None = None
     name: str | None = None
+    locale: str | None = None
 
 
 class PasswordBody(BaseModel):
@@ -333,6 +335,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     email=payload.email,
                     password=payload.password,
                     user_agent=request.headers.get("user-agent"),
+                    # The header, not a field on the body. The welcome mail goes
+                    # out inside this request, so a client that forgot to send a
+                    # locale would silently mail a Portuguese reader in English.
+                    locale=negotiate(request.headers.get("accept-language")),
                 )
                 record_event(
                     conn,
@@ -646,6 +652,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     user_id=sess.user_id,
                     username=payload.username if "username" in sent else None,
                     name=payload.name if "name" in sent else None,
+                    locale=payload.locale if "locale" in sent else None,
                 )
                 loaded = load_session(conn, request.cookies.get(settings.cookie_name) or "")
                 assert loaded is not None

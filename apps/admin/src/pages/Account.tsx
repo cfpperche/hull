@@ -1,4 +1,12 @@
-import { EmailSection, Page, PasswordForm, ProfileForm, SessionList, ThemePreference } from "@hull/ui";
+import {
+  EmailSection,
+  LanguagePreference,
+  Page,
+  PasswordForm,
+  ProfileForm,
+  SessionList,
+  ThemePreference,
+} from "@hull/ui";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
@@ -24,6 +32,11 @@ export function AccountPage() {
         <ProfileForm api={api} me={me} onSaved={async () => void (await refreshMe())} />
 
         <EmailSection api={api} email={me?.user.email ?? ""} />
+
+        <div className="grid gap-2 border-t pt-8">
+          <h2 className="text-sm font-medium">Language</h2>
+          <LanguagePreference api={api} onSaved={async () => void (await refreshMe())} />
+        </div>
 
         <div className="grid gap-2 border-t pt-8">
           <h2 className="text-sm font-medium">Appearance</h2>

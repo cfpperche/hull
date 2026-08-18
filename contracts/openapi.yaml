@@ -30,6 +30,10 @@ paths:
     post:
       operationId: signup
       security: []
+      description: |
+        The new account's locale is taken from `Accept-Language`, not from the
+        body. The welcome mail goes out inside this request, so a client that
+        forgot to send one would silently mail a Portuguese reader in English.
       requestBody:
         required: true
         content:
@@ -307,6 +311,10 @@ paths:
               properties:
                 username: { type: string, pattern: "^[a-z0-9_]{3,24}$" }
                 name: { type: string }
+                # A tag the install does not ship falls back to the default
+                # rather than being refused: it is a reader we cannot serve yet,
+                # not a malformed request.
+                locale: { type: string }
       responses:
         "200":
           description: The updated principal
@@ -643,7 +651,7 @@ components:
         created_at: { type: string, format: date-time }
     User:
       type: object
-      required: [id, email, username, name, has_avatar, email_verified]
+      required: [id, email, username, name, has_avatar, email_verified, locale]
       properties:
         id: { type: string, format: uuid }
         email: { type: string }
@@ -653,6 +661,10 @@ components:
         name: { type: [string, "null"] }
         has_avatar: { type: boolean }
         email_verified: { type: boolean }
+        # One of the locales the install ships. Never null: an account that has
+        # never chosen holds the default, because mail sent to it has to pick a
+        # language with nobody to ask. → ADR-0016
+        locale: { type: string }
     AdminUser:
       type: object
       required: [id, email, username, name, has_avatar, platform_role, created_at]

@@ -24,6 +24,7 @@ def _principal(**over) -> SessionPrincipal:
         "email": "op@hull.test",
         "username": "op",
         "display_name": "Op",
+        "locale": "en",
         "session_org_id": None,
         "org_name": None,
         "platform_role": None,

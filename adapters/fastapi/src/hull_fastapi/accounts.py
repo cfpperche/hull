@@ -12,6 +12,8 @@ from typing import Any
 import psycopg
 from psycopg.errors import UniqueViolation
 
+from hull_fastapi.locales import resolve
+
 SESSION_TTL = timedelta(days=14)
 SUPPORT_TTL = timedelta(minutes=45)
 # The hand-off token only has to survive one redirect.
@@ -174,6 +176,10 @@ class SessionPrincipal:
     email: str
     username: str | None
     display_name: str | None
+    # The language this person reads. Carried on the principal because the mail
+    # sent inside a request goes in the *recipient's* language, and the sender
+    # is usually holding nothing else about them. → ADR-0016
+    locale: str
     # Deliberately not `org_id`. Reading this directly ignores impersonation —
     # go through effective_org_id() instead. The name is awkward on purpose.
     session_org_id: str | None
@@ -237,6 +243,7 @@ def me_body(conn: psycopg.Connection, sess: SessionPrincipal) -> dict[str, Any]:
             "name": sess.display_name,
             "has_avatar": bool(sess.avatar_key),
             "email_verified": sess.email_verified_at is not None,
+            "locale": sess.locale,
         },
         "org": org,
         "orgs": _orgs_for(conn, sess.user_id),
@@ -300,7 +307,7 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
         cur.execute(
             """
             SELECT s.id, s.user_id, u.email, u.username, u.display_name, u.platform_role,
-                   u.avatar_key, u.email_verified_at,
+                   u.avatar_key, u.email_verified_at, u.locale,
                    s.org_id, o.name AS org_name,
                    s.acting_org_id, ao.name AS acting_org_name, s.acting_expires_at, s.expires_at
             FROM sessions s
@@ -326,6 +333,7 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
         email=str(row["email"]),
         username=row["username"],
         display_name=row["display_name"],
+        locale=resolve(row["locale"]),
         session_org_id=str(row["org_id"]) if row["org_id"] else None,
         org_name=row["org_name"],
         platform_role=row["platform_role"],
@@ -344,6 +352,7 @@ def signup(
     email: str,
     password: str,
     user_agent: str | None = None,
+    locale: str | None = None,
 ) -> tuple[dict[str, Any], str]:
     email_n = _require_email(email)
     uname = _username(username)
@@ -353,10 +362,10 @@ def signup(
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO users (id, email, username, password_hash)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO users (id, email, username, password_hash, locale)
+                VALUES (%s, %s, %s, %s, %s)
                 """,
-                (user_id, email_n, uname, hash_password(password)),
+                (user_id, email_n, uname, hash_password(password), resolve(locale)),
             )
         token = _insert_session(conn, user_id=user_id, org_id=None, user_agent=user_agent)
         conn.commit()
@@ -454,7 +463,12 @@ def switch_org(conn: psycopg.Connection, *, user_id: str, org_id: str, raw: str)
 
 
 def update_profile(
-    conn: psycopg.Connection, *, user_id: str, username: str | None, name: str | None
+    conn: psycopg.Connection,
+    *,
+    user_id: str,
+    username: str | None,
+    name: str | None,
+    locale: str | None = None,
 ) -> None:
     """Update only the fields the caller sent.
 
@@ -472,6 +486,11 @@ def update_profile(
             raise AccountError("request_validation_error", "name is too long")
         sets.append("display_name = %s")
         params.append(dname or None)
+    if locale is not None:
+        # resolve(), not a refusal. A tag we do not speak is not a bad request —
+        # it is a reader we cannot serve yet, and the honest answer is English.
+        sets.append("locale = %s")
+        params.append(resolve(locale))
     if not sets:
         return
     params.append(user_id)

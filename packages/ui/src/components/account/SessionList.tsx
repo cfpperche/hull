@@ -2,14 +2,23 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { HullApi, HullSession } from "@hull/api-client";
 import { errMsg } from "@hull/api-client";
+import type { Locale } from "@hull/i18n";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../ui/confirm-dialog";
+import { useLocale } from "../LocaleProvider";
 
-/** "just now" / "4 minutes ago" / "3 days ago", in the viewer's locale. */
-function ago(iso: string): string {
+/**
+ * "just now" / "4 minutes ago" / "3 days ago", in the account's language.
+ *
+ * The locale is passed, never left to default. `Intl.RelativeTimeFormat(undefined)`
+ * takes the *browser's* language, which is how this line came to read
+ * "Last used há 4 minutos" on an otherwise English page — the half-translated
+ * sentence ADR-0016 was written to remove.
+ */
+function ago(iso: string, locale: Locale): string {
   const seconds = Math.round((Date.parse(iso) - Date.now()) / 1000);
   if (Math.abs(seconds) < 60) return "just now";
-  const fmt = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const fmt = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
   const steps: Array<[Intl.RelativeTimeFormatUnit, number]> = [
     ["day", 86400],
     ["hour", 3600],
@@ -33,6 +42,7 @@ export function SessionList({
 }: {
   api: Pick<HullApi, "listSessions" | "revokeSession" | "revokeOtherSessions">;
 }) {
+  const locale = useLocale();
   const [sessions, setSessions] = useState<HullSession[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The id being revoked, or "others" for the bulk action. One value, because
@@ -110,7 +120,7 @@ export function SessionList({
                   {s.support ? <span className="text-muted-foreground"> · support</span> : null}
                 </span>
                 <span className="text-muted-foreground block truncate text-xs">
-                  {s.current ? "This device" : `Last used ${ago(s.last_seen_at)}`}
+                  {s.current ? "This device" : `Last used ${ago(s.last_seen_at, locale)}`}
                 </span>
               </span>
               {/* No revoke on the current row. Ending it is signing out, which

@@ -5,6 +5,10 @@ export type HullUser = {
   name: string | null;
   has_avatar: boolean;
   email_verified: boolean;
+  /** One of the locales the install ships. Never null — an account that has
+   *  never chosen holds the default, because mail sent to it has to pick a
+   *  language with nobody to ask. */
+  locale: string;
 };
 
 export type HullOrg = { id: string; name: string };
@@ -132,7 +136,7 @@ export function createApi(opts: ClientOpts = {}) {
       request<HullMe>(prefix, "/v1/orgs", { method: "POST", body: JSON.stringify(body) }),
     switchOrg: (id: string) =>
       request<HullMe>(prefix, "/v1/session/org", { method: "POST", body: JSON.stringify({ id }) }),
-    updateMe: (body: { username?: string; name?: string }) =>
+    updateMe: (body: { username?: string; name?: string; locale?: string }) =>
       request<HullMe>(prefix, "/v1/me", { method: "PATCH", body: JSON.stringify(body) }),
     listSessions: () => request<{ sessions: HullSession[] }>(prefix, "/v1/me/sessions"),
     revokeSession: (id: string) =>
