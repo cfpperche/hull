@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, createT, type T } from "@hull/i18n";
 import { Layout } from "../Layout";
 
 /**
@@ -5,12 +6,16 @@ import { Layout } from "../Layout";
  * account that somehow arrives already verified. The ordinary path is
  * welcome-verify.tsx, which carries the link.
  */
-export default function Welcome() {
+/* `t` defaults so `pnpm --filter @hull/email dev` still previews these: the
+   react-email dev server mounts each component with no props. The build always
+   passes one, once per locale. */
+export default function Welcome({ t = createT(DEFAULT_LOCALE) }: { t?: T }) {
   return (
     <Layout
-      title="Your account is ready"
-      preview="Name a workspace to continue."
-      lead="Name a workspace to continue."
+      t={t}
+      title={t("mail.welcome.title")}
+      preview={t("mail.welcome.preview")}
+      lead={t("mail.welcome.lead")}
     >
       <></>
     </Layout>

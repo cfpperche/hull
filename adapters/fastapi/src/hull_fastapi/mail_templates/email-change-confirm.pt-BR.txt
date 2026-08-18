@@ -1,0 +1,12 @@
+{{brand}}
+
+
+Confirme seu novo e-mail
+
+Confirme este endereço para que a {{brand}} mova {{old_email}} para ele.
+
+{{link}}
+
+O link funciona uma vez e expira em {{change_hours}} horas. Até lá, {{old_email}} continua sendo o endereço da conta.
+
+{{brand}} · {{host}}

@@ -5,6 +5,7 @@ import { NavLink, Outlet, useLocation } from "react-router";
 import { AppErrorBoundary } from "./AppErrorBoundary";
 import { BrandMark } from "./BrandMark";
 import { cn } from "../lib/utils";
+import { useT } from "./LocaleProvider";
 
 export type ShellNavItem = {
   to: string;
@@ -36,6 +37,7 @@ export function ProductShell({
   nav: ShellNavItem[] | ShellNavGroup[];
   footer?: ReactNode;
 }) {
+  const t = useT();
   const groups: ShellNavGroup[] =
     nav[0] !== undefined && "items" in nav[0]
       ? (nav as ShellNavGroup[])
@@ -52,7 +54,7 @@ export function ProductShell({
         <button
           type="button"
           data-testid="nav-dismiss"
-          aria-label="Close menu"
+          aria-label={t("nav.close")}
           className="fixed inset-0 z-40 bg-black/40 md:hidden"
           onClick={() => setOpen(false)}
         />
@@ -67,14 +69,21 @@ export function ProductShell({
         <div className="shrink-0 px-3 py-3">
           {lead ?? (
             <div className="px-1">
-              <BrandMark brand={brand} mark={mark} hint={typeof brandHint === "string" ? brandHint : undefined} />
+              <BrandMark
+                brand={brand}
+                mark={mark}
+                hint={typeof brandHint === "string" ? brandHint : undefined}
+              />
               {brandHint && typeof brandHint !== "string" ? brandHint : null}
             </div>
           )}
         </div>
         <nav className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-2">
           {groups.map((group, i) => (
-            <div key={group.label ?? `g-${i}`} className="flex flex-col gap-0.5">
+            <div
+              key={group.label ?? `g-${i}`}
+              className="flex flex-col gap-0.5"
+            >
               {group.label ? (
                 <p className="text-muted-foreground px-2 pt-1 text-[10px] font-medium tracking-wide uppercase">
                   {group.label}
@@ -121,7 +130,7 @@ export function ProductShell({
           <button
             type="button"
             data-testid="nav-open"
-            aria-label="Open menu"
+            aria-label={t("nav.open")}
             className="text-foreground hover:bg-muted rounded-md p-1.5"
             onClick={() => setOpen(true)}
           >
@@ -159,9 +168,13 @@ export function Page({
           ) : (
             title
           )}
-          {description ? <p className="text-muted-foreground mt-1 text-sm">{description}</p> : null}
+          {description ? (
+            <p className="text-muted-foreground mt-1 text-sm">{description}</p>
+          ) : null}
         </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+        {actions ? (
+          <div className="flex flex-wrap items-center gap-2">{actions}</div>
+        ) : null}
       </div>
       {children}
     </div>

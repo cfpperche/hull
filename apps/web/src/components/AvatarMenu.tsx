@@ -1,10 +1,11 @@
 import { LogOut, UserRound } from "lucide-react";
 import { useNavigate } from "react-router";
-import { UserMenu } from "@hull/ui";
+import { UserMenu, useT } from "@hull/ui";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export function AvatarMenu() {
+  const t = useT();
   const { me, signOut, avatarVersion } = useSession();
   const navigate = useNavigate();
   const email = me?.user.email ?? "";
@@ -12,7 +13,7 @@ export function AvatarMenu() {
 
   return (
     <UserMenu
-      name={me?.user.name?.trim() || email || "Account"}
+      name={me?.user.name?.trim() || email || t("account.title")}
       handle={me?.user.username ? `@${me.user.username}` : email}
       /* Busted on avatarVersion, not the user id: keying the URL on an immutable
          value meant replacing a photo never changed the src, so the chrome kept
@@ -21,12 +22,17 @@ export function AvatarMenu() {
       initial={(email[0] ?? "?").toUpperCase()}
       items={[
         {
-          label: "Account",
+          label: t("account.title"),
           icon: UserRound,
           testId: "menu-account",
           onSelect: () => navigate("/account"),
         },
-        { label: "Sign out", icon: LogOut, testId: "sign-out", onSelect: () => void signOut() },
+        {
+          label: t("auth.signOut"),
+          icon: LogOut,
+          testId: "sign-out",
+          onSelect: () => void signOut(),
+        },
       ]}
     />
   );

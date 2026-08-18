@@ -6,7 +6,9 @@ test("signup lands in a named workspace", async ({ page }) => {
   await signUp(page, user);
 
   // A user with no membership is asked to name one before seeing the product.
-  await expect(page.getByRole("heading", { name: "Name your workspace" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Name your workspace" }),
+  ).toBeVisible();
   await createFirstOrg(page, "Acme");
 
   await expect(page.getByRole("heading", { name: "Acme" })).toBeVisible();

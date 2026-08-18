@@ -12,6 +12,8 @@ from typing import Any
 import psycopg
 from psycopg.errors import UniqueViolation
 
+from hull_fastapi.locales import resolve
+
 SESSION_TTL = timedelta(days=14)
 SUPPORT_TTL = timedelta(minutes=45)
 # The hand-off token only has to survive one redirect.
@@ -32,10 +34,21 @@ _USERNAME_RE = re.compile(r"^[a-z0-9_]{3,24}$")
 
 
 class AccountError(Exception):
-    def __init__(self, reason_code: str, message: str) -> None:
+    """Something the caller did, named twice.
+
+    `reason_code` is the coarse class the client branches on — six of them, and
+    `unauthenticated` alone covers six different messages, which is exactly why
+    it cannot key a sentence. `key` is the specific one, and it is a key in
+    `packages/i18n`, not a sentence: the browser looks it up in the reader's own
+    language. `message` stays English, as the log line and as the fallback for a
+    client that has not learned this key yet. → ADR-0016
+    """
+
+    def __init__(self, reason_code: str, message: str, key: str) -> None:
         super().__init__(message)
         self.reason_code = reason_code
         self.message = message
+        self.key = key
 
 
 def normalize_email(email: str) -> str:
@@ -84,28 +97,27 @@ def _username(value: str) -> str:
     raw = value.strip().lower()
     if not _USERNAME_RE.match(raw):
         raise AccountError(
-            "request_validation_error", "username must be 3–24 letters, numbers, or _"
+            "request_validation_error",
+            "username must be 3–24 letters, numbers, or _",
+            "error.usernameInvalid",
         )
     return raw
-
-
-def _require_name(value: str, field: str) -> str:
-    name = value.strip()
-    if not name or len(name) > 80:
-        raise AccountError("request_validation_error", f"{field} is required")
-    return name
 
 
 def _require_email(email: str) -> str:
     normalized = normalize_email(email)
     if not normalized or "@" not in normalized:
-        raise AccountError("request_validation_error", "email is required")
+        raise AccountError("request_validation_error", "email is required", "error.emailRequired")
     return normalized
 
 
 def _require_password(password: str) -> None:
     if len(password) < 8:
-        raise AccountError("request_validation_error", "password must be at least 8 characters")
+        raise AccountError(
+            "request_validation_error",
+            "password must be at least 8 characters",
+            "error.passwordTooShort",
+        )
 
 
 # How stale last_seen_at is allowed to get before a request pays for a write.
@@ -117,7 +129,7 @@ SEEN_GRANULARITY = timedelta(minutes=1)
 MAX_USER_AGENT = 400
 
 
-def _device_label(user_agent: str | None) -> str:
+def _device_parts(user_agent: str | None) -> tuple[str | None, str | None]:
     """A short, deliberately dumb reading of a User-Agent string.
 
     Not a parser. User-Agent is a pile of historical lies — every browser claims
@@ -125,10 +137,15 @@ def _device_label(user_agent: str | None) -> str:
     library that keeps up with it is a dependency and a subscription. This answers
     the only question the list is asking, "which of these is the machine in front
     of me", and says so honestly when it cannot tell.
+
+    Returns the two names rather than a sentence. "Chrome on Linux" reads as one
+    string and is really two proper nouns joined by a word — and that word is
+    English. The browser owns the joining, because the browser is where the
+    catalog is. → ADR-0016
     """
     ua = user_agent or ""
     if not ua.strip():
-        return "Unknown device"
+        return None, None
     browser = next(
         (
             name
@@ -160,9 +177,7 @@ def _device_label(user_agent: str | None) -> str:
         ),
         None,
     )
-    if browser and system:
-        return f"{browser} on {system}"
-    return browser or system or "Unknown device"
+    return browser, system
 
 
 @dataclass(frozen=True)
@@ -174,6 +189,10 @@ class SessionPrincipal:
     email: str
     username: str | None
     display_name: str | None
+    # The language this person reads. Carried on the principal because the mail
+    # sent inside a request goes in the *recipient's* language, and the sender
+    # is usually holding nothing else about them. → ADR-0016
+    locale: str
     # Deliberately not `org_id`. Reading this directly ignores impersonation —
     # go through effective_org_id() instead. The name is awkward on purpose.
     session_org_id: str | None
@@ -237,6 +256,7 @@ def me_body(conn: psycopg.Connection, sess: SessionPrincipal) -> dict[str, Any]:
             "name": sess.display_name,
             "has_avatar": bool(sess.avatar_key),
             "email_verified": sess.email_verified_at is not None,
+            "locale": sess.locale,
         },
         "org": org,
         "orgs": _orgs_for(conn, sess.user_id),
@@ -300,7 +320,7 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
         cur.execute(
             """
             SELECT s.id, s.user_id, u.email, u.username, u.display_name, u.platform_role,
-                   u.avatar_key, u.email_verified_at,
+                   u.avatar_key, u.email_verified_at, u.locale,
                    s.org_id, o.name AS org_name,
                    s.acting_org_id, ao.name AS acting_org_name, s.acting_expires_at, s.expires_at
             FROM sessions s
@@ -326,6 +346,7 @@ def load_session(conn: psycopg.Connection, raw: str) -> SessionPrincipal | None:
         email=str(row["email"]),
         username=row["username"],
         display_name=row["display_name"],
+        locale=resolve(row["locale"]),
         session_org_id=str(row["org_id"]) if row["org_id"] else None,
         org_name=row["org_name"],
         platform_role=row["platform_role"],
@@ -344,6 +365,7 @@ def signup(
     email: str,
     password: str,
     user_agent: str | None = None,
+    locale: str | None = None,
 ) -> tuple[dict[str, Any], str]:
     email_n = _require_email(email)
     uname = _username(username)
@@ -353,10 +375,10 @@ def signup(
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO users (id, email, username, password_hash)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO users (id, email, username, password_hash, locale)
+                VALUES (%s, %s, %s, %s, %s)
                 """,
-                (user_id, email_n, uname, hash_password(password)),
+                (user_id, email_n, uname, hash_password(password), resolve(locale)),
             )
         token = _insert_session(conn, user_id=user_id, org_id=None, user_agent=user_agent)
         conn.commit()
@@ -365,8 +387,10 @@ def signup(
         constraint = getattr(exc, "diag", None)
         name = getattr(constraint, "constraint_name", "") if constraint else ""
         if name and "username" in name:
-            raise AccountError("username_taken", "username is taken") from exc
-        raise AccountError("email_taken", "email is taken") from exc
+            raise AccountError(
+                "username_taken", "username is taken", "error.usernameTaken"
+            ) from exc
+        raise AccountError("email_taken", "email is taken", "error.emailTaken") from exc
     sess = load_session(conn, token)
     assert sess is not None
     return me_body(conn, sess), token
@@ -383,7 +407,9 @@ def signin(
     # from a wrong password by response time.
     stored = str(row["password_hash"]) if row else _dummy_password_hash()
     if not verify_password(password, stored) or not row:
-        raise AccountError("unauthenticated", "invalid email or password")
+        raise AccountError(
+            "unauthenticated", "invalid email or password", "error.credentialsInvalid"
+        )
     user_id = str(row["id"])
     with conn.cursor() as cur:
         cur.execute(
@@ -417,7 +443,14 @@ def signout(conn: psycopg.Connection, raw: str) -> None:
 
 
 def create_org(conn: psycopg.Connection, *, user_id: str, name: str, raw: str) -> dict[str, Any]:
-    org_name = _require_name(name, "name")
+    # Inline rather than through a helper, because the helper took its key as a
+    # parameter and `test_error_keys` cannot read a key it cannot see. One caller
+    # and four lines is a cheaper price than a guard with a blind spot.
+    org_name = name.strip()
+    if not org_name or len(org_name) > 80:
+        raise AccountError(
+            "request_validation_error", "workspace name is required", "error.orgNameRequired"
+        )
     org_id = str(uuid.uuid4())
     with conn.cursor() as cur:
         cur.execute("INSERT INTO orgs (id, name) VALUES (%s, %s)", (org_id, org_name))
@@ -442,7 +475,7 @@ def switch_org(conn: psycopg.Connection, *, user_id: str, org_id: str, raw: str)
             (user_id, org_id),
         )
         if not cur.fetchone():
-            raise AccountError("not_found", "workspace not found")
+            raise AccountError("not_found", "workspace not found", "error.orgNotFound")
         cur.execute(
             "UPDATE sessions SET org_id = %s WHERE session_hash = %s",
             (org_id, hash_session(raw)),
@@ -454,7 +487,12 @@ def switch_org(conn: psycopg.Connection, *, user_id: str, org_id: str, raw: str)
 
 
 def update_profile(
-    conn: psycopg.Connection, *, user_id: str, username: str | None, name: str | None
+    conn: psycopg.Connection,
+    *,
+    user_id: str,
+    username: str | None,
+    name: str | None,
+    locale: str | None = None,
 ) -> None:
     """Update only the fields the caller sent.
 
@@ -469,9 +507,14 @@ def update_profile(
     if name is not None:
         dname = name.strip()
         if len(dname) > 80:
-            raise AccountError("request_validation_error", "name is too long")
+            raise AccountError("request_validation_error", "name is too long", "error.nameTooLong")
         sets.append("display_name = %s")
         params.append(dname or None)
+    if locale is not None:
+        # resolve(), not a refusal. A tag we do not speak is not a bad request —
+        # it is a reader we cannot serve yet, and the honest answer is English.
+        sets.append("locale = %s")
+        params.append(resolve(locale))
     if not sets:
         return
     params.append(user_id)
@@ -481,7 +524,7 @@ def update_profile(
         conn.commit()
     except UniqueViolation as exc:
         conn.rollback()
-        raise AccountError("username_taken", "username is taken") from exc
+        raise AccountError("username_taken", "username is taken", "error.usernameTaken") from exc
 
 
 def change_password(
@@ -503,7 +546,9 @@ def change_password(
         cur.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
         row = cur.fetchone()
     if not row or not verify_password(current, str(row["password_hash"])):
-        raise AccountError("unauthenticated", "current password is wrong")
+        raise AccountError(
+            "unauthenticated", "current password is wrong", "error.currentPasswordWrong"
+        )
     with conn.cursor() as cur:
         cur.execute("SELECT org_id FROM sessions WHERE user_id = %s LIMIT 1", (user_id,))
         prev = cur.fetchone()
@@ -516,6 +561,23 @@ def change_password(
     token = _insert_session(conn, user_id=user_id, org_id=org_id, user_agent=user_agent)
     conn.commit()
     return token
+
+
+def user_locale(conn: psycopg.Connection, *, email: str) -> str:
+    """The language the holder of this address reads.
+
+    For the two mails whose sender is holding an address and nothing else: the
+    reset, which arrives unauthenticated, and the "your email was changed"
+    notice, which is triggered by a link click that may carry no session.
+
+    An unknown address answers with the default rather than raising, and that is
+    not an oracle: the caller answers its own request identically either way, and
+    this value only ever picks a template for a message that is not sent.
+    """
+    with conn.cursor() as cur:
+        cur.execute("SELECT locale FROM users WHERE lower(email) = %s", (normalize_email(email),))
+        row = cur.fetchone()
+    return resolve(row["locale"]) if row else resolve(None)
 
 
 def request_password_reset(conn: psycopg.Connection, *, email: str) -> str | None:
@@ -552,7 +614,9 @@ def reset_password(conn: psycopg.Connection, *, raw: str, password: str) -> None
     """
     _require_password(password)
     if not raw:
-        raise AccountError("unauthenticated", "reset link is invalid or expired")
+        raise AccountError(
+            "unauthenticated", "reset link is invalid or expired", "error.resetInvalid"
+        )
     with conn.cursor() as cur:
         # Claim and consume in one statement, like consume_handoff: two clicks on
         # the same link cannot both match `used_at IS NULL`.
@@ -568,7 +632,9 @@ def reset_password(conn: psycopg.Connection, *, raw: str, password: str) -> None
         row = cur.fetchone()
         if not row:
             conn.rollback()
-            raise AccountError("unauthenticated", "reset link is invalid or expired")
+            raise AccountError(
+                "unauthenticated", "reset link is invalid or expired", "error.resetInvalid"
+            )
         user_id = str(row["user_id"])
         cur.execute(
             "UPDATE users SET password_hash = %s WHERE id = %s", (hash_password(password), user_id)
@@ -616,7 +682,9 @@ def request_email_verification(conn: psycopg.Connection, *, user_id: str) -> tup
 def verify_email(conn: psycopg.Connection, *, raw: str) -> str:
     """Redeem a verification link. Returns the address that got confirmed."""
     if not raw:
-        raise AccountError("unauthenticated", "verification link is invalid or expired")
+        raise AccountError(
+            "unauthenticated", "verification link is invalid or expired", "error.verifyInvalid"
+        )
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -630,7 +698,9 @@ def verify_email(conn: psycopg.Connection, *, raw: str) -> str:
         row = cur.fetchone()
         if not row:
             conn.rollback()
-            raise AccountError("unauthenticated", "verification link is invalid or expired")
+            raise AccountError(
+                "unauthenticated", "verification link is invalid or expired", "error.verifyInvalid"
+            )
         user_id, email = str(row["user_id"]), str(row["email"])
         # Only stamp the user if they still hold the address the link was sent to.
         # An address changed between minting and clicking leaves the link spent and
@@ -683,10 +753,12 @@ def request_email_change(
         cur.execute("SELECT email, password_hash FROM users WHERE id = %s", (user_id,))
         row = cur.fetchone()
         if not row or not verify_password(password, str(row["password_hash"])):
-            raise AccountError("unauthenticated", "password is wrong")
+            raise AccountError("unauthenticated", "password is wrong", "error.passwordWrong")
         old_email = str(row["email"])
         if normalize_email(old_email) == new_email:
-            raise AccountError("request_validation_error", "that is already your address")
+            raise AccountError(
+                "request_validation_error", "that is already your address", "error.sameEmail"
+            )
         # Answering "taken" to a signed-in user who has just proved the password
         # is not a new oracle — signup tells anyone at all the same thing. What it
         # buys is that the mail does not go out to somebody else's address.
@@ -694,7 +766,7 @@ def request_email_change(
             "SELECT 1 FROM users WHERE lower(email) = %s AND id <> %s", (new_email, user_id)
         )
         if cur.fetchone():
-            raise AccountError("email_taken", "email is taken")
+            raise AccountError("email_taken", "email is taken", "error.emailTaken")
         raw = new_session_secret()
         cur.execute(
             """
@@ -723,7 +795,9 @@ def confirm_email_change(conn: psycopg.Connection, *, raw: str) -> tuple[str, st
     because they finished the job on their phone.
     """
     if not raw:
-        raise AccountError("unauthenticated", "this link is invalid or expired")
+        raise AccountError(
+            "unauthenticated", "this link is invalid or expired", "error.linkInvalid"
+        )
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -737,7 +811,9 @@ def confirm_email_change(conn: psycopg.Connection, *, raw: str) -> tuple[str, st
         row = cur.fetchone()
         if not row:
             conn.rollback()
-            raise AccountError("unauthenticated", "this link is invalid or expired")
+            raise AccountError(
+                "unauthenticated", "this link is invalid or expired", "error.linkInvalid"
+            )
         user_id = str(row["user_id"])
         new_email, old_email = str(row["new_email"]), str(row["old_email"])
         try:
@@ -754,7 +830,7 @@ def confirm_email_change(conn: psycopg.Connection, *, raw: str) -> tuple[str, st
             # honest — the answer is to ask for a different address, not to be
             # told the link was broken.
             conn.rollback()
-            raise AccountError("email_taken", "email is taken") from exc
+            raise AccountError("email_taken", "email is taken", "error.emailTaken") from exc
         _cancel_email_changes(cur, user_id)
         # Any verification link for the old address dies here too. verify_email
         # already refuses to stamp an address the user no longer holds, so this
@@ -788,10 +864,15 @@ def list_sessions(
             (user_id,),
         )
         rows = cur.fetchall()
-    return [
-        {
+
+    def row(r: Any) -> dict[str, Any]:
+        # Two names, not a phrase. The word that joins them is English, and the
+        # client is where the catalog lives.
+        browser, system = _device_parts(r["user_agent"])
+        return {
             "id": str(r["id"]),
-            "device": _device_label(r["user_agent"]),
+            "browser": browser,
+            "system": system,
             "created_at": r["created_at"].isoformat(),
             "last_seen_at": r["last_seen_at"].isoformat(),
             # A support session is the operator's own, taken to view a customer.
@@ -800,8 +881,8 @@ def list_sessions(
             "support": r["acting_org_id"] is not None,
             "current": str(r["id"]) == current_id,
         }
-        for r in rows
-    ]
+
+    return [row(r) for r in rows]
 
 
 def revoke_session(conn: psycopg.Connection, *, user_id: str, session_id: str) -> None:
@@ -821,7 +902,7 @@ def revoke_session(conn: psycopg.Connection, *, user_id: str, session_id: str) -
         gone = cur.rowcount
     conn.commit()
     if not gone:
-        raise AccountError("not_found", "session not found")
+        raise AccountError("not_found", "session not found", "error.sessionNotFound")
 
 
 def revoke_other_sessions(conn: psycopg.Connection, *, user_id: str, keep_id: str) -> int:
@@ -840,12 +921,12 @@ def close_account(
     conn: psycopg.Connection, *, user_id: str, password: str, platform_role: str | None
 ) -> None:
     if platform_role == "platform_admin":
-        raise AccountError("forbidden", "platform admin cannot close")
+        raise AccountError("forbidden", "platform admin cannot close", "error.adminCannotClose")
     with conn.cursor() as cur:
         cur.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
         row = cur.fetchone()
     if not row or not verify_password(password, str(row["password_hash"])):
-        raise AccountError("unauthenticated", "password is wrong")
+        raise AccountError("unauthenticated", "password is wrong", "error.passwordWrong")
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -871,7 +952,7 @@ def set_avatar_key(conn: psycopg.Connection, *, user_id: str, key: str) -> None:
 
 def require_admin(sess: SessionPrincipal) -> None:
     if sess.platform_role != "platform_admin":
-        raise AccountError("forbidden", "platform admin required")
+        raise AccountError("forbidden", "platform admin required", "error.adminRequired")
 
 
 def list_users(conn: psycopg.Connection) -> list[dict[str, Any]]:
@@ -949,7 +1030,7 @@ def support_start(conn: psycopg.Connection, *, user_id: str, org_id: str) -> str
     with conn.cursor() as cur:
         cur.execute("SELECT id FROM orgs WHERE id = %s", (org_id,))
         if not cur.fetchone():
-            raise AccountError("not_found", "workspace not found")
+            raise AccountError("not_found", "workspace not found", "error.orgNotFound")
         raw = new_session_secret()
         cur.execute(
             """
@@ -973,7 +1054,9 @@ def consume_handoff(
 ) -> tuple[dict[str, Any], str]:
     """Exchange a hand-off token for an impersonating session on this host."""
     if not raw:
-        raise AccountError("unauthenticated", "hand-off link is invalid or expired")
+        raise AccountError(
+            "unauthenticated", "hand-off link is invalid or expired", "error.handoffInvalid"
+        )
     with conn.cursor() as cur:
         # Claim and consume in one statement: two concurrent redemptions of the
         # same token cannot both match `used_at IS NULL`.
@@ -989,7 +1072,9 @@ def consume_handoff(
         row = cur.fetchone()
         if not row:
             conn.rollback()
-            raise AccountError("unauthenticated", "hand-off link is invalid or expired")
+            raise AccountError(
+                "unauthenticated", "hand-off link is invalid or expired", "error.handoffInvalid"
+            )
         user_id = str(row["user_id"])
         org_id = str(row["org_id"])
         # Re-check the role at redemption, not only when the token was minted —
@@ -998,7 +1083,7 @@ def consume_handoff(
         actor = cur.fetchone()
     if not actor or actor["platform_role"] != "platform_admin":
         conn.rollback()
-        raise AccountError("forbidden", "platform admin required")
+        raise AccountError("forbidden", "platform admin required", "error.adminRequired")
     token = _insert_support_session(conn, user_id=user_id, org_id=org_id, user_agent=user_agent)
     conn.commit()
     sess = load_session(conn, token)

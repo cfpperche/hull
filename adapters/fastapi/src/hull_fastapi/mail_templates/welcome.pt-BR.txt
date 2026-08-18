@@ -1,0 +1,8 @@
+{{brand}}
+
+
+Sua conta está pronta
+
+Dê um nome a um espaço de trabalho para continuar.
+
+{{brand}} · {{host}}

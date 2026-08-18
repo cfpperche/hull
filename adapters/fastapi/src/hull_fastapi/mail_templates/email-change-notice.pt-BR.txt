@@ -1,0 +1,14 @@
+{{brand}}
+
+
+O e-mail da sua conta está sendo alterado
+
+Alguém pediu para trocar o e-mail desta conta para {{new_email}}.
+
+Nada mudou ainda — {{old_email}} continua entrando na conta, e a troca só acontece se o novo endereço confirmar.
+
+----------------------------------------
+
+Se não foi você, troque sua senha agora. Isso cancela o pedido e encerra todas as outras sessões.
+
+{{brand}} · {{host}}

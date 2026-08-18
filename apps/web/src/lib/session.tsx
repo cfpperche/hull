@@ -1,4 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import type { HullMe } from "@hull/api-client";
 import { ApiError } from "@hull/api-client";
 import { api } from "./api";
@@ -44,12 +51,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void refreshMe().catch(() => setMe(null)).finally(() => setReady(true));
+    void refreshMe()
+      .catch(() => setMe(null))
+      .finally(() => setReady(true));
   }, [refreshMe]);
 
   return (
     <Session.Provider
-      value={{ ready, me, signedIn: Boolean(me), refreshMe, signOut, avatarVersion, bumpAvatar }}
+      value={{
+        ready,
+        me,
+        signedIn: Boolean(me),
+        refreshMe,
+        signOut,
+        avatarVersion,
+        bumpAvatar,
+      }}
     >
       {children}
     </Session.Provider>

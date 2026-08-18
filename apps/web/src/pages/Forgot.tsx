@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { errMsg } from "@hull/api-client";
-import { AuthScreen, Button, Input, Label, useBrand } from "@hull/ui";
+import {
+  AuthScreen,
+  Button,
+  Input,
+  Label,
+  useBrand,
+  useT,
+  useErrMsg,
+} from "@hull/ui";
 import { api } from "../lib/api";
 
 /**
@@ -12,6 +19,8 @@ import { api } from "../lib/api";
  * harness/action-feedback.md refuses.
  */
 export function ForgotPage() {
+  const t = useT();
+  const errMsg = useErrMsg();
   const { brand, mark } = useBrand();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -39,16 +48,20 @@ export function ForgotPage() {
       <AuthScreen
         brand={brand}
         mark={mark}
-        title="Check your email"
-        description="If that address has an account, a reset link is on its way."
+        title={t("forgot.sentTitle")}
+        description={t("forgot.sentDescription")}
         footer={
-          <Link to="/signin" className="text-foreground underline" data-testid="forgot-to-signin">
-            Back to sign in
+          <Link
+            to="/signin"
+            className="text-foreground underline"
+            data-testid="forgot-to-signin"
+          >
+            {t("auth.backToSignIn")}
           </Link>
         }
       >
         <p className="text-muted-foreground text-sm" data-testid="forgot-sent">
-          The link works once and expires in 30 minutes. Nothing has changed until you use it.
+          {t("forgot.sentBody")}
         </p>
       </AuthScreen>
     );
@@ -58,17 +71,21 @@ export function ForgotPage() {
     <AuthScreen
       brand={brand}
       mark={mark}
-      title="Reset your password"
-      description="We'll email you a link."
+      title={t("forgot.title")}
+      description={t("forgot.description")}
       footer={
-        <Link to="/signin" className="text-foreground underline" data-testid="forgot-to-signin">
-          Back to sign in
+        <Link
+          to="/signin"
+          className="text-foreground underline"
+          data-testid="forgot-to-signin"
+        >
+          {t("auth.backToSignIn")}
         </Link>
       }
     >
       <form className="grid gap-4" onSubmit={(e) => void onSubmit(e)}>
         <div className="grid gap-1.5">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t("auth.email")}</Label>
           <Input
             id="email"
             data-testid="forgot-email"
@@ -80,7 +97,7 @@ export function ForgotPage() {
         </div>
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
         <Button type="submit" data-testid="forgot-submit" disabled={pending}>
-          {pending ? "Sending…" : "Send the link"}
+          {pending ? t("forgot.pending") : t("forgot.submit")}
         </Button>
       </form>
     </AuthScreen>

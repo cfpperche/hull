@@ -18,6 +18,7 @@ Read **`HANDOFF.md`** first for what exists and what is next.
 | [`harness/qa.md`](./harness/qa.md) | Exploring a live install mid-task, carrying state. Not CI. |
 | [`harness/peer.md`](./harness/peer.md) | Asking one of the other two agents — delegation, audit, adversarial review. Not CI. |
 | [`packages/email/`](./packages/email/) | The mail bodies, as react-email JSX. Rendered at build time; never at runtime. |
+| [`packages/i18n/`](./packages/i18n/) | Every user-visible string, one catalog per locale. Screens, mail and errors all read this one. |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Update under `[Unreleased]` before every push to `main`. |
 
 Agent operating model (who plans, who implements, who reviews) is **not defined**.
@@ -54,8 +55,14 @@ the mechanism is the same one every time.
 - Objects: **User** = login, **Org** = workspace, **Install** = this compose. No Company/Store. → [`docs/domain.md`](./docs/domain.md)
 - Support impersonates an **org**. Do not mint the customer's session. → [`docs/domain.md`](./docs/domain.md)
 - Mail bodies are **react-email JSX** in `packages/email`, rendered into the adapter by
-  `pnpm --filter @hull/email build`. Do not hand-edit `hull_fastapi/mail_templates/` — it is
-  generated, and CI fails when it has drifted. No runtime editor, no Node behind SMTP.
+  `pnpm --filter @hull/email build` — once per locale, subject included. Do not hand-edit
+  `hull_fastapi/mail_templates/` — it is generated, and CI fails when it has drifted. No
+  runtime editor, no Node behind SMTP. A message goes in the **recipient's** language.
+- Every user-visible string lives in `packages/i18n`, one catalog per locale. The server
+  **never translates** — it picks a pre-rendered file. No i18n library; completeness is a
+  build gate, and so is text typed straight into a screen (`// i18n-ignore` is the escape
+  hatch). A key names a whole phrase, not a fragment; a count takes `t.plural`, not a
+  ternary. → [0016](./docs/adr/0016-one-catalog-per-locale-the-server-never-translates.md)
 - Compose project name is **`hull`**. Never `docker run` a Hull process.
 - Windows Chrome does not use WSL `/etc/hosts`. `setup-local.sh` on WSL must open UAC (`setup-windows-from-wsl.sh`).
 

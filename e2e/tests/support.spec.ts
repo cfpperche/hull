@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { ADMIN, APP, LAB_PASSWORD, createFirstOrg, newUser, signIn, signUp, unique } from "./helpers";
+import {
+  ADMIN,
+  APP,
+  LAB_PASSWORD,
+  createFirstOrg,
+  newUser,
+  signIn,
+  signUp,
+  unique,
+} from "./helpers";
 
 /**
  * The hand-off. The session cookie is host-scoped, so admin.<host> cannot carry a
@@ -7,7 +16,9 @@ import { ADMIN, APP, LAB_PASSWORD, createFirstOrg, newUser, signIn, signUp, uniq
  * This flow crosses two origins, a token exchange and a redirect — none of which
  * an API test observes.
  */
-test("View as opens the workspace, and Stop returns to the console", async ({ page }) => {
+test("View as opens the workspace, and Stop returns to the console", async ({
+  page,
+}) => {
   const customer = newUser("sup");
   await signUp(page, customer);
   const org = unique("Customer Co");
@@ -15,7 +26,12 @@ test("View as opens the workspace, and Stop returns to the console", async ({ pa
   await page.getByTestId("user-menu").click();
   await page.getByTestId("sign-out").click();
 
-  await signIn(page, ADMIN, `admin@${process.env.HULL_HOST ?? "hull.test"}`, LAB_PASSWORD);
+  await signIn(
+    page,
+    ADMIN,
+    `admin@${process.env.HULL_HOST ?? "hull.test"}`,
+    LAB_PASSWORD,
+  );
   await page.goto(`${ADMIN}/orgs`);
 
   const row = page.getByRole("row", { name: org });
@@ -37,7 +53,10 @@ test("View as opens the workspace, and Stop returns to the console", async ({ pa
 
 test("a hand-off link cannot be replayed", async ({ page, playwright }) => {
   const host = process.env.HULL_HOST ?? "hull.test";
-  const admin = await playwright.request.newContext({ baseURL: ADMIN, ignoreHTTPSErrors: true });
+  const admin = await playwright.request.newContext({
+    baseURL: ADMIN,
+    ignoreHTTPSErrors: true,
+  });
   await admin.post("/api/v1/auth/signin", {
     data: { email: `admin@${host}`, password: LAB_PASSWORD },
   });
@@ -53,7 +72,9 @@ test("a hand-off link cannot be replayed", async ({ page, playwright }) => {
   // Same token, second browser context.
   await page.context().clearCookies();
   await page.goto(`${APP}/handoff#t=${encodeURIComponent(handoff)}`);
-  await expect(page.getByText("hand-off link is invalid or expired")).toBeVisible();
+  await expect(
+    page.getByText("hand-off link is invalid or expired"),
+  ).toBeVisible();
   await admin.dispose();
 });
 

@@ -71,6 +71,13 @@ services:
       RUSTFS_OBS_LOGGER_LEVEL: error
     volumes:
       - hull_s3_data:/data
+      # /logs is a VOLUME in the image. Unmounted, every container recreate
+      # strands another anonymous volume — `up.sh` recreates on every build, so
+      # they accumulate one per run and nothing ever reads them. tmpfs rather
+      # than a named volume because they are logs of a lab S3 at level=error:
+      # worth having while the container is up, worth nothing after it.
+      - type: tmpfs
+        target: /logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/health"]
       interval: 2s
@@ -225,6 +232,12 @@ services:
       PORT_hull: "5432"
       DATABASE_hull: ${HULL_POSTGRES_DB:-hull}
       ENGINE_hull: postgres@dbgate-plugin-postgres
+    volumes:
+      # Named, for the same reason as rustfs above: /root/.dbgate is a VOLUME in
+      # the image, and unmounted it strands one anonymous volume per recreate.
+      # Named rather than tmpfs because saved queries live here, and losing them
+      # on every `up.sh` is its own small tax.
+      - hull_dbgate_data:/root/.dbgate
     networks: [hull]
 
   dns:
@@ -254,3 +267,5 @@ volumes:
     name: hull_s3_data
   hull_test_pg_data:
     name: hull_test_pg_data
+  hull_dbgate_data:
+    name: hull_dbgate_data

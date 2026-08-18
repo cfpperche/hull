@@ -1,24 +1,25 @@
-import { Divider, Layout, P } from "../Layout";
+import { DEFAULT_LOCALE, createT, type T } from "@hull/i18n";
+import { Divider, Fill, Layout, P } from "../Layout";
 import { V } from "../vars";
 
 /** To the old address, after the move. The last mail it will get. No button, for
  *  the same reason as the notice. */
-export default function EmailChanged() {
+export default function EmailChanged({ t = createT(DEFAULT_LOCALE) }: { t?: T }) {
   return (
     <Layout
-      title="Your email was changed"
-      preview={`This account now signs in as ${V.newEmail}.`}
+      t={t}
+      title={t("mail.changed.title")}
+      preview={t("mail.changed.preview", { newEmail: V.newEmail })}
       lead={
-        <>
-          This account now signs in as <strong>{V.newEmail}</strong>.
-        </>
+        <Fill
+          parts={t.parts("mail.changed.lead")}
+          nodes={{ newEmail: <strong>{V.newEmail}</strong> }}
+        />
       }
     >
-      <P>{V.oldEmail} no longer reaches it, including for password reset.</P>
+      <P>{t("mail.changed.body", { oldEmail: V.oldEmail })}</P>
       <Divider />
-      <P>
-        If this was not you, contact support — you cannot undo it from here any more.
-      </P>
+      <P>{t("mail.changed.warn")}</P>
     </Layout>
   );
 }

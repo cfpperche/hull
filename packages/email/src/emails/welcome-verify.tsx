@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, createT, type T } from "@hull/i18n";
 import { Button, FallbackLink, Layout, P } from "../Layout";
 import { V } from "../vars";
 
@@ -6,17 +7,18 @@ import { V } from "../vars";
  * arriving together is the pair people learn to ignore, and the link is the only
  * part of either that does anything.
  */
-export default function WelcomeVerify() {
+export default function WelcomeVerify({ t = createT(DEFAULT_LOCALE) }: { t?: T }) {
   return (
     <Layout
-      title="Your account is ready"
-      preview="Name a workspace to continue."
-      lead="Name a workspace to continue."
+      t={t}
+      title={t("mail.welcome.title")}
+      preview={t("mail.welcome.preview")}
+      lead={t("mail.welcome.lead")}
     >
-      <P>Confirm this is your address so we can reach you about the account.</P>
-      <Button href={V.link}>Confirm email</Button>
-      <FallbackLink href={V.link} />
-      <P muted>The link works once and expires in {V.verifyDays} days.</P>
+      <P>{t("mail.welcome.confirm")}</P>
+      <Button href={V.link}>{t("mail.verify.button")}</Button>
+      <FallbackLink t={t} href={V.link} />
+      <P muted>{t("mail.verify.expiry", { days: V.verifyDays })}</P>
     </Layout>
   );
 }

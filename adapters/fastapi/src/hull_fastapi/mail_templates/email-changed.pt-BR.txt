@@ -1,0 +1,14 @@
+{{brand}}
+
+
+O e-mail da sua conta foi alterado
+
+Esta conta agora entra como {{new_email}}.
+
+{{old_email}} não alcança mais esta conta, nem para redefinir a senha.
+
+----------------------------------------
+
+Se não foi você, fale com o suporte — não dá mais para desfazer isto por aqui.
+
+{{brand}} · {{host}}

@@ -22,6 +22,12 @@ pnpm typecheck
 step "email templates match their JSX"
 pnpm --filter @hull/email check
 
+# Every locale has to answer for every key, and answer with the same holes in
+# the sentence. TypeScript catches the missing key; only this catches a
+# translation that quietly dropped `{oldEmail}` out of the middle of one.
+step "the catalogs agree"
+pnpm --filter @hull/i18n check
+
 step "build the three surfaces"
 for app in www web admin; do
   pnpm --filter "@hull/${app}" build

@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 import type { APIRequestContext } from "@playwright/test";
-import { APP, HOST, expectTokenStripped, newUser, signIn, signUp } from "./helpers";
+import {
+  APP,
+  HOST,
+  expectTokenStripped,
+  newUser,
+  signIn,
+  signUp,
+} from "./helpers";
 
 /**
  * Forgotten password.
@@ -22,15 +29,22 @@ import { APP, HOST, expectTokenStripped, newUser, signIn, signUp } from "./helpe
  * moment after the API answers, so "newest" is a race that lands on the welcome
  * mail and reports a missing link that is merely late.
  */
-async function resetLinkFor(request: APIRequestContext, address: string): Promise<string> {
+async function resetLinkFor(
+  request: APIRequestContext,
+  address: string,
+): Promise<string> {
   const wanted = /https:\/\/\S*\/reset#\S+/;
   for (let attempt = 0; attempt < 20; attempt++) {
-    const list = await (await request.get(`https://mail.${HOST}/api/v1/messages?limit=50`)).json();
+    const list = await (
+      await request.get(`https://mail.${HOST}/api/v1/messages?limit=50`)
+    ).json();
     const mine = list.messages.filter((m: { To: { Address: string }[] }) =>
       m.To.some((t) => t.Address.toLowerCase() === address.toLowerCase()),
     );
     for (const m of mine) {
-      const full = await (await request.get(`https://mail.${HOST}/api/v1/message/${m.ID}`)).json();
+      const full = await (
+        await request.get(`https://mail.${HOST}/api/v1/message/${m.ID}`)
+      ).json();
       const found = wanted.exec(full.Text as string);
       if (found) return found[0];
     }
@@ -39,7 +53,10 @@ async function resetLinkFor(request: APIRequestContext, address: string): Promis
   throw new Error(`no reset link mailed to ${address}`);
 }
 
-test("a forgotten password can be reset from the emailed link", async ({ page, playwright }) => {
+test("a forgotten password can be reset from the emailed link", async ({
+  page,
+  playwright,
+}) => {
   const user = newUser("pwr");
   await signUp(page, user);
   await page.getByTestId("org-name").waitFor();
@@ -77,7 +94,9 @@ test("a forgotten password can be reset from the emailed link", async ({ page, p
   await mail.dispose();
 });
 
-test("asking for a link says nothing about whether the account exists", async ({ page }) => {
+test("asking for a link says nothing about whether the account exists", async ({
+  page,
+}) => {
   await page.goto(`${APP}/forgot`);
   await page.getByTestId("forgot-email").fill(`nobody-${Date.now()}@${HOST}`);
   await page.getByTestId("forgot-submit").click();

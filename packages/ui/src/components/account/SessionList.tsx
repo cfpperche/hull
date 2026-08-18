@@ -1,24 +1,46 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { HullApi, HullSession } from "@hull/api-client";
-import { errMsg } from "@hull/api-client";
+import type { Locale, T } from "@hull/i18n";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../ui/confirm-dialog";
+import { useLocale, useErrMsg, useT } from "../LocaleProvider";
 
-/** "just now" / "4 minutes ago" / "3 days ago", in the viewer's locale. */
-function ago(iso: string): string {
+/**
+ * "just now" / "4 minutes ago" / "3 days ago", in the account's language.
+ *
+ * The locale is passed, never left to default. `Intl.RelativeTimeFormat(undefined)`
+ * takes the *browser's* language, which is how this line came to read
+ * "Last used há 4 minutos" on an otherwise English page — the half-translated
+ * sentence ADR-0016 was written to remove.
+ */
+function ago(iso: string, locale: Locale, justNow: string): string {
   const seconds = Math.round((Date.parse(iso) - Date.now()) / 1000);
-  if (Math.abs(seconds) < 60) return "just now";
-  const fmt = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  if (Math.abs(seconds) < 60) return justNow;
+  const fmt = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
   const steps: Array<[Intl.RelativeTimeFormatUnit, number]> = [
     ["day", 86400],
     ["hour", 3600],
     ["minute", 60],
   ];
   for (const [unit, size] of steps) {
-    if (Math.abs(seconds) >= size) return fmt.format(Math.round(seconds / size), unit);
+    if (Math.abs(seconds) >= size)
+      return fmt.format(Math.round(seconds / size), unit);
   }
-  return "just now";
+  return justNow;
+}
+
+/**
+ * "Chrome on Linux", assembled here rather than on the server.
+ *
+ * Both halves are proper nouns and neither is translated; the word between them
+ * is, which is the whole reason the API answers with two names instead of a
+ * sentence.
+ */
+function deviceName(s: HullSession, t: T): string {
+  if (s.browser && s.system)
+    return t("sessions.device", { browser: s.browser, system: s.system });
+  return s.browser ?? s.system ?? t("sessions.unknownDevice");
 }
 
 /**
@@ -33,6 +55,9 @@ export function SessionList({
 }: {
   api: Pick<HullApi, "listSessions" | "revokeSession" | "revokeOtherSessions">;
 }) {
+  const t = useT();
+  const errMsg = useErrMsg();
+  const locale = useLocale();
   const [sessions, setSessions] = useState<HullSession[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The id being revoked, or "others" for the bulk action. One value, because
@@ -62,7 +87,7 @@ export function SessionList({
       // "where am I signed in", and a client-side guess is exactly the thing
       // somebody checking it does not want.
       await load();
-      toast.success("Session ended");
+      toast.success(t("sessions.ended"));
     } catch (err) {
       setError(errMsg(err));
     } finally {
@@ -76,7 +101,7 @@ export function SessionList({
       await api.revokeOtherSessions();
       setConfirmOthers(false);
       await load();
-      toast.success("Signed out everywhere else");
+      toast.success(t("sessions.revokeOthers.done"));
     } catch (err) {
       setConfirmOthers(false);
       setError(errMsg(err));
@@ -89,13 +114,11 @@ export function SessionList({
 
   return (
     <div className="grid gap-4 border-t pt-8">
-      <h2 className="text-sm font-medium">Where you are signed in</h2>
-      <p className="text-muted-foreground text-sm">
-        Signing in on another device does not end this one. End anything you do not recognise.
-      </p>
+      <h2 className="text-sm font-medium">{t("sessions.title")}</h2>
+      <p className="text-muted-foreground text-sm">{t("sessions.blurb")}</p>
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
       {sessions === null ? (
-        <p className="text-muted-foreground text-sm">Loading…</p>
+        <p className="text-muted-foreground text-sm">{t("app.loading")}</p>
       ) : (
         <ul className="grid gap-2" data-testid="session-list">
           {sessions.map((s) => (
@@ -106,11 +129,19 @@ export function SessionList({
             >
               <span className="min-w-0">
                 <span className="block truncate text-sm">
-                  {s.device}
-                  {s.support ? <span className="text-muted-foreground"> · support</span> : null}
+                  {deviceName(s, t)}
+                  {s.support ? (
+                    <span className="text-muted-foreground">
+                      {t("sessions.support")}
+                    </span>
+                  ) : null}
                 </span>
                 <span className="text-muted-foreground block truncate text-xs">
-                  {s.current ? "This device" : `Last used ${ago(s.last_seen_at)}`}
+                  {s.current
+                    ? t("sessions.thisDevice")
+                    : t("sessions.lastUsed", {
+                        ago: ago(s.last_seen_at, locale, t("sessions.justNow")),
+                      })}
                 </span>
               </span>
               {/* No revoke on the current row. Ending it is signing out, which
@@ -125,7 +156,7 @@ export function SessionList({
                   disabled={busy !== null}
                   onClick={() => void revoke(s)}
                 >
-                  {busy === s.id ? "Ending…" : "End"}
+                  {busy === s.id ? t("sessions.ending") : t("sessions.end")}
                 </Button>
               )}
             </li>
@@ -144,7 +175,7 @@ export function SessionList({
           disabled={busy !== null}
           onClick={() => setConfirmOthers(true)}
         >
-          Sign out everywhere else
+          {t("sessions.revokeOthers")}
         </Button>
       ) : null}
 
@@ -154,15 +185,14 @@ export function SessionList({
       <ConfirmDialog
         open={confirmOthers}
         onOpenChange={setConfirmOthers}
-        title="Sign out everywhere else?"
-        description={
-          <>
-            This ends {others} other {others === 1 ? "session" : "sessions"}. This device stays
-            signed in. Anyone using those devices will have to sign in again.
-          </>
-        }
-        confirmLabel="Sign out everywhere else"
-        pendingLabel="Ending…"
+        title={t("sessions.revokeOthers.confirmTitle")}
+        /* The whole sentence per plural form, not "session"/"sessions" glued to
+           a number: English pluralises the noun and nothing else, and assuming
+           that is how it works everywhere is how a catalog becomes
+           untranslatable one convenience at a time. */
+        description={t.plural("sessions.revokeOthers.confirmBody", others)}
+        confirmLabel={t("sessions.revokeOthers")}
+        pendingLabel={t("sessions.ending")}
         pending={busy === "others"}
         onConfirm={() => void revokeOthers()}
       />

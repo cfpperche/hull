@@ -1,0 +1,14 @@
+{{brand}}
+
+
+Sua conta está pronta
+
+Dê um nome a um espaço de trabalho para continuar.
+
+Confirme que este endereço é seu para que possamos falar com você sobre a conta.
+
+{{link}}
+
+O link funciona uma vez e expira em {{verify_days}} dias.
+
+{{brand}} · {{host}}

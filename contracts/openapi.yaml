@@ -30,6 +30,10 @@ paths:
     post:
       operationId: signup
       security: []
+      description: |
+        The new account's locale is taken from `Accept-Language`, not from the
+        body. The welcome mail goes out inside this request, so a client that
+        forgot to send one would silently mail a Portuguese reader in English.
       requestBody:
         required: true
         content:
@@ -228,15 +232,22 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [id, device, created_at, last_seen_at, support, current]
+                      required:
+                        [id, browser, system, created_at, last_seen_at, support, current]
                       properties:
                         id: { type: string, format: uuid }
-                        device:
-                          type: string
+                        browser:
+                          type: [string, "null"]
                           description: >
-                            A short reading of the User-Agent, e.g. "Chrome on
-                            Windows", or "Unknown device". Not a promise about
+                            A short reading of the User-Agent, e.g. "Chrome".
+                            Null when it could not be read. Not a promise about
                             the client — User-Agent is self-reported.
+                        system:
+                          type: [string, "null"]
+                          description: >
+                            e.g. "Windows". Two names rather than one phrase:
+                            "Chrome on Windows" joins them with an English word,
+                            and the client is where the catalog lives.
                         created_at: { type: string, format: date-time }
                         last_seen_at:
                           type: string
@@ -307,6 +318,10 @@ paths:
               properties:
                 username: { type: string, pattern: "^[a-z0-9_]{3,24}$" }
                 name: { type: string }
+                # A tag the install does not ship falls back to the default
+                # rather than being refused: it is a reader we cannot serve yet,
+                # not a malformed request.
+                locale: { type: string }
       responses:
         "200":
           description: The updated principal
@@ -609,14 +624,26 @@ components:
     Problem:
       description: RFC 7807. `status` always equals the HTTP status of the response.
       type: object
-      required: [title, detail, status, reason_code]
+      required: [title, detail, status, reason_code, message_key]
       properties:
         type: { type: string }
         title: { type: string }
-        detail: { type: string }
+        detail:
+          description: >
+            The message, in English. A log line and a fallback — anything a
+            person reads should come from `message_key` instead.
+          type: string
         status: { type: integer }
+        message_key:
+          description: >
+            The specific message, named rather than written: a key in
+            `packages/i18n`, which the client resolves in the reader's own
+            language. Separate from `reason_code` because that is far too coarse
+            to key a sentence — `unauthenticated` alone covers six of them. Null
+            only for a failure that never produced a problem document.
+          type: [string, "null"]
         reason_code:
-          description: The stable member clients branch on.
+          description: The stable member clients branch on. A class, not a message.
           type: string
           enum:
             - unauthenticated
@@ -643,7 +670,7 @@ components:
         created_at: { type: string, format: date-time }
     User:
       type: object
-      required: [id, email, username, name, has_avatar, email_verified]
+      required: [id, email, username, name, has_avatar, email_verified, locale]
       properties:
         id: { type: string, format: uuid }
         email: { type: string }
@@ -653,6 +680,10 @@ components:
         name: { type: [string, "null"] }
         has_avatar: { type: boolean }
         email_verified: { type: boolean }
+        # One of the locales the install ships. Never null: an account that has
+        # never chosen holds the default, because mail sent to it has to pick a
+        # language with nobody to ask. → ADR-0016
+        locale: { type: string }
     AdminUser:
       type: object
       required: [id, email, username, name, has_avatar, platform_role, created_at]

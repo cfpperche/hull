@@ -36,6 +36,7 @@ and then the thing it prevented arrives anyway with nothing written down.
 | [0013](0013-agentic-qa-harness.md) | An agentic QA harness that starts dirty | Accepted |
 | [0014](0014-cli-peer-harness-for-the-three-agents.md) | A CLI peer harness, so the three agents can ask each other | Accepted |
 | [0015](0015-design-harness-is-decoupled-and-not-a-gate.md) | A multi-agent design harness, decoupled, and not a gate | Accepted |
+| [0016](0016-one-catalog-per-locale-the-server-never-translates.md) | One catalog per locale; the server never translates | Accepted |
 
 Business rules and the object model are not decisions — they are in
 [`docs/domain.md`](../domain.md).

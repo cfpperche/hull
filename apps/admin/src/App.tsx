@@ -1,7 +1,14 @@
-import { Building2, Database, HardDrive, LayoutDashboard, Mail, Users } from "lucide-react";
+import {
+  Building2,
+  Database,
+  HardDrive,
+  LayoutDashboard,
+  Mail,
+  Users,
+} from "lucide-react";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { labOrigin, originFor } from "@hull/config";
-import { ProductShell, useBrand } from "@hull/ui";
+import { ProductShell, useBrand, useT } from "@hull/ui";
 import { OperatorMenu } from "./components/OperatorMenu";
 import { useSession } from "./lib/session";
 import { AccountPage } from "./pages/Account";
@@ -20,13 +27,23 @@ export function App() {
 }
 
 function AdminApp() {
+  const t = useT();
   const { brand, mark, host } = useBrand();
   const { ready, signedIn, me } = useSession();
-  if (!ready) return <div className="text-muted-foreground p-8 text-sm">Loading…</div>;
+  if (!ready)
+    return (
+      <div className="text-muted-foreground p-8 text-sm">
+        {t("app.loading")}
+      </div>
+    );
   if (!signedIn) return <SigninPage />;
   if (me?.platform_role !== "platform_admin") {
     window.location.assign(originFor("web"));
-    return <div className="text-muted-foreground p-8 text-sm">Redirecting…</div>;
+    return (
+      <div className="text-muted-foreground p-8 text-sm">
+        {t("admin.redirecting")}
+      </div>
+    );
   }
   return (
     <Routes>
@@ -35,24 +52,44 @@ function AdminApp() {
           <ProductShell
             brand={brand}
             mark={mark}
-            brandHint="Admin"
+            brandHint={t("admin.title")}
             nav={[
               {
                 items: [
-                  { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
-                  { to: "/users", label: "Users", icon: Users },
-                  { to: "/orgs", label: "Workspaces", icon: Building2 },
+                  {
+                    to: "/",
+                    label: t("admin.nav.overview"),
+                    icon: LayoutDashboard,
+                    end: true,
+                  },
+                  { to: "/users", label: t("admin.nav.users"), icon: Users },
+                  { to: "/orgs", label: t("admin.nav.orgs"), icon: Building2 },
                 ],
               },
               {
                 // The services compose brings up next to the product. Hosts come
                 // from /config.json, so a white-label apex follows without a
                 // rebuild. Admin only — these are operator tools.
-                label: "Lab",
+                label: t("admin.nav.lab"),
                 items: [
-                  { to: labOrigin("mail", host), label: "Mail", icon: Mail, external: true },
-                  { to: labOrigin("objects", host), label: "Objects", icon: HardDrive, external: true },
-                  { to: labOrigin("db", host), label: "Database", icon: Database, external: true },
+                  {
+                    to: labOrigin("mail", host),
+                    label: t("admin.nav.mail"),
+                    icon: Mail,
+                    external: true,
+                  },
+                  {
+                    to: labOrigin("objects", host),
+                    label: t("admin.nav.objects"),
+                    icon: HardDrive,
+                    external: true,
+                  },
+                  {
+                    to: labOrigin("db", host),
+                    label: t("admin.nav.db"),
+                    icon: Database,
+                    external: true,
+                  },
                 ],
               },
             ]}

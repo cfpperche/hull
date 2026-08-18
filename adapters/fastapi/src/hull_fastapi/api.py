@@ -42,10 +42,12 @@ from hull_fastapi.accounts import (
     support_stop,
     switch_org,
     update_profile,
+    user_locale,
     verify_email,
 )
 from hull_fastapi.config import Settings
 from hull_fastapi.db import connection
+from hull_fastapi.locales import negotiate
 from hull_fastapi.mail import send_mail
 from hull_fastapi.observe import record_event
 from hull_fastapi.storage import StorageError, delete_avatar, get_avatar, put_avatar, s3_enabled
@@ -82,6 +84,7 @@ class SwitchBody(BaseModel):
 class ProfileBody(BaseModel):
     username: str | None = None
     name: str | None = None
+    locale: str | None = None
 
 
 class PasswordBody(BaseModel):
@@ -150,7 +153,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["Content-Type", "Accept"],
     )
 
-    def problem(status: int, title: str, detail: str, reason_code: str) -> JSONResponse:
+    def problem(status: int, title: str, detail: str, reason_code: str, key: str) -> JSONResponse:
         return JSONResponse(
             status_code=status,
             content={
@@ -159,13 +162,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "status": status,
                 "detail": detail,
                 "reason_code": reason_code,
+                # The sentence, named rather than written. `detail` above stays
+                # English; this is what the browser looks up in the reader's
+                # language. → ADR-0016
+                "message_key": key,
             },
             media_type=PROBLEM_JSON,
         )
 
     @app.exception_handler(RequestValidationError)
     async def validation_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
-        return problem(422, "Validation error", str(exc.errors()), "request_validation_error")
+        return problem(
+            422,
+            "Validation error",
+            str(exc.errors()),
+            "request_validation_error",
+            "error.requestFailed",
+        )
 
     @app.exception_handler(StarletteHTTPException)
     async def http_handler(_request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -175,15 +188,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=exc.status_code, content=detail, media_type=PROBLEM_JSON
             )
         if exc.status_code == 404:
-            return problem(404, "Not found", "Not found", "not_found")
-        return problem(exc.status_code, "Error", str(detail), "http_error")
+            return problem(404, "Not found", "Not found", "not_found", "error.notFound")
+        return problem(exc.status_code, "Error", str(detail), "http_error", "error.requestFailed")
 
     @app.exception_handler(Exception)
     async def unhandled_handler(request: Request, exc: Exception) -> JSONResponse:
         # Every error leaves as problem+json. A bare 500 with a text/plain body
         # breaks the shared client, which parses every non-204 response as JSON.
         log.exception("unhandled error on %s %s", request.method, request.url.path)
-        return problem(500, "Server error", "unexpected server error", "server_error")
+        return problem(
+            500, "Server error", "unexpected server error", "server_error", "error.server"
+        )
 
     @app.middleware("http")
     async def retire_duplicate_session_cookie(request: Request, call_next):
@@ -210,10 +225,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             declared = request.headers.get("content-length")
             if declared is None or not declared.isdigit():
                 return problem(
-                    411, "Length required", "content-length is required", "request_validation_error"
+                    411,
+                    "Length required",
+                    "content-length is required",
+                    "request_validation_error",
+                    "error.requestFailed",
                 )
             if int(declared) > MAX_UPLOAD_BYTES:
-                return problem(413, "Too large", "photo is too large", "request_validation_error")
+                return problem(
+                    413,
+                    "Too large",
+                    "photo is too large",
+                    "request_validation_error",
+                    "error.photoTooLarge",
+                )
         return await call_next(request)
 
     def _account_http(exc: AccountError | StorageError) -> JSONResponse:
@@ -228,7 +253,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             status = 404
         elif exc.reason_code == "storage_not_configured":
             status = 503
-        return problem(status, "Account error", exc.message, exc.reason_code)
+        return problem(status, "Account error", exc.message, exc.reason_code, exc.key)
 
     def _under_apex(request: Request) -> bool:
         host = (request.url.hostname or "").lower()
@@ -294,6 +319,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": 401,
                     "detail": "sign in required",
                     "reason_code": "unauthenticated",
+                    "message_key": "error.unauthenticated",
                 },
             )
         with connection(settings) as conn:
@@ -307,6 +333,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": 401,
                     "detail": "sign in required",
                     "reason_code": "unauthenticated",
+                    "message_key": "error.unauthenticated",
                 },
             )
         return sess
@@ -333,6 +360,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     email=payload.email,
                     password=payload.password,
                     user_agent=request.headers.get("user-agent"),
+                    # The header, not a field on the body. The welcome mail goes
+                    # out inside this request, so a client that forgot to send a
+                    # locale would silently mail a Portuguese reader in English.
+                    locale=negotiate(request.headers.get("accept-language")),
                 )
                 record_event(
                     conn,
@@ -347,14 +378,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # One mail, not two. A welcome and a "confirm your address" arriving
         # together is the pattern people learn to ignore, and the link is the
         # only part of either that does anything.
-        text, html = mail_compose.welcome(
+        subject, text, html = mail_compose.welcome(
             settings,
+            locale=body["user"]["locale"],
             verify_link=_verify_link(verification[0]) if verification else None,
         )
         send_mail(
             settings,
             to=payload.email.strip().lower(),
-            subject=settings.welcome_subject(),
+            subject=subject,
             text=text,
             html=html,
         )
@@ -394,6 +426,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """
         with connection(settings) as conn:
             token = request_password_reset(conn, email=payload.email)
+            # Read inside the same connection, and before the branch below, so
+            # the timing of a hit and a miss stays the same shape.
+            locale = user_locale(conn, email=payload.email)
             record_event(
                 conn,
                 source="api",
@@ -407,11 +442,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # are never sent to a server, so it stays out of access logs and out of
         # the Referer of anything the reset page links to.
         link = f"{settings.resolved_public_origin()}/reset#{token}"
-        text, html = mail_compose.password_reset(settings, link=link)
+        subject, text, html = mail_compose.password_reset(settings, locale=locale, link=link)
         send_mail(
             settings,
             to=payload.email.strip().lower(),
-            subject=settings.reset_subject(),
+            subject=subject,
             text=text,
             html=html,
         )
@@ -435,6 +470,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": status,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
         # Every session died with the reset, including any this browser was
@@ -463,6 +499,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": 401,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
 
@@ -475,11 +512,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not verification:
             return
         token, email = verification
-        text, html = mail_compose.verify_email(settings, link=_verify_link(token))
+        subject, text, html = mail_compose.verify_email(
+            settings, locale=sess.locale, link=_verify_link(token)
+        )
         send_mail(
             settings,
             to=email,
-            subject=settings.verify_subject(),
+            subject=subject,
             text=text,
             html=html,
         )
@@ -511,28 +550,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": status,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
-        text, html = mail_compose.email_change_confirm(
-            settings, link=_email_change_link(token), old_email=old_email
+        # Both mails go to the same person — one address gaining the account,
+        # one losing it — so the caller's own language is the recipient's.
+        subject, text, html = mail_compose.email_change_confirm(
+            settings, locale=sess.locale, link=_email_change_link(token), old_email=old_email
         )
         send_mail(
             settings,
             to=new_email,
-            subject=settings.email_change_subject(),
+            subject=subject,
             text=text,
             html=html,
         )
         # The address that is losing the account hears about it while it can still
         # do something. Changing the password cancels every pending change, so
         # this is an instruction rather than a condolence.
-        text, html = mail_compose.email_change_notice(
-            settings, old_email=old_email, new_email=new_email
+        notice_subject, text, html = mail_compose.email_change_notice(
+            settings, locale=sess.locale, old_email=old_email, new_email=new_email
         )
         send_mail(
             settings,
             to=old_email,
-            subject=settings.email_change_notice_subject(),
+            subject=notice_subject,
             text=text,
             html=html,
         )
@@ -548,6 +590,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             with connection(settings) as conn:
                 new_email, old_email = confirm_email_change(conn, raw=payload.token)
+                # After the move, so it is looked up by the address that now
+                # holds the account. This request arrives from a mail client and
+                # carries no session, so there is nobody to ask but the row.
+                changed_locale = user_locale(conn, email=new_email)
                 record_event(
                     conn,
                     source="api",
@@ -565,15 +611,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": status,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
         # The last mail the old address gets. It is the one that says an account
         # it can no longer reach has been taken over, if that is what happened.
-        text, html = mail_compose.email_changed(settings, old_email=old_email, new_email=new_email)
+        subject, text, html = mail_compose.email_changed(
+            settings, locale=changed_locale, old_email=old_email, new_email=new_email
+        )
         send_mail(
             settings,
             to=old_email,
-            subject=settings.email_changed_subject(),
+            subject=subject,
             text=text,
             html=html,
         )
@@ -601,6 +650,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": 404,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
         # Ending your own session is allowed — it is what "this device, no longer"
@@ -646,6 +696,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     user_id=sess.user_id,
                     username=payload.username if "username" in sent else None,
                     name=payload.name if "name" in sent else None,
+                    locale=payload.locale if "locale" in sent else None,
                 )
                 loaded = load_session(conn, request.cookies.get(settings.cookie_name) or "")
                 assert loaded is not None
@@ -676,6 +727,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": status,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
         # Rotate the caller's own token too, so a stolen copy of the current
@@ -705,6 +757,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": status,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
         # The users row is gone, so nothing can reference the object any more.
@@ -718,7 +771,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> dict[str, bool]:
         if not s3_enabled(settings):
             return _account_http(
-                StorageError("storage_not_configured", "object store is not configured")
+                StorageError(
+                    "storage_not_configured", "object store is not configured", "error.storageOff"
+                )
             )
         # Bounded read: never materialise more than the cap plus one byte, even if
         # the declared Content-Length that got us past the middleware was a lie.
@@ -736,7 +791,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/v1/me/avatar")
     def me_avatar_get(sess=Depends(require_session)) -> RawResponse:
         if not sess.avatar_key:
-            return problem(404, "Not found", "no photo", "not_found")
+            return problem(404, "Not found", "no photo", "not_found", "error.photoNotFound")
         try:
             body = get_avatar(settings, key=sess.avatar_key)
         except StorageError as exc:

@@ -26,15 +26,22 @@ import {
  * ingests a moment after the API answers, so taking "the newest mail" is a race
  * that reports a missing link which is merely late.
  */
-async function changeLink(request: APIRequestContext, address: string): Promise<string> {
+async function changeLink(
+  request: APIRequestContext,
+  address: string,
+): Promise<string> {
   const wanted = /https:\/\/\S*\/email#\S+/;
   for (let attempt = 0; attempt < 20; attempt++) {
-    const list = await (await request.get(`https://mail.${HOST}/api/v1/messages?limit=50`)).json();
+    const list = await (
+      await request.get(`https://mail.${HOST}/api/v1/messages?limit=50`)
+    ).json();
     const mine = list.messages.filter((m: { To: { Address: string }[] }) =>
       m.To.some((t) => t.Address.toLowerCase() === address.toLowerCase()),
     );
     for (const m of mine) {
-      const full = await (await request.get(`https://mail.${HOST}/api/v1/message/${m.ID}`)).json();
+      const full = await (
+        await request.get(`https://mail.${HOST}/api/v1/message/${m.ID}`)
+      ).json();
       const found = wanted.exec(full.Text as string);
       if (found) return found[0];
     }
@@ -43,7 +50,10 @@ async function changeLink(request: APIRequestContext, address: string): Promise<
   throw new Error(`no change link mailed to ${address}`);
 }
 
-test("the address moves only once the new mailbox confirms it", async ({ page, playwright }) => {
+test("the address moves only once the new mailbox confirms it", async ({
+  page,
+  playwright,
+}) => {
   const user = newUser("chg");
   // Deliberately not derived from the old address. A `moved-${user.username}`
   // form *contains* the old one, so a substring text match reported the right

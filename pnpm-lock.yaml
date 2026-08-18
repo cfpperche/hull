@@ -179,6 +179,9 @@ importers:
 
   packages/email:
     dependencies:
+      '@hull/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       '@react-email/components':
         specifier: ^1.0.12
         version: 1.0.12(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -214,6 +217,21 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/i18n:
+    devDependencies:
+      '@hull/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^24
+        version: 24.13.3
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/tsconfig: {}
 
   packages/ui:
@@ -230,6 +248,9 @@ importers:
       '@hull/config':
         specifier: workspace:*
         version: link:../config
+      '@hull/i18n':
+        specifier: workspace:*
+        version: link:../i18n
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

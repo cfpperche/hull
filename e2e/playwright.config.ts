@@ -15,9 +15,17 @@ export default defineConfig({
   retries: 0,
   timeout: 30_000,
   expect: { timeout: 10_000 },
-  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],
+  reporter: process.env.CI
+    ? [["list"], ["html", { open: "never" }]]
+    : [["list"]],
   use: {
     baseURL: `https://app.${host}`,
+    // Pinned, not inherited. Several specs find a control by the words written
+    // on it, and those words now depend on what the browser asks for — so a
+    // developer whose machine is set to Portuguese would watch this suite fail
+    // for a reason that has nothing to do with the code. A spec that is *about*
+    // the language opens its own context and overrides this. → ADR-0016
+    locale: "en-US",
     // The stack uses its own CA. CI has no reason to trust it, and asserting on
     // trust is smoke.sh's job — see ADR-0012.
     ignoreHTTPSErrors: true,

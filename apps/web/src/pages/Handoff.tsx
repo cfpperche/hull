@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { errMsg } from "@hull/api-client";
-import { AuthScreen, Button, useBrand } from "@hull/ui";
+import { AuthScreen, Button, useBrand, useT, useErrMsg } from "@hull/ui";
 import { api } from "../lib/api";
 
 /**
@@ -11,6 +10,8 @@ import { api } from "../lib/api";
  * this page exchanges it for a session that belongs to app.<host>.
  */
 export function HandoffPage() {
+  const t = useT();
+  const errMsg = useErrMsg();
   const { brand, mark } = useBrand();
   const [error, setError] = useState<string | null>(null);
   // StrictMode runs effects twice in dev. The token is single-use, so without
@@ -22,13 +23,14 @@ export function HandoffPage() {
     if (started.current) return;
     started.current = true;
 
-    const token = new URLSearchParams(window.location.hash.slice(1)).get("t") ?? "";
+    const token =
+      new URLSearchParams(window.location.hash.slice(1)).get("t") ?? "";
     // Strip it before doing anything else: a token left in the address bar ends
     // up in screenshots, bookmarks and shoulder-surfing range.
     window.history.replaceState(null, "", "/handoff");
 
     if (!token) {
-      setError("This link has no hand-off token. Start again from the admin console.");
+      setError(t("handoff.noToken"));
       return;
     }
 
@@ -39,20 +41,28 @@ export function HandoffPage() {
   }, []);
 
   if (!error) {
-    return <div className="text-muted-foreground p-8 text-sm">Opening workspace…</div>;
+    return (
+      <div className="text-muted-foreground p-8 text-sm">
+        {t("handoff.working")}
+      </div>
+    );
   }
 
   return (
     <AuthScreen
       brand={brand}
       mark={mark}
-      title="Could not open that workspace"
-      description="Hand-off links are single use and expire after a minute."
+      title={t("handoff.failedTitle")}
+      description={t("handoff.failedDescription")}
     >
       <div className="grid gap-4">
         <p className="text-destructive text-sm">{error}</p>
-        <Button type="button" className="w-fit" onClick={() => window.location.replace("/")}>
-          Go to sign in
+        <Button
+          type="button"
+          className="w-fit"
+          onClick={() => window.location.replace("/")}
+        >
+          {t("auth.goToSignIn")}
         </Button>
       </div>
     </AuthScreen>

@@ -2,6 +2,7 @@ import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog
 import type { ReactNode } from "react";
 import { Button } from "./button";
 import { cn } from "../../lib/utils";
+import { useT } from "../LocaleProvider";
 
 export type ConfirmDialogProps = {
   open: boolean;
@@ -31,13 +32,14 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
-  cancelLabel = "Cancel",
+  cancelLabel,
   pending = false,
   pendingLabel,
   onConfirm,
   children,
   "data-testid": testId,
 }: ConfirmDialogProps) {
+  const t = useT();
   return (
     <AlertDialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <AlertDialogPrimitive.Portal>
@@ -66,8 +68,13 @@ export function ConfirmDialog({
           <div className="mt-5 flex justify-end gap-2">
             <AlertDialogPrimitive.Close
               render={
-                <Button type="button" variant="outline" size="sm" disabled={pending}>
-                  {cancelLabel}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={pending}
+                >
+                  {cancelLabel ?? t("dialog.cancel")}
                 </Button>
               }
             />

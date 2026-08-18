@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from hull_fastapi.accounts import _device_label
+from hull_fastapi.accounts import _device_parts
 from hull_fastapi.api import create_app
 from hull_fastapi.db import connection
 
@@ -86,10 +86,31 @@ def test_signing_in_elsewhere_adds_a_row_and_only_one_is_current(
 
 
 def test_the_device_label_comes_from_the_user_agent(client, settings, unique: str, outbox) -> None:
+    """Two names, never a phrase.
+
+    "Chrome on Windows" reads as one string and is really two proper nouns
+    joined by an English word. The server answers with the nouns; the word
+    between them belongs to whichever catalog the reader is using. → ADR-0016
+    """
     email = _signup(client, unique)
     _sign_in_elsewhere(settings, email, "Mozilla/5.0 (Windows NT 10.0) Chrome/120.0 Safari/537.36")
-    labels = [r["device"] for r in _sessions(client)]
-    assert "Chrome on Windows" in labels
+    rows = _sessions(client)
+    assert ("Chrome", "Windows") in [(r["browser"], r["system"]) for r in rows]
+    # Nothing in the payload is a sentence somebody would have to translate.
+    for row in rows:
+        for value in (row["browser"], row["system"]):
+            assert value is None or " " not in value, f"{value!r} is a phrase, not a name"
+
+
+def test_an_unreadable_user_agent_answers_with_nothing(
+    client, settings, unique: str, outbox
+) -> None:
+    """Not "Unknown device" — that is a sentence, and the server has no catalog.
+    Null is the honest answer, and the screen decides what to call it."""
+    email = _signup(client, unique)
+    _sign_in_elsewhere(settings, email, "")
+    rows = _sessions(client)
+    assert any(r["browser"] is None and r["system"] is None for r in rows)
 
 
 def test_revoking_a_session_ends_it(client, settings, unique: str, outbox) -> None:
@@ -257,24 +278,29 @@ def test_a_support_session_is_named_as_one(client, settings, unique: str, outbox
 @pytest.mark.parametrize(
     "ua,expected",
     [
-        ("Mozilla/5.0 (Windows NT 10.0) Chrome/120.0.0.0 Safari/537.36", "Chrome on Windows"),
+        ("Mozilla/5.0 (Windows NT 10.0) Chrome/120.0.0.0 Safari/537.36", ("Chrome", "Windows")),
         (
             "Mozilla/5.0 (Windows NT 10.0) Chrome/120.0.0.0 Safari/537.36 Edg/120.0",
-            "Edge on Windows",
+            ("Edge", "Windows"),
         ),
-        ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Firefox/121.0", "Firefox on macOS"),
+        ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) Firefox/121.0", ("Firefox", "macOS")),
         (
             "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Version/17.0 Safari/605.1.15",
-            "Safari on iPhone",
+            ("Safari", "iPhone"),
         ),
-        ("Mozilla/5.0 (X11; Linux x86_64) Chrome/119.0 Safari/537.36 OPR/105.0", "Opera on Linux"),
-        ("Mozilla/5.0 (Linux; Android 14) Chrome/120.0 Safari/537.36", "Chrome on Android"),
-        ("curl/8.4.0", "Unknown device"),
-        ("", "Unknown device"),
-        (None, "Unknown device"),
+        (
+            "Mozilla/5.0 (X11; Linux x86_64) Chrome/119.0 Safari/537.36 OPR/105.0",
+            ("Opera", "Linux"),
+        ),
+        ("Mozilla/5.0 (Linux; Android 14) Chrome/120.0 Safari/537.36", ("Chrome", "Android")),
+        # curl names neither, and the answer is nothing rather than a sentence:
+        # "Unknown device" is English, and this module has no catalog.
+        ("curl/8.4.0", (None, None)),
+        ("", (None, None)),
+        (None, (None, None)),
     ],
 )
 def test_the_device_label_is_dumb_but_right_about_the_common_cases(ua, expected) -> None:
     # Every one of these strings claims to be something it is not — that is what
     # User-Agent is. The order of the checks is the whole implementation.
-    assert _device_label(ua) == expected
+    assert _device_parts(ua) == expected

@@ -19,6 +19,7 @@ import pytest
 
 from hull_fastapi import mail_compose
 from hull_fastapi.config import Settings
+from hull_fastapi.locales import locales
 from hull_fastapi.mail import send_mail
 
 LINK = "https://app.hull.test/reset#tok-abc123"
@@ -26,6 +27,9 @@ OLD = "old@hull.test"
 NEW = "new@hull.test"
 
 HOLE = re.compile(r"\{\{\s*[a-z_]+\s*\}\}")
+# The catalog's own hole, filled at build time. Anything matching this in a
+# delivered body is a sentence the JSX never gave a value to.
+CATALOG_HOLE = re.compile(r"(?<!\{)\{[a-zA-Z][a-zA-Z0-9]*\}(?!\})")
 
 
 @pytest.fixture
@@ -33,19 +37,30 @@ def s() -> Settings:
     return Settings(brand="Hull", mark="", host="hull.test", smtp_host="", database_url="x")
 
 
-def _all_messages(s: Settings) -> dict[str, tuple[str, str]]:
+def _all_messages(s: Settings, locale: str) -> dict[str, tuple[str, str, str]]:
+    """Every message, in one language. Each returns (subject, text, html)."""
     return {
-        "welcome": mail_compose.welcome(s, verify_link=None),
-        "welcome-verify": mail_compose.welcome(s, verify_link=LINK),
-        "password-reset": mail_compose.password_reset(s, link=LINK),
-        "verify-email": mail_compose.verify_email(s, link=LINK),
-        "email-change-confirm": mail_compose.email_change_confirm(s, link=LINK, old_email=OLD),
-        "email-change-notice": mail_compose.email_change_notice(s, old_email=OLD, new_email=NEW),
-        "email-changed": mail_compose.email_changed(s, old_email=OLD, new_email=NEW),
+        "welcome": mail_compose.welcome(s, locale=locale, verify_link=None),
+        "welcome-verify": mail_compose.welcome(s, locale=locale, verify_link=LINK),
+        "password-reset": mail_compose.password_reset(s, locale=locale, link=LINK),
+        "verify-email": mail_compose.verify_email(s, locale=locale, link=LINK),
+        "email-change-confirm": mail_compose.email_change_confirm(
+            s, locale=locale, link=LINK, old_email=OLD
+        ),
+        "email-change-notice": mail_compose.email_change_notice(
+            s, locale=locale, old_email=OLD, new_email=NEW
+        ),
+        "email-changed": mail_compose.email_changed(s, locale=locale, old_email=OLD, new_email=NEW),
     }
 
 
-def test_every_message_fills_every_hole(s: Settings) -> None:
+# Every design guard runs in every language. A second locale is a second set of
+# generated files, and "the English one is safe" says nothing about them.
+ALL_LOCALES = pytest.mark.parametrize("locale", locales())
+
+
+@ALL_LOCALES
+def test_every_message_fills_every_hole(s: Settings, locale: str) -> None:
     """The one that matters.
 
     A `{{link}}` the adapter does not know about survives substitution and is
@@ -53,46 +68,59 @@ def test_every_message_fills_every_hole(s: Settings) -> None:
     URL. The build refuses an *unknown* placeholder; this refuses a known one
     nobody passed a value for.
     """
-    for key, (text, html) in _all_messages(s).items():
+    for key, (subject, text, html) in _all_messages(s, locale).items():
+        assert not HOLE.search(subject), f"{key}.subject kept {HOLE.findall(subject)}"
         assert not HOLE.search(text), f"{key}.txt kept {HOLE.findall(text)}"
         assert not HOLE.search(html), f"{key}.html kept {HOLE.findall(html)}"
+        # The other layer's hole. `{oldEmail}` left standing means the JSX never
+        # passed what the translated sentence asks for — invisible to the build's
+        # own check when only one locale writes the hole.
+        for body, half in ((subject, "subject"), (text, "txt"), (html, "html")):
+            assert not CATALOG_HOLE.search(body), f"{key}.{half} kept a catalog hole"
 
 
-def test_both_halves_carry_the_link(s: Settings) -> None:
+@ALL_LOCALES
+def test_both_halves_carry_the_link(s: Settings, locale: str) -> None:
     """A text-only client is not a second-class reader. Whatever the button says,
     the URL has to be readable without one."""
     for key in ("welcome-verify", "password-reset", "verify-email", "email-change-confirm"):
-        text, html = _all_messages(s)[key]
+        _subject, text, html = _all_messages(s, locale)[key]
         assert LINK in text, f"{key}.txt has no usable link"
         assert LINK in html, f"{key}.html has no usable link"
 
 
-def test_the_brand_is_not_baked_in(s: Settings) -> None:
+@ALL_LOCALES
+def test_the_brand_is_not_baked_in(s: Settings, locale: str) -> None:
     """White-label reaches the mail too (ADR-0006). The design is fixed; the name
-    is not."""
+    is not — and neither is fixed by the language."""
     other = Settings(brand="Acme", mark="", host="acme.test", database_url="x")
-    text, html = mail_compose.password_reset(other, link=LINK)
+    subject, text, html = mail_compose.password_reset(other, locale=locale, link=LINK)
+    assert "Acme" in subject
     assert "Acme" in text and "Acme" in html
     assert "acme.test" in text and "acme.test" in html
     assert "Hull" not in html
 
 
-def test_values_are_escaped_into_the_html_and_raw_in_the_text() -> None:
+@ALL_LOCALES
+def test_values_are_escaped_into_the_html_and_raw_in_the_text(locale: str) -> None:
     """An address is allowed characters that close a tag. The text half must keep
     them exactly, and the html half must not."""
     hostile = 'a"><script>alert(1)</script>@hull.test'
     s = Settings(brand="Hull", mark="", host="hull.test", database_url="x")
-    text, html = mail_compose.email_changed(s, old_email=hostile, new_email=NEW)
+    _subject, text, html = mail_compose.email_changed(
+        s, locale=locale, old_email=hostile, new_email=NEW
+    )
     assert hostile in text
     assert "<script>" not in html
     assert "&lt;script&gt;" in html
 
 
-def test_the_html_uses_nothing_a_mail_client_would_drop(s: Settings) -> None:
+@ALL_LOCALES
+def test_the_html_uses_nothing_a_mail_client_would_drop(s: Settings, locale: str) -> None:
     """oklch() and custom properties are how the product states its colours and
     exactly what Gmail and Outlook discard, leaving unstyled text. A remote image
     is worse — blocked by default, so the brand arrives as a broken icon."""
-    for key, (_text, html) in _all_messages(s).items():
+    for key, (_subject, _text, html) in _all_messages(s, locale).items():
         assert "oklch(" not in html, f"{key} carries a colour function no client parses"
         assert "var(--" not in html, f"{key} carries a custom property"
         assert "<script" not in html.lower(), f"{key} carries a script"
@@ -102,11 +130,12 @@ def test_the_html_uses_nothing_a_mail_client_would_drop(s: Settings) -> None:
             raise AssertionError(f"{key} fetches a remote asset: {url}")
 
 
-def test_the_two_warnings_have_no_button(s: Settings) -> None:
+@ALL_LOCALES
+def test_the_two_warnings_have_no_button(s: Settings, locale: str) -> None:
     """Both go to somebody who may not have asked for anything. A one-click action
     in a "was this you?" mail teaches the reflex phishing depends on."""
     for key in ("email-change-notice", "email-changed"):
-        _text, html = _all_messages(s)[key]
+        _subject, _text, html = _all_messages(s, locale)[key]
         assert "href=" not in html, f"{key} offers something to click"
 
 
@@ -130,8 +159,8 @@ def test_a_message_is_multipart_with_text_first(monkeypatch) -> None:
 
     monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
     s = Settings(brand="Hull", mark="", host="hull.test", smtp_host="mail", database_url="x")
-    text, html = mail_compose.password_reset(s, link=LINK)
-    assert send_mail(s, to="a@hull.test", subject="Reset", text=text, html=html) == "sent"
+    subject, text, html = mail_compose.password_reset(s, locale="en", link=LINK)
+    assert send_mail(s, to="a@hull.test", subject=subject, text=text, html=html) == "sent"
 
     msg = captured[0]
     assert msg.get_content_type() == "multipart/alternative"

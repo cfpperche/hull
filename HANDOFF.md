@@ -68,17 +68,40 @@ carry an address change. Every one is `multipart/alternative`.
   always sent. The HTML is an alternative, never a replacement — order matters,
   because a client takes the last part it understands.
 - **Bodies are react-email JSX in `packages/email`.** `pnpm --filter @hull/email
-  build` renders them once into `adapters/fastapi/src/hull_fastapi/mail_templates/`
-  with `{{name}}` where a value goes; `mail_compose` fills the holes at send.
-  React is not in the request path — putting Node behind SMTP would mean a second
-  runtime in the compose group for six messages. Preview them with
-  `pnpm --filter @hull/email dev` on :3300.
+  build` renders them **once per locale** into
+  `adapters/fastapi/src/hull_fastapi/mail_templates/` — `password-reset.pt-BR.html`,
+  `.txt` and `.subject`, seven messages × two languages × three parts — with
+  `{{name}}` where a value goes; `mail_compose` fills the holes at send. React is
+  not in the request path, and neither is any translation: choosing a language
+  here is choosing a filename. Preview with `pnpm --filter @hull/email dev` on
+  :3300, which is why every template defaults its catalog.
+- **The language is the recipient's, never the caller's.** An operator working in
+  English who triggers a notice to a Brazilian customer sends it in Portuguese.
+  There is no browser on the receiving end to ask, which is the whole reason
+  `users.locale` is a column. The two mails that arrive with no session — the
+  reset and the "your email was changed" notice — read it with
+  `accounts.user_locale(conn, email=…)`.
+- **The subject travels with the body.** It used to be built in `Settings`, which
+  put one half of every message in Python and the other in the JSX. A subject
+  promising what the body no longer says is exactly the drift nobody notices,
+  because the two are only ever read together in an inbox.
 - **That directory is generated. Do not hand-edit it.** `pnpm --filter @hull/email
   check` runs in `ci.sh` and fails when it has drifted from the JSX.
-- **Two build-time guards.** A placeholder not declared in `src/vars.ts` fails the
-  build, because a mistyped `{{lnk}}` is delivered literally in the mail whose
-  only job is to carry a URL. And a known placeholder nobody passed a value for is
-  caught by `test_mail_design.py`, which asserts no message keeps a hole.
+- **Three build-time guards, and they are not the same hole.** A placeholder not
+  declared in `src/vars.ts` fails the build, because a mistyped `{{lnk}}` is
+  delivered literally in the mail whose only job is to carry a URL. A *catalog*
+  hole — `{oldEmail}` — that the JSX never gave a value to fails it too. And a
+  known `{{hole}}` nobody passed a value for is caught by `test_mail_design.py`,
+  which now runs every design assertion once per locale: a second language is a
+  second set of generated files, and "the English one is safe" says nothing
+  about them.
+- **The two layers of hole nest, and getting that wrong is silent.** A catalog
+  string is filled at build time with values that are themselves `{{holes}}` for
+  the adapter. `segments()` in `@hull/i18n` must not cut inside a doubled brace —
+  when it did, React put its comment separators between the pieces and the
+  generated HTML carried `{<!-- -->{brand}<!-- -->}`, a hole `mail_compose` can
+  no longer see. Caught by a test, in a message that had already rendered
+  cleanly.
 - **No runtime editor, deliberately.** An install that can rewrite its own
   password-reset mail while running has a new way to lose account recovery. If
   that changes, it is an ADR — and the template language would need to stay a
@@ -111,10 +134,45 @@ The console's page has no **Close account** — `close_account` refuses a
 `platform_admin`, so the button would exist only to answer 403. There is a
 browser test asserting its absence.
 
+## Language
+
+Everything a person reads comes from `packages/i18n`. `en` and `pt-BR`.
+→ [0016](./docs/adr/0016-one-catalog-per-locale-the-server-never-translates.md)
+
+- **The server never translates.** For mail it picks a pre-rendered file; for an
+  error it sends `message_key` and the browser looks it up. `detail` stays
+  English and is the log line and the fallback, so the sentence a person reads
+  and the sentence in the log are allowed to differ — and do.
+- **`reason_code` could not do this job.** It is the class a client branches on,
+  and `unauthenticated` alone covers six different messages. That is why the
+  contract grew a second field rather than reusing it.
+- **`test_error_keys.py` holds both sides to each other.** Every key the adapter
+  raises must exist in `packages/i18n`, and every `error.*` key must be raised by
+  something. It reads the raise sites with `ast`, not grep — two of them wrap
+  across lines and a regex missed both. A key built rather than named (`"error."
+  + name`) fails it, because a guard that cannot see a value must say so rather
+  than pass.
+- **Three build gates, and they catch different things.** `@hull/i18n check`
+  proves the locales agree, that a translation did not drop a `{hole}`, and that
+  a plural has both forms spelled differently; its `scan` proves no sentence was
+  typed straight into a screen (`// i18n-ignore` is the way out);
+  `@hull/email check` proves the generated mail matches the JSX in every
+  language.
+- **`LocaleProvider` is the outermost provider, above `BrandGate`.** Everything
+  else renders text a person reads. The account's stored choice arrives through
+  `useAccountLocale` rather than a prop, because nesting a second provider under
+  the session gave the document two `lang` effects racing to write the same
+  attribute, child first.
+- **The browser suite is pinned to `en-US`.** Several specs find a control by the
+  words on it. `language.spec.ts` opens its own `pt-BR` context.
+
 ## Gates
 
-`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (104).
-`e2e/` holds 16 browser specs. Keep the split the three mail flows use: what only
+`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (171).
+`e2e/` holds 19 browser specs, pinned to `en-US` in `playwright.config.ts` —
+several find a control by the words on it, and without the pin a developer whose
+machine is set to Portuguese would watch the suite fail for a reason unrelated to
+the code. Keep the split the three mail flows use: what only
 a browser shows goes in `e2e/`, and single use, expiry, collisions and the
 enumeration guard stay in pytest — cheaper, deterministic, and they do not spend
 credential calls out of the suite's shared rate-limit budget. Each of those flows
@@ -257,6 +315,33 @@ Org isolation, Traefik-in-compose, `config.json` runtime brand, and the session 
 
 ## Open, and owned by the operator
 
+- **Docker will fill this disk, and the default configuration is why.** Hit on
+  2026-08-17: 90 GB reclaimed, of which **71.7 GB was BuildKit cache alone**.
+  `docker buildx inspect default` shows the reason in one line — the stock GC
+  policy is derived from disk size, and on a 1 TB volume it reads
+  `Max Used Space: 750.6GiB`. Nothing was misbehaving; the cache was told it
+  could have three quarters of the disk and took it. `up.sh` rebuilds four
+  images every run, so this repo feeds it faster than most.
+
+  The fix is machine-wide and needs a password, so it is the operator's:
+  `/etc/docker/daemon.json` gains a `builder.gc.policy` capping the cache at
+  20 GB with a 20 GB free-space floor, plus `log-opts` so `json-file` stops
+  growing without bound. Validate before restarting — `dockerd --validate
+  --config-file=…` catches a malformed file, and `docker buildx inspect default`
+  after the restart prints the policy actually in force, which is the only way
+  to know it was read. Note that `--validate` checks top-level keys only: a
+  typo *inside* `builder.gc.policy` passes it and is then silently ignored.
+
+  Two things it does not cover. `docker volume prune -f` is safe — it removes
+  only anonymous volumes — but **`docker volume prune -a` is not**: this machine
+  carries named volumes for a dozen other projects, and `-a` deletes every one
+  not currently attached to a container. And the WSL disk image never shrinks on
+  its own: freeing space inside the distro leaves `ext4.vhdx` the same size on
+  `C:`, so reclaiming it on the Windows side is `wsl --shutdown` then
+  `diskpart` → `select vdisk file="…\ext4.vhdx"` → `attach vdisk readonly` →
+  `compact vdisk` → `detach vdisk`. `.wslconfig` here already sets
+  `sparseVhd=true`, which only applies to distros created after it was set —
+  an existing one needs `wsl --manage <distro> --set-sparse true`.
 - **WSL wipes `/etc/hosts` on every boot, and it takes the whole stack with it.**
   Hit on 2026-08-17: `smoke.sh` failed with `Could not resolve host: hull.test`,
   every browser-shaped tool was unreachable, and nothing about the code had

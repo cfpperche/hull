@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
+import type { Segment, T } from "@hull/i18n";
 import {
   Body,
   Container,
@@ -23,11 +24,15 @@ import { V } from "./vars";
  * feel they changed products between the mail and the page it opens.
  */
 export function Layout({
+  t,
   title,
   preview,
   lead,
   children,
 }: {
+  /** The catalog for the locale being rendered. Every message is rendered once
+   *  per locale at build time, so this is a build-time value, never a runtime one. */
+  t: T;
   title: string;
   /** The line the inbox shows beside the subject. Left unset, clients take
    *  whatever text comes first — which here would be the brand name, on every
@@ -37,7 +42,7 @@ export function Layout({
   children: ReactNode;
 }) {
   return (
-    <Html lang="en">
+    <Html lang={t.locale}>
       <Head>
         {/* Stops the aggressive auto-inverters from inventing a dark mode on our
             behalf. There is only a light design here, deliberately:
@@ -102,7 +107,7 @@ export function Layout({
               color: color.mutedForeground,
             }}
           >
-            {V.brand} · {V.host}
+            {t("mail.footer", { brand: V.brand, host: V.host })}
           </Text>
         </Section>
       </Body>
@@ -209,7 +214,7 @@ export function Button({ href, children }: { href: string; children: string }) {
  * `render(..., { plainText: true })` keeps visible text, so this is what puts a
  * usable URL in the message a text-only reader gets.
  */
-export function FallbackLink({ href }: { href: string }) {
+export function FallbackLink({ t, href }: { t: T; href: string }) {
   return (
     <Text
       style={{
@@ -221,7 +226,7 @@ export function FallbackLink({ href }: { href: string }) {
       }}
     >
       <span data-plain-text="skip">
-        Or paste this into your browser:
+        {t("mail.orPaste")}
         <br />
       </span>
       <Link href={href} style={{ color: color.mutedForeground, wordBreak: "break-all" }}>
@@ -233,4 +238,29 @@ export function FallbackLink({ href }: { href: string }) {
 
 export function Divider() {
   return <Hr style={{ margin: "0 0 16px", border: "none", borderTop: `1px solid ${color.border}` }} />;
+}
+
+/**
+ * A translated sentence whose holes take nodes rather than text.
+ *
+ * Half the messages name an address and want it in bold. The alternative is
+ * splitting the sentence around the bold part, which is exactly the fragment key
+ * ADR-0016 refuses: word order is the translator's to change, and they cannot
+ * change it if the sentence arrives in three pieces.
+ */
+export function Fill({ parts, nodes }: { parts: Segment[]; nodes: Record<string, ReactNode> }) {
+  return (
+    <>
+      {parts.map((part, i) =>
+        typeof part === "string" ? (
+          <Fragment key={i}>{part}</Fragment>
+        ) : (
+          // A hole with no node is left standing, for the same reason `fill`
+          // leaves one standing: "{oldEmail}" is a bug somebody reports, an
+          // empty gap is one that ships.
+          <Fragment key={i}>{nodes[part.hole] ?? `{${part.hole}}`}</Fragment>
+        ),
+      )}
+    </>
+  );
 }

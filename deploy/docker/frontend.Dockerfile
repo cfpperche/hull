@@ -11,6 +11,7 @@ COPY apps/admin/package.json apps/admin/package.json
 COPY packages/ui/package.json packages/ui/package.json
 COPY packages/api-client/package.json packages/api-client/package.json
 COPY packages/config/package.json packages/config/package.json
+COPY packages/i18n/package.json packages/i18n/package.json
 COPY packages/tsconfig/package.json packages/tsconfig/package.json
 RUN pnpm install --frozen-lockfile
 COPY . .
