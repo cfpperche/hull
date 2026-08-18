@@ -134,10 +134,42 @@ The console's page has no **Close account** — `close_account` refuses a
 `platform_admin`, so the button would exist only to answer 403. There is a
 browser test asserting its absence.
 
+## Language
+
+Everything a person reads comes from `packages/i18n`. `en` and `pt-BR`.
+→ [0016](./docs/adr/0016-one-catalog-per-locale-the-server-never-translates.md)
+
+- **The server never translates.** For mail it picks a pre-rendered file; for an
+  error it sends `message_key` and the browser looks it up. `detail` stays
+  English and is the log line and the fallback, so the sentence a person reads
+  and the sentence in the log are allowed to differ — and do.
+- **`reason_code` could not do this job.** It is the class a client branches on,
+  and `unauthenticated` alone covers six different messages. That is why the
+  contract grew a second field rather than reusing it.
+- **`test_error_keys.py` holds both sides to each other.** Every key the adapter
+  raises must exist in `packages/i18n`, and every `error.*` key must be raised by
+  something. It reads the raise sites with `ast`, not grep — two of them wrap
+  across lines and a regex missed both. A key built rather than named (`"error."
+  + name`) fails it, because a guard that cannot see a value must say so rather
+  than pass.
+- **Three build gates, and they catch different things.** `@hull/i18n check`
+  proves the locales agree, that a translation did not drop a `{hole}`, and that
+  a plural has both forms spelled differently; its `scan` proves no sentence was
+  typed straight into a screen (`// i18n-ignore` is the way out);
+  `@hull/email check` proves the generated mail matches the JSX in every
+  language.
+- **`LocaleProvider` is the outermost provider, above `BrandGate`.** Everything
+  else renders text a person reads. The account's stored choice arrives through
+  `useAccountLocale` rather than a prop, because nesting a second provider under
+  the session gave the document two `lang` effects racing to write the same
+  attribute, child first.
+- **The browser suite is pinned to `en-US`.** Several specs find a control by the
+  words on it. `language.spec.ts` opens its own `pt-BR` context.
+
 ## Gates
 
-`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (134).
-`e2e/` holds 18 browser specs, pinned to `en-US` in `playwright.config.ts` —
+`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (171).
+`e2e/` holds 19 browser specs, pinned to `en-US` in `playwright.config.ts` —
 several find a control by the words on it, and without the pin a developer whose
 machine is set to Portuguese would watch the suite fail for a reason unrelated to
 the code. Keep the split the three mail flows use: what only

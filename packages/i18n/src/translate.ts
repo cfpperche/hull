@@ -8,6 +8,12 @@ import { DEFAULT_LOCALE, type Locale } from "./locales";
 
 const CATALOGS: Record<Locale, Catalog> = { en, "pt-BR": ptBR };
 
+/** Whether a string names a phrase we hold. The API sends keys, and a build of
+ *  the frontend older than the server will not know all of them. */
+export function isMessageKey(value: unknown): value is MessageKey {
+  return typeof value === "string" && value in en;
+}
+
 export function catalog(locale: Locale): Catalog {
   return CATALOGS[locale] ?? CATALOGS[DEFAULT_LOCALE];
 }

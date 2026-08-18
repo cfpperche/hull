@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { errMsg } from "@hull/api-client";
-import { AuthScreen, Button, useBrand, useT } from "@hull/ui";
+import { AuthScreen, Button, useBrand, useT, useErrMsg } from "@hull/ui";
 import { api } from "../lib/api";
 
 /**
@@ -13,6 +12,7 @@ import { api } from "../lib/api";
  */
 export function EmailChangePage() {
   const t = useT();
+  const errMsg = useErrMsg();
   const { brand, mark } = useBrand();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);

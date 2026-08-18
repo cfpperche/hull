@@ -40,7 +40,17 @@ export type Problem = {
   title: string;
   detail: string;
   status: number;
+  /** The coarse class to branch on. Too coarse to key a message —
+   *  `unauthenticated` alone covers six different ones. */
   reason_code: string;
+  /**
+   * The specific message, named rather than written: a key in `@hull/i18n`.
+   * `detail` stays English and is the fallback. Null when the server is older
+   * than this field, or when the failure never reached the API at all.
+   */
+  message_key: string | null;
+  /** Holes the message takes, when it has any. */
+  message_values?: Record<string, string | number>;
 };
 
 export class ApiError extends Error {
@@ -51,6 +61,13 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The English sentence, for a caller with no catalog.
+ *
+ * Anything a person reads should go through `useErrMsg` from `@hull/ui`, which
+ * resolves `message_key` in the reader's own language and falls back to this.
+ * Kept exported because it is what a script, a log line, or a test wants.
+ */
 export function errMsg(err: unknown): string {
   if (err instanceof ApiError) return err.problem.detail;
   if (err instanceof Error) return err.message;
@@ -94,15 +111,17 @@ async function request<T>(
     // a dead end that invites them to hammer the button. Retry-After is right
     // there in the response.
     const after = Number(res.headers.get("retry-after"));
-    const wait =
-      Number.isFinite(after) && after > 0
-        ? `Try again in ${after}s.`
-        : "Try again shortly.";
+    const known = Number.isFinite(after) && after > 0;
+    const wait = known ? `Try again in ${after}s.` : "Try again shortly.";
     throw new ApiError({
       title: "Too many attempts",
       detail: `Too many attempts. ${wait}`,
       status: 429,
       reason_code: "rate_limited",
+      // Minted here rather than read off the response: the edge answers 429 as
+      // plain text, so there is no problem document to carry a key.
+      message_key: known ? "error.rateLimited" : "error.rateLimitedSoon",
+      message_values: known ? { seconds: after } : undefined,
     });
   }
   if (!res.ok) {
@@ -114,6 +133,7 @@ async function request<T>(
       detail: p.detail || res.statusText || "Request failed",
       status: res.status,
       reason_code: p.reason_code || "http_error",
+      message_key: p.message_key ?? null,
     });
   }
   return data as T;

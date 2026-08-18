@@ -29,14 +29,20 @@ test("the language follows the account, not the browser", async ({
   // a coincidence of the machine it runs on.
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   // `exact` because "Close account" is also a heading on this page.
-  await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Account", exact: true }),
+  ).toBeVisible();
 
   await page.getByTestId("locale-pt-BR").click();
   await expect(page.locator("html")).toHaveAttribute("lang", "pt-BR");
   // The screens move with it. Found by role and name rather than by testid,
   // because the words are the thing under test here.
-  await expect(page.getByRole("heading", { name: "Conta", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Account", exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Conta", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Account", exact: true }),
+  ).toHaveCount(0);
   // Not just a class on the button: the account was actually written to, so a
   // reload with no client state left has to come back in Portuguese.
   await page.reload();
@@ -138,5 +144,41 @@ test("a Portuguese browser is welcomed in Portuguese", async ({
   expect(mail.html).not.toContain("{{");
 
   await request.dispose();
+  await context.close();
+});
+
+/**
+ * The last thing on a screen that was still written in English.
+ *
+ * The API answers with a code, not a sentence — `unauthenticated` covers six
+ * different messages, so the coarse `reason_code` could never key one — and the
+ * browser looks it up. Only a browser proves the whole chain: a real failed
+ * request, a real problem document, and a real catalog lookup in the reader's
+ * language.
+ */
+test("a rejected sign-in explains itself in the reader's language", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    ignoreHTTPSErrors: true,
+    locale: "pt-BR",
+  });
+  const page = await context.newPage();
+  const user = newUser("err");
+  await signUp(page, user);
+  await createFirstOrg(page, "Erros Ltda");
+  await page.getByTestId("user-menu").click();
+  await page.getByTestId("sign-out").click();
+
+  await page.goto(`${APP}/signin`);
+  await page.getByTestId("auth-email").fill(user.email);
+  await page.getByTestId("auth-password").fill("definitely-not-the-password");
+  await page.getByTestId("auth-submit").click();
+
+  // Disjoint from the English on purpose: "senha" and "password" share nothing,
+  // so this cannot pass in the wrong language the way a substring check would.
+  await expect(page.getByText("E-mail ou senha incorretos.")).toBeVisible();
+  await expect(page.getByText(/invalid email or password/i)).toHaveCount(0);
+
   await context.close();
 });

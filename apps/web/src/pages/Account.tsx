@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { errMsg } from "@hull/api-client";
 import {
   Button,
   ConfirmDialog,
@@ -14,12 +13,14 @@ import {
   SessionList,
   ThemePreference,
   useT,
+  useErrMsg,
 } from "@hull/ui";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export function AccountPage() {
   const t = useT();
+  const errMsg = useErrMsg();
   const { me, refreshMe, signOut, bumpAvatar } = useSession();
   const [closePw, setClosePw] = useState("");
   const [closeError, setCloseError] = useState<string | null>(null);

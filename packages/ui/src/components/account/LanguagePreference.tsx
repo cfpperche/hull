@@ -2,9 +2,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { LOCALES, LOCALE_NAMES, type Locale } from "@hull/i18n";
 import type { HullApi } from "@hull/api-client";
-import { errMsg } from "@hull/api-client";
 import { cn } from "../../lib/utils";
-import { useLocale, useT } from "../LocaleProvider";
+import { useLocale, useErrMsg, useT } from "../LocaleProvider";
 
 /**
  * The account's language. Beside Appearance, and deliberately not the same kind
@@ -19,6 +18,7 @@ export function LanguagePreference({
   onSaved?: () => void | Promise<void>;
 }) {
   const t = useT();
+  const errMsg = useErrMsg();
   const current = useLocale();
   const [pending, setPending] = useState<Locale | null>(null);
 

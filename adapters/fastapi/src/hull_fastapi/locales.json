@@ -7,5 +7,37 @@
   "names": {
     "en": "English",
     "pt-BR": "Português (Brasil)"
-  }
+  },
+  "errorKeys": [
+    "error.emailTaken",
+    "error.usernameTaken",
+    "error.emailRequired",
+    "error.usernameInvalid",
+    "error.passwordTooShort",
+    "error.nameTooLong",
+    "error.orgNameRequired",
+    "error.sameEmail",
+    "error.credentialsInvalid",
+    "error.passwordWrong",
+    "error.currentPasswordWrong",
+    "error.resetInvalid",
+    "error.verifyInvalid",
+    "error.linkInvalid",
+    "error.handoffInvalid",
+    "error.sessionNotFound",
+    "error.orgNotFound",
+    "error.adminRequired",
+    "error.adminCannotClose",
+    "error.photoType",
+    "error.photoTooLarge",
+    "error.photoUnreadable",
+    "error.photoNotFound",
+    "error.storageOff",
+    "error.unauthenticated",
+    "error.notFound",
+    "error.server",
+    "error.requestFailed",
+    "error.rateLimited",
+    "error.rateLimitedSoon"
+  ]
 }

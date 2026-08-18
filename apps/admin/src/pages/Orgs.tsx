@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { originFor } from "@hull/config";
-import { errMsg } from "@hull/api-client";
-import { Button, Page, useT } from "@hull/ui";
+import { Button, Page, useT, useErrMsg } from "@hull/ui";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export function OrgsPage() {
   const t = useT();
+  const errMsg = useErrMsg();
   const { refreshMe } = useSession();
   const q = useQuery({
     queryKey: ["admin-orgs"],

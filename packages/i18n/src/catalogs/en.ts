@@ -307,6 +307,44 @@ export const en = {
   "www.surfaces.app": "Product shell.",
   "www.surfaces.admin": "Install operators.",
   "www.open": "Open",
+
+  // ---- What the server says went wrong -----------------------------------
+  //
+  // The API answers with a code, not a sentence: `reason_code` is the class the
+  // client branches on and is far too coarse to key a message — `unauthenticated`
+  // alone covers six of these. The English `detail` is still sent, as the log
+  // line and as the fallback for a client that has not learned a key yet.
+
+  "error.emailTaken": "That email is taken.",
+  "error.usernameTaken": "That username is taken.",
+  "error.emailRequired": "Enter an email address.",
+  "error.usernameInvalid": "Username must be 3–24 letters, numbers, or _.",
+  "error.passwordTooShort": "Password must be at least 8 characters.",
+  "error.nameTooLong": "That name is too long.",
+  "error.orgNameRequired": "Enter a workspace name.",
+  "error.sameEmail": "That is already your address.",
+  "error.credentialsInvalid": "Wrong email or password.",
+  "error.passwordWrong": "That password is wrong.",
+  "error.currentPasswordWrong": "Your current password is wrong.",
+  "error.resetInvalid": "That reset link is invalid or expired.",
+  "error.verifyInvalid": "That confirmation link is invalid or expired.",
+  "error.linkInvalid": "That link is invalid or expired.",
+  "error.handoffInvalid": "That hand-off link is invalid or expired.",
+  "error.sessionNotFound": "That session is already gone.",
+  "error.orgNotFound": "That workspace no longer exists.",
+  "error.adminRequired": "That needs a platform operator.",
+  "error.adminCannotClose": "A platform operator cannot close their own account.",
+  "error.photoType": "Photo must be a JPEG, PNG, or WebP.",
+  "error.photoTooLarge": "Photo is too large.",
+  "error.photoUnreadable": "That photo could not be read.",
+  "error.photoNotFound": "No photo.",
+  "error.storageOff": "The object store is not configured.",
+  "error.unauthenticated": "Sign in again.",
+  "error.notFound": "Not found.",
+  "error.server": "Something went wrong on our side.",
+  "error.requestFailed": "Request failed.",
+  "error.rateLimited": "Too many attempts. Try again in {seconds}s.",
+  "error.rateLimitedSoon": "Too many attempts. Try again shortly.",
 } as const;
 
 export type MessageKey = keyof typeof en;

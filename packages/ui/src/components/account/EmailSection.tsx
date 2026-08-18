@@ -1,10 +1,9 @@
 import { useState } from "react";
 import type { HullApi } from "@hull/api-client";
-import { errMsg } from "@hull/api-client";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Fill, useT } from "../LocaleProvider";
+import { Fill, useErrMsg, useT } from "../LocaleProvider";
 
 /**
  * Move the address this login signs in with.
@@ -21,6 +20,7 @@ export function EmailSection({
   email: string;
 }) {
   const t = useT();
+  const errMsg = useErrMsg();
   const [newEmail, setNewEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

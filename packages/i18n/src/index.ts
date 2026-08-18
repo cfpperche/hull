@@ -12,6 +12,7 @@ export {
   createT,
   fill,
   holes,
+  isMessageKey,
   segments,
   type PluralKey,
   type Segment,

@@ -14,6 +14,7 @@ export {
   useT,
   useLocale,
   useAccountLocale,
+  useErrMsg,
 } from "./components/LocaleProvider";
 export { BrandMark, AuthScreen } from "./components/BrandMark";
 export { UserMenu, type UserMenuItem, type UserMenuProps } from "./components/UserMenu";

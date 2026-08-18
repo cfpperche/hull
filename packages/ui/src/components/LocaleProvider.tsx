@@ -11,11 +11,13 @@ import {
 import {
   createT,
   isLocale,
+  isMessageKey,
   negotiate,
   type Locale,
   type Segment,
   type T,
 } from "@hull/i18n";
+import { ApiError, errMsg as englishErrMsg } from "@hull/api-client";
 
 /**
  * Which language this browser is reading, and the `t` that follows from it.
@@ -128,5 +130,30 @@ export function Fill({
         ),
       )}
     </>
+  );
+}
+
+/**
+ * What went wrong, in the reader's language.
+ *
+ * The API answers with a `message_key`, not a sentence, because the sentence is
+ * only readable in one language and the reader may not have it. Three fallbacks,
+ * in order: the key when this build knows it, the English `detail` when it does
+ * not — a frontend can be older than the server it talks to — and the raw
+ * message for anything that never reached the API at all.
+ *
+ * Replaces `errMsg` from `@hull/api-client` at every call site a person reads.
+ * That one still exists for scripts and logs, where English is correct.
+ */
+export function useErrMsg(): (err: unknown) => string {
+  const t = useT();
+  return useCallback(
+    (err: unknown) => {
+      if (err instanceof ApiError && isMessageKey(err.problem.message_key)) {
+        return t(err.problem.message_key, err.problem.message_values);
+      }
+      return englishErrMsg(err);
+    },
+    [t],
   );
 }

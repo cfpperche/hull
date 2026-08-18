@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { errMsg } from "@hull/api-client";
-import { AuthScreen, Button, Input, Label, useBrand, useT } from "@hull/ui";
+import {
+  AuthScreen,
+  Button,
+  Input,
+  Label,
+  useBrand,
+  useT,
+  useErrMsg,
+} from "@hull/ui";
 import { api } from "../lib/api";
 
 /**
@@ -13,6 +20,7 @@ import { api } from "../lib/api";
  */
 export function ForgotPage() {
   const t = useT();
+  const errMsg = useErrMsg();
   const { brand, mark } = useBrand();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);

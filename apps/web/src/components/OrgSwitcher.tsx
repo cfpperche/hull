@@ -1,13 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { Button, Input, cn, initial, useBrand, useT } from "@hull/ui";
-import { errMsg } from "@hull/api-client";
+import {
+  Button,
+  Input,
+  cn,
+  initial,
+  useBrand,
+  useT,
+  useErrMsg,
+} from "@hull/ui";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export function OrgSwitcher() {
   const t = useT();
+  const errMsg = useErrMsg();
   const { brand } = useBrand();
   const { me, refreshMe } = useSession();
   const [open, setOpen] = useState(false);

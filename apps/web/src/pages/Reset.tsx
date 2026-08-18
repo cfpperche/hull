@@ -1,7 +1,14 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { errMsg } from "@hull/api-client";
-import { AuthScreen, Button, Input, Label, useBrand, useT } from "@hull/ui";
+import {
+  AuthScreen,
+  Button,
+  Input,
+  Label,
+  useBrand,
+  useT,
+  useErrMsg,
+} from "@hull/ui";
 import { api } from "../lib/api";
 
 /**
@@ -14,6 +21,7 @@ import { api } from "../lib/api";
  */
 export function ResetPage() {
   const t = useT();
+  const errMsg = useErrMsg();
   const { brand, mark } = useBrand();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");

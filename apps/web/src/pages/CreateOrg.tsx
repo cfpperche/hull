@@ -7,13 +7,14 @@ import {
   initial,
   useBrand,
   useT,
+  useErrMsg,
 } from "@hull/ui";
-import { errMsg } from "@hull/api-client";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export function CreateOrgPage() {
   const t = useT();
+  const errMsg = useErrMsg();
   const { brand, mark } = useBrand();
   const { refreshMe, signOut, me } = useSession();
   const [name, setName] = useState("");

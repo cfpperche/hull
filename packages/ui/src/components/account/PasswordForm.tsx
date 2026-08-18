@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import type { HullApi } from "@hull/api-client";
-import { errMsg } from "@hull/api-client";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { useT } from "../LocaleProvider";
+import { useErrMsg, useT } from "../LocaleProvider";
 
 /**
  * Change the password.
@@ -20,6 +19,7 @@ export function PasswordForm({
   api: Pick<HullApi, "changePassword">;
 }) {
   const t = useT();
+  const errMsg = useErrMsg();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [error, setError] = useState<string | null>(null);

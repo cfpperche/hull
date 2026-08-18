@@ -80,7 +80,10 @@ test("changing the password keeps this session and invalidates the old one", asy
   await page.getByTestId("user-menu").click();
   await page.getByTestId("sign-out").click();
   await signInExpectingFailure(page, APP, email!, "demodemo1");
-  await expect(page.getByText(/invalid email or password/i)).toBeVisible();
+  // The catalog's wording, not the server's. `detail` still says "invalid email
+  // or password" and is still what a log shows; what a person reads now comes
+  // from `message_key`, and the two are allowed to differ. → ADR-0016
+  await expect(page.getByText("Wrong email or password.")).toBeVisible();
 });
 
 test("closing an account asks first", async ({ page }) => {

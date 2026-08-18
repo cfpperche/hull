@@ -1,13 +1,21 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { AuthScreen, Button, Input, Label, useBrand, useT } from "@hull/ui";
-import { errMsg } from "@hull/api-client";
+import {
+  AuthScreen,
+  Button,
+  Input,
+  Label,
+  useBrand,
+  useT,
+  useErrMsg,
+} from "@hull/ui";
 import { originFor } from "@hull/config";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export function SigninPage() {
   const t = useT();
+  const errMsg = useErrMsg();
   const { refreshMe } = useSession();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");

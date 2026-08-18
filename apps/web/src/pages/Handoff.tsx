@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { errMsg } from "@hull/api-client";
-import { AuthScreen, Button, useBrand, useT } from "@hull/ui";
+import { AuthScreen, Button, useBrand, useT, useErrMsg } from "@hull/ui";
 import { api } from "../lib/api";
 
 /**
@@ -12,6 +11,7 @@ import { api } from "../lib/api";
  */
 export function HandoffPage() {
   const t = useT();
+  const errMsg = useErrMsg();
   const { brand, mark } = useBrand();
   const [error, setError] = useState<string | null>(null);
   // StrictMode runs effects twice in dev. The token is single-use, so without

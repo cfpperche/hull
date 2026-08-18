@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { HullApi, HullMe } from "@hull/api-client";
-import { errMsg } from "@hull/api-client";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { useT } from "../LocaleProvider";
+import { useErrMsg, useT } from "../LocaleProvider";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -26,6 +25,7 @@ export function ProfileForm({
   onSaved?: () => void | Promise<void>;
 }) {
   const t = useT();
+  const errMsg = useErrMsg();
   const [name, setName] = useState(me?.user.name ?? "");
   const [username, setUsername] = useState(me?.user.username ?? "");
   const [error, setError] = useState<string | null>(null);

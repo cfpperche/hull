@@ -153,7 +153,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["Content-Type", "Accept"],
     )
 
-    def problem(status: int, title: str, detail: str, reason_code: str) -> JSONResponse:
+    def problem(status: int, title: str, detail: str, reason_code: str, key: str) -> JSONResponse:
         return JSONResponse(
             status_code=status,
             content={
@@ -162,13 +162,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "status": status,
                 "detail": detail,
                 "reason_code": reason_code,
+                # The sentence, named rather than written. `detail` above stays
+                # English; this is what the browser looks up in the reader's
+                # language. → ADR-0016
+                "message_key": key,
             },
             media_type=PROBLEM_JSON,
         )
 
     @app.exception_handler(RequestValidationError)
     async def validation_handler(_request: Request, exc: RequestValidationError) -> JSONResponse:
-        return problem(422, "Validation error", str(exc.errors()), "request_validation_error")
+        return problem(
+            422,
+            "Validation error",
+            str(exc.errors()),
+            "request_validation_error",
+            "error.requestFailed",
+        )
 
     @app.exception_handler(StarletteHTTPException)
     async def http_handler(_request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -178,15 +188,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=exc.status_code, content=detail, media_type=PROBLEM_JSON
             )
         if exc.status_code == 404:
-            return problem(404, "Not found", "Not found", "not_found")
-        return problem(exc.status_code, "Error", str(detail), "http_error")
+            return problem(404, "Not found", "Not found", "not_found", "error.notFound")
+        return problem(exc.status_code, "Error", str(detail), "http_error", "error.requestFailed")
 
     @app.exception_handler(Exception)
     async def unhandled_handler(request: Request, exc: Exception) -> JSONResponse:
         # Every error leaves as problem+json. A bare 500 with a text/plain body
         # breaks the shared client, which parses every non-204 response as JSON.
         log.exception("unhandled error on %s %s", request.method, request.url.path)
-        return problem(500, "Server error", "unexpected server error", "server_error")
+        return problem(
+            500, "Server error", "unexpected server error", "server_error", "error.server"
+        )
 
     @app.middleware("http")
     async def retire_duplicate_session_cookie(request: Request, call_next):
@@ -213,10 +225,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             declared = request.headers.get("content-length")
             if declared is None or not declared.isdigit():
                 return problem(
-                    411, "Length required", "content-length is required", "request_validation_error"
+                    411,
+                    "Length required",
+                    "content-length is required",
+                    "request_validation_error",
+                    "error.requestFailed",
                 )
             if int(declared) > MAX_UPLOAD_BYTES:
-                return problem(413, "Too large", "photo is too large", "request_validation_error")
+                return problem(
+                    413,
+                    "Too large",
+                    "photo is too large",
+                    "request_validation_error",
+                    "error.photoTooLarge",
+                )
         return await call_next(request)
 
     def _account_http(exc: AccountError | StorageError) -> JSONResponse:
@@ -231,7 +253,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             status = 404
         elif exc.reason_code == "storage_not_configured":
             status = 503
-        return problem(status, "Account error", exc.message, exc.reason_code)
+        return problem(status, "Account error", exc.message, exc.reason_code, exc.key)
 
     def _under_apex(request: Request) -> bool:
         host = (request.url.hostname or "").lower()
@@ -297,6 +319,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": 401,
                     "detail": "sign in required",
                     "reason_code": "unauthenticated",
+                    "message_key": "error.unauthenticated",
                 },
             )
         with connection(settings) as conn:
@@ -310,6 +333,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": 401,
                     "detail": "sign in required",
                     "reason_code": "unauthenticated",
+                    "message_key": "error.unauthenticated",
                 },
             )
         return sess
@@ -446,6 +470,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": status,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
         # Every session died with the reset, including any this browser was
@@ -474,6 +499,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": 401,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
 
@@ -524,6 +550,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": status,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
         # Both mails go to the same person — one address gaining the account,
@@ -584,6 +611,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": status,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
         # The last mail the old address gets. It is the one that says an account
@@ -622,6 +650,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": 404,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
         # Ending your own session is allowed — it is what "this device, no longer"
@@ -698,6 +727,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": status,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
         # Rotate the caller's own token too, so a stolen copy of the current
@@ -727,6 +757,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "status": status,
                     "detail": exc.message,
                     "reason_code": exc.reason_code,
+                    "message_key": exc.key,
                 },
             ) from exc
         # The users row is gone, so nothing can reference the object any more.
@@ -740,7 +771,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> dict[str, bool]:
         if not s3_enabled(settings):
             return _account_http(
-                StorageError("storage_not_configured", "object store is not configured")
+                StorageError(
+                    "storage_not_configured", "object store is not configured", "error.storageOff"
+                )
             )
         # Bounded read: never materialise more than the cap plus one byte, even if
         # the declared Content-Length that got us past the middleware was a lie.
@@ -758,7 +791,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/v1/me/avatar")
     def me_avatar_get(sess=Depends(require_session)) -> RawResponse:
         if not sess.avatar_key:
-            return problem(404, "Not found", "no photo", "not_found")
+            return problem(404, "Not found", "no photo", "not_found", "error.photoNotFound")
         try:
             body = get_avatar(settings, key=sess.avatar_key)
         except StorageError as exc:

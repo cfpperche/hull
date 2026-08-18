@@ -624,14 +624,26 @@ components:
     Problem:
       description: RFC 7807. `status` always equals the HTTP status of the response.
       type: object
-      required: [title, detail, status, reason_code]
+      required: [title, detail, status, reason_code, message_key]
       properties:
         type: { type: string }
         title: { type: string }
-        detail: { type: string }
+        detail:
+          description: >
+            The message, in English. A log line and a fallback — anything a
+            person reads should come from `message_key` instead.
+          type: string
         status: { type: integer }
+        message_key:
+          description: >
+            The specific message, named rather than written: a key in
+            `packages/i18n`, which the client resolves in the reader's own
+            language. Separate from `reason_code` because that is far too coarse
+            to key a sentence — `unauthenticated` alone covers six of them. Null
+            only for a failure that never produced a problem document.
+          type: [string, "null"]
         reason_code:
-          description: The stable member clients branch on.
+          description: The stable member clients branch on. A class, not a message.
           type: string
           enum:
             - unauthenticated

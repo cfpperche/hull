@@ -13,10 +13,14 @@ ALLOWED = {"image/jpeg", "image/png", "image/webp"}
 
 
 class StorageError(Exception):
-    def __init__(self, reason_code: str, message: str) -> None:
+    """Same shape as AccountError: a coarse class, and a catalog key for the
+    sentence. See its docstring."""
+
+    def __init__(self, reason_code: str, message: str, key: str) -> None:
         super().__init__(message)
         self.reason_code = reason_code
         self.message = message
+        self.key = key
 
 
 def s3_enabled(settings: Settings) -> bool:
@@ -26,7 +30,9 @@ def s3_enabled(settings: Settings) -> bool:
 def s3_client(settings: Settings):
     endpoint = (settings.s3_endpoint or "").strip()
     if not endpoint:
-        raise StorageError("storage_not_configured", "HULL_S3_ENDPOINT is empty")
+        raise StorageError(
+            "storage_not_configured", "HULL_S3_ENDPOINT is empty", "error.storageOff"
+        )
     return boto3.client(
         "s3",
         endpoint_url=endpoint,
@@ -49,9 +55,11 @@ def ensure_buckets(settings: Settings) -> None:
 
 def put_avatar(settings: Settings, *, user_id: str, data: bytes, content_type: str) -> str:
     if content_type not in ALLOWED:
-        raise StorageError("request_validation_error", "photo must be jpeg, png, or webp")
+        raise StorageError(
+            "request_validation_error", "photo must be jpeg, png, or webp", "error.photoType"
+        )
     if len(data) > 5 * 1024 * 1024:
-        raise StorageError("request_validation_error", "photo is too large")
+        raise StorageError("request_validation_error", "photo is too large", "error.photoTooLarge")
     # Decode rather than trust the client's content type, and keep Pillow's own
     # errors inside the StorageError contract so a bad file is a 422, not a 500.
     try:
@@ -63,7 +71,9 @@ def put_avatar(settings: Settings, *, user_id: str, data: bytes, content_type: s
         out = io.BytesIO()
         canvas.save(out, format="WEBP", quality=85)
     except (UnidentifiedImageError, OSError, ValueError) as exc:
-        raise StorageError("request_validation_error", "photo could not be read") from exc
+        raise StorageError(
+            "request_validation_error", "photo could not be read", "error.photoUnreadable"
+        ) from exc
     key = f"{user_id}.webp"
     client = s3_client(settings)
     ensure_buckets(settings)
@@ -81,7 +91,7 @@ def get_avatar(settings: Settings, *, key: str) -> bytes:
     try:
         resp = client.get_object(Bucket=settings.s3_bucket_avatars, Key=key)
     except ClientError as exc:
-        raise StorageError("not_found", "photo not found") from exc
+        raise StorageError("not_found", "photo not found", "error.photoNotFound") from exc
     return resp["Body"].read()
 
 

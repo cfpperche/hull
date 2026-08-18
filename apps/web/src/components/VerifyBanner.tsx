@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { errMsg } from "@hull/api-client";
-import { Fill, useT } from "@hull/ui";
+import { Fill, useT, useErrMsg } from "@hull/ui";
 import { api } from "../lib/api";
 
 /**
@@ -13,6 +12,7 @@ import { api } from "../lib/api";
  */
 export function VerifyBanner({ email }: { email: string }) {
   const t = useT();
+  const errMsg = useErrMsg();
   const [sending, setSending] = useState(false);
 
   async function resend() {

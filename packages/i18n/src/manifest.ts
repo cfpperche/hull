@@ -16,6 +16,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_LOCALE, LOCALES, LOCALE_NAMES } from "./locales";
+import { en } from "./catalogs/en";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const MANIFEST = join(
@@ -23,9 +24,26 @@ export const MANIFEST = join(
   "../../../adapters/fastapi/src/hull_fastapi/locales.json",
 );
 
+/**
+ * The `error.*` keys, so the adapter can be held to them.
+ *
+ * `hull_fastapi` names one of these on every error it raises, and a typo there
+ * is silent: the client cannot find the key, falls back to the English `detail`,
+ * and a Portuguese reader gets one English sentence in an otherwise translated
+ * screen. `test_error_keys.py` compares this list against every raise site.
+ */
+function errorKeys(): string[] {
+  return Object.keys(en).filter((key) => key.startsWith("error."));
+}
+
 export function render(): string {
   return `${JSON.stringify(
-    { default: DEFAULT_LOCALE, locales: LOCALES, names: LOCALE_NAMES },
+    {
+      default: DEFAULT_LOCALE,
+      locales: LOCALES,
+      names: LOCALE_NAMES,
+      errorKeys: errorKeys(),
+    },
     null,
     2,
   )}\n`;

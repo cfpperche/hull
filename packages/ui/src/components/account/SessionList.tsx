@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { HullApi, HullSession } from "@hull/api-client";
-import { errMsg } from "@hull/api-client";
 import type { Locale, T } from "@hull/i18n";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../ui/confirm-dialog";
-import { useLocale, useT } from "../LocaleProvider";
+import { useLocale, useErrMsg, useT } from "../LocaleProvider";
 
 /**
  * "just now" / "4 minutes ago" / "3 days ago", in the account's language.
@@ -57,6 +56,7 @@ export function SessionList({
   api: Pick<HullApi, "listSessions" | "revokeSession" | "revokeOtherSessions">;
 }) {
   const t = useT();
+  const errMsg = useErrMsg();
   const locale = useLocale();
   const [sessions, setSessions] = useState<HullSession[] | null>(null);
   const [error, setError] = useState<string | null>(null);
