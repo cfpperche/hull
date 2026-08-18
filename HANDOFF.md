@@ -171,6 +171,16 @@ and the password again. Everything else moved to the first-run screen.
 
   The submit guard reads `ok`, never `message`: the button can be pressed inside
   the wait, and `reveal()` is what puts the reason on screen without it.
+- **The submit button is disabled on what is visible, never on the truth.** A
+  dead control with nothing on screen to explain it is what makes disabled
+  buttons bad advice, and the debounce creates exactly that window — the
+  mismatch is real for half a second before it is stated. So the rule is
+  `Boolean(match.message)`, not `!match.ok`: empty fields explain themselves, a
+  shown mismatch has its sentence, and the eight-character minimum is the one
+  condition with nothing on screen to point at, so it is left to submit and
+  answered by `signup.invalid`. The pattern already had precedent here —
+  `EmailSection` and the close-account form both gate on required fields being
+  filled.
 
 ## Language
 

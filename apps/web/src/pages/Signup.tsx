@@ -124,7 +124,25 @@ export function SignupPage() {
           ) : null}
         </div>
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
-        <Button type="submit" data-testid="auth-submit" disabled={pending}>
+        {/* Disabled on what is *visible*, never on the underlying truth. The
+            mismatch is real for half a second before it is said out loud, and a
+            button that dies during that window is a dead control with no reason
+            on screen — the failure mode that makes this pattern bad advice. The
+            empty fields are their own explanation; the mismatch has a sentence
+            under it; the eight-character rule is not checked here, because it is
+            the one condition that has nothing on screen to point at, and it is
+            answered on submit instead. */}
+        <Button
+          type="submit"
+          data-testid="auth-submit"
+          disabled={
+            pending ||
+            !email.trim() ||
+            !password ||
+            !confirm ||
+            Boolean(match.message)
+          }
+        >
           {pending ? t("signup.pending") : t("signup.submit")}
         </Button>
       </form>

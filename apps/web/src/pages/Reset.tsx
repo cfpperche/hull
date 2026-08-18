@@ -8,6 +8,7 @@ import {
   useBrand,
   useT,
   useErrMsg,
+  usePasswordMatch,
 } from "@hull/ui";
 import { api } from "../lib/api";
 
@@ -25,6 +26,7 @@ export function ResetPage() {
   const { brand, mark } = useBrand();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const match = usePasswordMatch(password, confirm);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -40,9 +42,10 @@ export function ResetPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (password !== confirm) {
-      // Inline next to the form, not a toast — this is field validation.
-      setError(t("auth.passwordMismatch"));
+    // The truth, not the debounced message: the button is live inside the wait,
+    // and `reveal` is what states the reason without it.
+    if (!match.ok) {
+      match.reveal();
       return;
     }
     setPending(true);
@@ -105,10 +108,25 @@ export function ResetPage() {
             autoComplete="new-password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
+            aria-invalid={match.message ? true : undefined}
+            aria-describedby={match.message ? "reset-confirm-error" : undefined}
           />
+          {match.message ? (
+            <p
+              id="reset-confirm-error"
+              data-testid="reset-mismatch"
+              className="text-destructive text-sm"
+            >
+              {match.message}
+            </p>
+          ) : null}
         </div>
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
-        <Button type="submit" data-testid="reset-submit" disabled={pending}>
+        <Button
+          type="submit"
+          data-testid="reset-submit"
+          disabled={pending || !password || !confirm || Boolean(match.message)}
+        >
           {pending ? t("reset.pending") : t("reset.submit")}
         </Button>
       </form>

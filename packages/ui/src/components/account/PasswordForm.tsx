@@ -96,7 +96,14 @@ export function PasswordForm({
         ) : null}
       </div>
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
-      <Button type="submit" className="w-fit" disabled={pending}>
+      <Button
+        type="submit"
+        className="w-fit"
+        data-testid="password-submit"
+        disabled={
+          pending || !current || !next || !confirm || Boolean(match.message)
+        }
+      >
         {pending ? t("account.password.pending") : t("account.password.submit")}
       </Button>
     </form>

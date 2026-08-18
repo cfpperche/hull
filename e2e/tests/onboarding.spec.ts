@@ -126,6 +126,41 @@ test("the repeat field waits for a pause before calling you wrong", async ({
   await page.getByTestId("org-name").waitFor();
 });
 
+test("the button is dead only while a reason is on screen", async ({
+  page,
+}) => {
+  const user = newUser("ob");
+  await page.goto(`${APP}/signup`);
+  const submit = page.getByTestId("auth-submit");
+
+  // Empty form: dead, and every field is visibly blank — the explanation is the
+  // form itself.
+  await expect(submit).toBeDisabled();
+
+  await page.getByTestId("auth-email").fill(user.email);
+  await page.getByTestId("auth-password").fill("demodemo1");
+  await expect(submit).toBeDisabled();
+
+  // Filled but mismatched. Live at first — the mismatch is true before it is
+  // said, and a button that dies during that window is a dead control with
+  // nothing on screen to explain it.
+  await page.getByTestId("auth-password-again").fill("demodemo2");
+  await expect(submit).toBeEnabled();
+
+  // Once the reason appears, the button goes with it.
+  await expect(page.getByTestId("auth-password-mismatch")).toBeVisible({
+    timeout: MATCH_DELAY_MS * 4,
+  });
+  await expect(submit).toBeDisabled();
+
+  // And comes back. Without this half the whole test passes on a button that is
+  // simply always disabled.
+  await page.getByTestId("auth-password-again").fill("demodemo1");
+  await expect(submit).toBeEnabled();
+  await submit.click();
+  await page.getByTestId("org-name").waitFor();
+});
+
 test("submitting inside the pause is still refused", async ({ page }) => {
   const user = newUser("ob");
   await page.goto(`${APP}/signup`);
