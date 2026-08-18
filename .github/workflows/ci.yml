@@ -13,9 +13,18 @@ permissions:
 # provisions a runner and calls them, so `make ci` on a workstation runs the same
 # code — and a step cannot be added to one without the other.
 
+# A hung job costs six hours without this. Measured 2026-08-18: `test` runs in
+# ~2 minutes and `e2e` in ~2m20s, and one `e2e` hung inside ci-e2e.sh until
+# GitHub's own 360-minute ceiling killed it — which the API then reports as
+# `cancelled`, so it does not even read as a timeout when you go looking. Twenty
+# minutes is eight times the observed worst case: generous enough that a cold
+# cache or a slow runner never trips it, tight enough that a hang is a nuisance
+# rather than a day of runner time.
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       # Actions are pinned to commit SHAs: a tag is mutable, so `@v4` lets the
       # action's owner change what runs here after review. The trailing comment
@@ -40,6 +49,7 @@ jobs:
   # browser actually does. See docs/adr/0012-browser-e2e-with-playwright.md.
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
