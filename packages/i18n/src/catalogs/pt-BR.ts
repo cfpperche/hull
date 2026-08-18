@@ -155,6 +155,8 @@ export const ptBR: Catalog = {
   "auth.signOut": "Sair",
   "auth.email": "E-mail",
   "auth.password": "Senha",
+  "auth.passwordAgain": "Repita a senha",
+  "auth.passwordMismatch": "As duas senhas são diferentes.",
   "auth.noAccount": "Não tem conta?",
   "auth.createOne": "Crie uma",
   "auth.haveAccount": "Já tem uma conta?",
@@ -188,7 +190,6 @@ export const ptBR: Catalog = {
   "reset.confirm": "Repita",
   "reset.submit": "Definir a senha",
   "reset.pending": "Salvando…",
-  "reset.mismatch": "As duas senhas são diferentes.",
   "reset.done": "Senha alterada",
   "reset.noTokenTitle": "Este link está incompleto",
   "reset.noTokenDescription":

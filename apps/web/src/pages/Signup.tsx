@@ -20,6 +20,7 @@ export function SignupPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -28,6 +29,14 @@ export function SignupPage() {
     setError(null);
     if (!username.trim() || !email.trim() || password.length < 8) {
       setError(t("signup.invalid"));
+      return;
+    }
+    // Before the request, and inline rather than a toast: this is field
+    // validation. The server never sees the second box — it guards against a
+    // typo locking somebody out of an account they just created, which is not
+    // a security control and should not pretend to be one.
+    if (password !== confirm) {
+      setError(t("auth.passwordMismatch"));
       return;
     }
     setPending(true);
@@ -97,6 +106,17 @@ export function SignupPage() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="password-again">{t("auth.passwordAgain")}</Label>
+          <Input
+            id="password-again"
+            data-testid="auth-password-again"
+            type="password"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
           />
         </div>
         {error ? <p className="text-destructive text-sm">{error}</p> : null}

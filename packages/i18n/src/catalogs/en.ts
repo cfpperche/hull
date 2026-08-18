@@ -158,6 +158,11 @@ export const en = {
   "auth.signOut": "Sign out",
   "auth.email": "Email",
   "auth.password": "Password",
+  "auth.passwordAgain": "Repeat the password",
+  // One key, three screens. Signup, reset and change-password all ask twice
+  // and all fail the same way; three spellings of one sentence is how a
+  // catalog starts disagreeing with itself.
+  "auth.passwordMismatch": "Those two passwords are different.",
   "auth.noAccount": "No account?",
   "auth.createOne": "Create one",
   "auth.haveAccount": "Already have an account?",
@@ -190,7 +195,6 @@ export const en = {
   "reset.confirm": "Repeat it",
   "reset.submit": "Set the password",
   "reset.pending": "Saving…",
-  "reset.mismatch": "Those two passwords are different.",
   "reset.done": "Password changed",
   "reset.noTokenTitle": "That link is incomplete",
   "reset.noTokenDescription": "Reset links carry a token. Ask for a new one.",

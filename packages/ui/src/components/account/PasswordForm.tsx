@@ -22,17 +22,26 @@ export function PasswordForm({
   const errMsg = useErrMsg();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    // Costlier to get wrong here than on any other screen: a change ends every
+    // other session, so a typo signs the person out of their other devices and
+    // leaves them holding a password they cannot reproduce.
+    if (next !== confirm) {
+      setError(t("auth.passwordMismatch"));
+      return;
+    }
     setPending(true);
     try {
       await api.changePassword({ current, password: next });
       setCurrent("");
       setNext("");
+      setConfirm("");
       toast.success(t("account.password.updated"));
     } catch (err) {
       setError(errMsg(err));
@@ -58,8 +67,19 @@ export function PasswordForm({
         <Input
           id="next"
           type="password"
+          data-testid="password-new"
           value={next}
           onChange={(e) => setNext(e.target.value)}
+        />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="next-again">{t("auth.passwordAgain")}</Label>
+        <Input
+          id="next-again"
+          type="password"
+          data-testid="password-again"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
         />
       </div>
       {error ? <p className="text-destructive text-sm">{error}</p> : null}

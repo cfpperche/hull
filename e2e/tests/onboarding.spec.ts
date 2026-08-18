@@ -41,6 +41,7 @@ test("signup refuses an email already taken, inline", async ({ page }) => {
   await page.getByTestId("auth-username").fill(second.username);
   await page.getByTestId("auth-email").fill(user.email);
   await page.getByTestId("auth-password").fill(second.password);
+  await page.getByTestId("auth-password-again").fill(second.password);
   await page.getByTestId("auth-submit").click();
 
   // Inline on the form, not a toast — harness/action-feedback.md.

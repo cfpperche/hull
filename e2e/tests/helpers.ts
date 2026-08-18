@@ -29,6 +29,7 @@ export async function signUp(page: Page, user: ReturnType<typeof newUser>) {
   await page.getByTestId("auth-username").fill(user.username);
   await page.getByTestId("auth-email").fill(user.email);
   await page.getByTestId("auth-password").fill(user.password);
+  await page.getByTestId("auth-password-again").fill(user.password);
   await page.getByTestId("auth-submit").click();
   await page.getByTestId("auth-submit").waitFor({ state: "detached" });
 }

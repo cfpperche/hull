@@ -42,7 +42,7 @@ export function ResetPage() {
     setError(null);
     if (password !== confirm) {
       // Inline next to the form, not a toast — this is field validation.
-      setError(t("reset.mismatch"));
+      setError(t("auth.passwordMismatch"));
       return;
     }
     setPending(true);
