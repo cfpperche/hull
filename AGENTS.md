@@ -18,6 +18,7 @@ Read **`HANDOFF.md`** first for what exists and what is next.
 | [`harness/qa.md`](./harness/qa.md) | Exploring a live install mid-task, carrying state. Not CI. |
 | [`harness/peer.md`](./harness/peer.md) | Asking one of the other two agents — delegation, audit, adversarial review. Not CI. |
 | [`packages/email/`](./packages/email/) | The mail bodies, as react-email JSX. Rendered at build time; never at runtime. |
+| [`packages/i18n/`](./packages/i18n/) | Every user-visible string, one catalog per locale. Screens, mail and errors all read this one. |
 | [`CHANGELOG.md`](./CHANGELOG.md) | Update under `[Unreleased]` before every push to `main`. |
 
 Agent operating model (who plans, who implements, who reviews) is **not defined**.
@@ -56,6 +57,9 @@ the mechanism is the same one every time.
 - Mail bodies are **react-email JSX** in `packages/email`, rendered into the adapter by
   `pnpm --filter @hull/email build`. Do not hand-edit `hull_fastapi/mail_templates/` — it is
   generated, and CI fails when it has drifted. No runtime editor, no Node behind SMTP.
+- Every user-visible string lives in `packages/i18n`, one catalog per locale. The server
+  **never translates** — it picks a pre-rendered file. No i18n library; completeness is a
+  build gate. A key names a whole phrase, not a fragment. → [0016](./docs/adr/0016-one-catalog-per-locale-the-server-never-translates.md)
 - Compose project name is **`hull`**. Never `docker run` a Hull process.
 - Windows Chrome does not use WSL `/etc/hosts`. `setup-local.sh` on WSL must open UAC (`setup-windows-from-wsl.sh`).
 

@@ -214,6 +214,21 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/i18n:
+    devDependencies:
+      '@hull/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^24
+        version: 24.13.3
+      tsx:
+        specifier: ^4.23.12
+        version: 4.23.12
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/tsconfig: {}
 
   packages/ui:
