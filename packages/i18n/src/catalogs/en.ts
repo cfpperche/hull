@@ -231,7 +231,7 @@ export const en = {
 
   "org.createTitle": "One more step",
   "org.createDescription": "A name for you, and a name for your workspace.",
-  "org.yourNameHint": "Optional — it is how the product will address you.",
+  "org.yourNameRequired": "Enter your name.",
   "org.name": "Workspace name",
   "org.creating": "Creating…",
   "org.fallback": "Workspace",

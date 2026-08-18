@@ -226,7 +226,7 @@ export const ptBR: Catalog = {
 
   "org.createTitle": "Falta um passo",
   "org.createDescription": "Um nome para você, e um nome para o seu espaço de trabalho.",
-  "org.yourNameHint": "Opcional — é como o produto vai se dirigir a você.",
+  "org.yourNameRequired": "Informe seu nome.",
   "org.name": "Nome do espaço de trabalho",
   "org.creating": "Criando…",
   "org.fallback": "Espaço de trabalho",

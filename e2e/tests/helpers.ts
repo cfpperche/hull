@@ -85,7 +85,24 @@ export async function expectTokenStripped(page: Page) {
 }
 
 /** Name the first workspace — the step signup hands you straight into. */
-export async function createFirstOrg(page: Page, name: string) {
-  await page.getByTestId("org-name").fill(name);
+/**
+ * Clear the first-run screen. Both fields are required there, so both are filled
+ * — a helper that skipped the name would leave every spec pressing a button that
+ * is disabled, and the failure would read as a broken flow rather than a stale
+ * helper.
+ */
+export async function createFirstOrg(
+  page: Page,
+  org: string,
+  person = "Test Person",
+) {
+  await page.getByTestId("your-name").fill(person);
+  await page.getByTestId("org-name").fill(org);
   await page.getByTestId("org-submit").click();
+  // Wait for the screen to go, the way signUp waits for its button. This used to
+  // return on the click and got away with it while the submit was one round
+  // trip; the name made it two, and the next `page.goto` started aborting the
+  // org creation mid-flight. The race was always there — it just had a smaller
+  // window.
+  await page.getByTestId("org-submit").waitFor({ state: "detached" });
 }

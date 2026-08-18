@@ -21,11 +21,15 @@ import { useSession } from "../lib/session";
  * what is merely *useful* is asked here, once the person is already through the
  * door and has less reason to abandon.
  *
- * Only the workspace is required, and it always was — the product has nowhere to
- * put you without one. The name is optional and says so, because with an email
- * on every account there is nothing here that recovery depends on. If a future
- * identity has no address behind it, this is the screen that would have to stop
- * letting people past.
+ * Both fields are required. The workspace always was — the product has nowhere
+ * to put you without one — and the name is now too, because a product that has
+ * to address somebody by their email address for the rest of the relationship
+ * never gets a second chance this cheap to ask.
+ *
+ * Only here. `PATCH /v1/me` still lets an empty name clear the column, and a
+ * test says so: this is a gate on the way in, not a rule about the field. Making
+ * the server refuse it would take that away from people who already have an
+ * account and have decided they do not want one on it.
  *
  * Deliberately no username field. It is the one thing on the old signup form
  * that could be refused for a reason that is not the applicant's fault, and
@@ -45,19 +49,22 @@ export function CreateOrgPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    // The person before the workspace, in the order the form reads.
+    if (!yourName.trim()) {
+      setError(t("org.yourNameRequired"));
+      return;
+    }
     if (!orgName.trim()) {
       setError(t("error.orgNameRequired"));
       return;
     }
     setPending(true);
     try {
-      // The name first, and only when given. It is the cheaper call and the one
-      // that can still be refused (too long) — failing it here leaves nothing
-      // created, where failing after the workspace exists would close this
-      // screen with the error unread.
-      if (yourName.trim()) {
-        await api.updateMe({ name: yourName.trim() });
-      }
+      // The name first. It is the cheaper call and the one that can still be
+      // refused (too long) — failing it here leaves nothing created, where
+      // failing after the workspace exists would close this screen with the
+      // error unread.
+      await api.updateMe({ name: yourName.trim() });
       await api.createOrg({ name: orgName.trim() });
       await refreshMe();
     } catch (err) {
@@ -111,9 +118,6 @@ export function CreateOrgPage() {
               onChange={(e) => setYourName(e.target.value)}
               autoFocus
             />
-            <p className="text-muted-foreground text-xs">
-              {t("org.yourNameHint")}
-            </p>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="org-name">{t("org.name")}</Label>
@@ -128,7 +132,10 @@ export function CreateOrgPage() {
           <Button
             type="submit"
             data-testid="org-submit"
-            disabled={pending}
+            /* Same rule as the password screens: dead only while something on
+               screen explains it, and here both empty boxes are their own
+               explanation. */
+            disabled={pending || !yourName.trim() || !orgName.trim()}
             className="h-10"
           >
             {pending ? t("org.creating") : t("common.continue")}

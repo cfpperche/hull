@@ -28,8 +28,7 @@ test("the first-run screen collects the name signup stopped asking for", async (
   const user = newUser("ob");
   await signUp(page, user);
 
-  await page.getByTestId("your-name").fill("Ada Lovelace");
-  await createFirstOrg(page, "Analytical");
+  await createFirstOrg(page, "Analytical", "Ada Lovelace");
 
   // Through the door, and the name reached the account — the chrome reads it
   // from `me`, not from anything this page kept in memory.
@@ -41,21 +40,28 @@ test("the first-run screen collects the name signup stopped asking for", async (
   await expect(page.getByTestId("user-menu")).toContainText("Ada Lovelace");
 });
 
-test("the name is optional, the workspace is not", async ({ page }) => {
+test("neither field lets you past empty", async ({ page }) => {
   const user = newUser("ob");
   await signUp(page, user);
+  const submit = page.getByTestId("org-submit");
 
-  // Submitting with only the workspace works: with an email on every account
-  // there is nothing here that account recovery depends on, so nothing else
-  // earns the right to block the way in.
-  await page.getByTestId("org-submit").click();
-  await expect(page.getByText("Enter a workspace name.")).toBeVisible();
+  await expect(submit).toBeDisabled();
 
-  await createFirstOrg(page, "Nameless");
+  // One at a time, so the assertion is about each field rather than about the
+  // pair. A rule that only checked the workspace would pass a test that filled
+  // both and then emptied neither.
+  await page.getByTestId("your-name").fill("Carlos");
+  await expect(submit).toBeDisabled();
+  await page.getByTestId("your-name").fill("");
+  await page.getByTestId("org-name").fill("Nameless");
+  await expect(submit).toBeDisabled();
+
+  await page.getByTestId("your-name").fill("Carlos");
+  await expect(submit).toBeEnabled();
+  await submit.click();
+
   await expect(page.getByTestId("org-switcher")).toContainText("Nameless");
-  // No name given, so the menu falls back to the address rather than showing an
-  // empty label.
-  await expect(page.getByTestId("user-menu")).toContainText(user.email);
+  await expect(page.getByTestId("user-menu")).toContainText("Carlos");
 });
 
 test("sign out and back in returns to the same workspace", async ({ page }) => {
