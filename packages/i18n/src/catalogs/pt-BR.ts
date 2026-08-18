@@ -224,11 +224,11 @@ export const ptBR: Catalog = {
 
   // ---- Workspaces --------------------------------------------------------
 
-  "org.createTitle": "Dê um nome ao seu espaço de trabalho",
-  "org.createDescription": "Um campo só. Dá para adicionar mais depois.",
+  "org.createTitle": "Falta um passo",
+  "org.createDescription": "Um nome para você, e um nome para o seu espaço de trabalho.",
+  "org.yourNameHint": "Opcional — é como o produto vai se dirigir a você.",
   "org.name": "Nome do espaço de trabalho",
   "org.creating": "Criando…",
-  "org.nameRequired": "O nome é obrigatório",
   "org.fallback": "Espaço de trabalho",
   "org.switching": "Trocando…",
   "org.new": "Novo espaço de trabalho",

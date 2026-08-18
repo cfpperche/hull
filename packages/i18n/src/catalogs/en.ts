@@ -229,11 +229,11 @@ export const en = {
 
   // ---- Workspaces --------------------------------------------------------
 
-  "org.createTitle": "Name your workspace",
-  "org.createDescription": "One field. You can add more later.",
+  "org.createTitle": "One more step",
+  "org.createDescription": "A name for you, and a name for your workspace.",
+  "org.yourNameHint": "Optional — it is how the product will address you.",
   "org.name": "Workspace name",
   "org.creating": "Creating…",
-  "org.nameRequired": "Name is required",
   "org.fallback": "Workspace",
   "org.switching": "Switching…",
   "org.new": "New workspace",

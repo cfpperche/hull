@@ -63,7 +63,7 @@ export function OrgSwitcher() {
     e.preventDefault();
     setError(null);
     if (!name.trim()) {
-      setError(t("org.nameRequired"));
+      setError(t("error.orgNameRequired"));
       return;
     }
     setPending(true);
