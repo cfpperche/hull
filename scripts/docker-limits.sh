@@ -59,6 +59,14 @@ if ! systemctl cat docker.service >/dev/null 2>&1; then
   exit 1
 fi
 
+# Before the summary below, not after it: re-execing later meant the header was
+# computed, printed, and then printed again by the root process. `--dry-run`
+# stays unprivileged, because it writes nothing.
+if ((! DRY)) && [[ "$(id -u)" -ne 0 ]]; then
+  echo "Need root to write ${DAEMON} and restart Docker."
+  exec sudo -E "$0" "$@"
+fi
+
 # ── the numbers ─────────────────────────────────────────────────────────────
 # From the filesystem Docker actually stores on, not from a constant. A 20 GB
 # floor is prudent on 1 TB and absurd on 64 GB.
@@ -182,17 +190,16 @@ if ((DRY)); then
   exit 0
 fi
 
-if [[ "$(id -u)" -ne 0 ]]; then
-  echo "Need root to write ${DAEMON} and restart Docker."
-  exec sudo HULL_DOCKER_CACHE_GB="$CACHE_GB" HULL_DOCKER_FREE_GB="$FREE_GB" "$0" "$@"
-fi
-
 # ── apply, with a way back ──────────────────────────────────────────────────
 backup=""
 if [[ -f "$DAEMON" ]]; then
   backup="${DAEMON}.hull-$(date +%Y%m%d-%H%M%S)"
   cp "$DAEMON" "$backup"
   echo "backed up  ${backup}"
+  # Three, so a bad run is still recoverable a couple of attempts later, and
+  # /etc/docker does not silently collect one file per invocation. `--self-test`
+  # writes one every time it runs, which is how this was noticed.
+  ls -1t "${DAEMON}".hull-* 2>/dev/null | tail -n +4 | xargs -r rm -f
 fi
 
 install -m 0644 "$merged" "$DAEMON"

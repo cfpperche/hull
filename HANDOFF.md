@@ -354,7 +354,10 @@ Org isolation, Traefik-in-compose, `config.json` runtime brand, and the session 
   format of `docker buildx inspect` shows the stock filters comma-joined on one
   line, and reading that as the *input* format is the trap. The script writes no
   `filter` key at all, and `--self-test` writes that exact broken config on
-  purpose to prove the rollback still works.
+  purpose to prove the rollback still works — run and confirmed on 2026-08-18:
+  `restarting docker… refused, as expected` → `SELF_TEST_OK the rollback works`,
+  then a real run reporting `Max Used Space = 20GiB` with the nvidia runtime
+  still in the file.
 
   Two things it does not cover. `docker volume prune -f` is safe — it removes
   only anonymous volumes — but **`docker volume prune -a` is not**: this machine
