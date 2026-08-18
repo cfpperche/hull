@@ -232,15 +232,22 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [id, device, created_at, last_seen_at, support, current]
+                      required:
+                        [id, browser, system, created_at, last_seen_at, support, current]
                       properties:
                         id: { type: string, format: uuid }
-                        device:
-                          type: string
+                        browser:
+                          type: [string, "null"]
                           description: >
-                            A short reading of the User-Agent, e.g. "Chrome on
-                            Windows", or "Unknown device". Not a promise about
+                            A short reading of the User-Agent, e.g. "Chrome".
+                            Null when it could not be read. Not a promise about
                             the client — User-Agent is self-reported.
+                        system:
+                          type: [string, "null"]
+                          description: >
+                            e.g. "Windows". Two names rather than one phrase:
+                            "Chrome on Windows" joins them with an English word,
+                            and the client is where the catalog lives.
                         created_at: { type: string, format: date-time }
                         last_seen_at:
                           type: string

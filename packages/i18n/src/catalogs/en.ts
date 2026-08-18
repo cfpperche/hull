@@ -134,6 +134,8 @@ export const en = {
   "sessions.blurb":
     "Signing in on another device does not end this one. End anything you do not recognise.",
   "sessions.support": " · support",
+  "sessions.device": "{browser} on {system}",
+  "sessions.unknownDevice": "Unknown device",
   "sessions.thisDevice": "This device",
   "sessions.lastUsed": "Last used {ago}",
   "sessions.justNow": "just now",

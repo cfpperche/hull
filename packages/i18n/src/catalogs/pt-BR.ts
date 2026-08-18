@@ -131,6 +131,8 @@ export const ptBR: Catalog = {
   "sessions.blurb":
     "Entrar em outro dispositivo não encerra este. Encerre qualquer um que você não reconheça.",
   "sessions.support": " · suporte",
+  "sessions.device": "{browser} no {system}",
+  "sessions.unknownDevice": "Dispositivo desconhecido",
   "sessions.thisDevice": "Este dispositivo",
   "sessions.lastUsed": "Usado {ago}",
   "sessions.justNow": "agora mesmo",

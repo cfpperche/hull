@@ -119,7 +119,7 @@ SEEN_GRANULARITY = timedelta(minutes=1)
 MAX_USER_AGENT = 400
 
 
-def _device_label(user_agent: str | None) -> str:
+def _device_parts(user_agent: str | None) -> tuple[str | None, str | None]:
     """A short, deliberately dumb reading of a User-Agent string.
 
     Not a parser. User-Agent is a pile of historical lies — every browser claims
@@ -127,10 +127,15 @@ def _device_label(user_agent: str | None) -> str:
     library that keeps up with it is a dependency and a subscription. This answers
     the only question the list is asking, "which of these is the machine in front
     of me", and says so honestly when it cannot tell.
+
+    Returns the two names rather than a sentence. "Chrome on Linux" reads as one
+    string and is really two proper nouns joined by a word — and that word is
+    English. The browser owns the joining, because the browser is where the
+    catalog is. → ADR-0016
     """
     ua = user_agent or ""
     if not ua.strip():
-        return "Unknown device"
+        return None, None
     browser = next(
         (
             name
@@ -162,9 +167,7 @@ def _device_label(user_agent: str | None) -> str:
         ),
         None,
     )
-    if browser and system:
-        return f"{browser} on {system}"
-    return browser or system or "Unknown device"
+    return browser, system
 
 
 @dataclass(frozen=True)
@@ -824,10 +827,15 @@ def list_sessions(
             (user_id,),
         )
         rows = cur.fetchall()
-    return [
-        {
+
+    def row(r: Any) -> dict[str, Any]:
+        # Two names, not a phrase. The word that joins them is English, and the
+        # client is where the catalog lives.
+        browser, system = _device_parts(r["user_agent"])
+        return {
             "id": str(r["id"]),
-            "device": _device_label(r["user_agent"]),
+            "browser": browser,
+            "system": system,
             "created_at": r["created_at"].isoformat(),
             "last_seen_at": r["last_seen_at"].isoformat(),
             # A support session is the operator's own, taken to view a customer.
@@ -836,8 +844,8 @@ def list_sessions(
             "support": r["acting_org_id"] is not None,
             "current": str(r["id"]) == current_id,
         }
-        for r in rows
-    ]
+
+    return [row(r) for r in rows]
 
 
 def revoke_session(conn: psycopg.Connection, *, user_id: str, session_id: str) -> None:

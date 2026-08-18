@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { HullApi, HullSession } from "@hull/api-client";
 import { errMsg } from "@hull/api-client";
-import type { Locale } from "@hull/i18n";
+import type { Locale, T } from "@hull/i18n";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { useLocale, useT } from "../LocaleProvider";
@@ -29,6 +29,19 @@ function ago(iso: string, locale: Locale, justNow: string): string {
       return fmt.format(Math.round(seconds / size), unit);
   }
   return justNow;
+}
+
+/**
+ * "Chrome on Linux", assembled here rather than on the server.
+ *
+ * Both halves are proper nouns and neither is translated; the word between them
+ * is, which is the whole reason the API answers with two names instead of a
+ * sentence.
+ */
+function deviceName(s: HullSession, t: T): string {
+  if (s.browser && s.system)
+    return t("sessions.device", { browser: s.browser, system: s.system });
+  return s.browser ?? s.system ?? t("sessions.unknownDevice");
 }
 
 /**
@@ -116,7 +129,7 @@ export function SessionList({
             >
               <span className="min-w-0">
                 <span className="block truncate text-sm">
-                  {s.device}
+                  {deviceName(s, t)}
                   {s.support ? (
                     <span className="text-muted-foreground">
                       {t("sessions.support")}

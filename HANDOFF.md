@@ -136,7 +136,7 @@ browser test asserting its absence.
 
 ## Gates
 
-`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (133).
+`scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (134).
 `e2e/` holds 18 browser specs, pinned to `en-US` in `playwright.config.ts` —
 several find a control by the words on it, and without the pin a developer whose
 machine is set to Portuguese would watch the suite fail for a reason unrelated to
