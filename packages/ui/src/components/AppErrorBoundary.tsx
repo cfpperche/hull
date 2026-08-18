@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { useT } from "./LocaleProvider";
 
 export class AppErrorBoundary extends Component<
   { children: ReactNode },
@@ -16,13 +17,22 @@ export class AppErrorBoundary extends Component<
 
   render() {
     if (this.state.error) {
-      return (
-        <div className="mx-auto max-w-lg px-8 py-16">
-          <h1 className="text-xl font-semibold tracking-tight">Something broke</h1>
-          <p className="text-muted-foreground mt-2 text-sm">{this.state.error.message}</p>
-        </div>
-      );
+      return <Crashed message={this.state.error.message} />;
     }
     return this.props.children;
   }
+}
+
+/**
+ * Split out because a class component cannot call a hook, and the boundary has
+ * to stay a class — `getDerivedStateFromError` has no function equivalent.
+ */
+function Crashed({ message }: { message: string }) {
+  const t = useT();
+  return (
+    <div className="mx-auto max-w-lg px-8 py-16">
+      <h1 className="text-xl font-semibold tracking-tight">{t("app.broke")}</h1>
+      <p className="text-muted-foreground mt-2 text-sm">{message}</p>
+    </div>
+  );
 }

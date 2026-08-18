@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 import type { APIRequestContext } from "@playwright/test";
-import { APP, HOST, createFirstOrg, expectTokenStripped, newUser, signUp } from "./helpers";
+import {
+  APP,
+  HOST,
+  createFirstOrg,
+  expectTokenStripped,
+  newUser,
+  signUp,
+} from "./helpers";
 
 /**
  * Email verification, from the inbox.
@@ -16,15 +23,22 @@ import { APP, HOST, createFirstOrg, expectTokenStripped, newUser, signUp } from 
  * ingests a moment after the API answers, so asking for "the newest mail" is a
  * race that reports a missing link which is merely late.
  */
-async function verifyLink(request: APIRequestContext, address: string): Promise<string> {
+async function verifyLink(
+  request: APIRequestContext,
+  address: string,
+): Promise<string> {
   const wanted = /https:\/\/\S*\/verify#\S+/;
   for (let attempt = 0; attempt < 20; attempt++) {
-    const list = await (await request.get(`https://mail.${HOST}/api/v1/messages?limit=50`)).json();
+    const list = await (
+      await request.get(`https://mail.${HOST}/api/v1/messages?limit=50`)
+    ).json();
     const mine = list.messages.filter((m: { To: { Address: string }[] }) =>
       m.To.some((t) => t.Address.toLowerCase() === address.toLowerCase()),
     );
     for (const m of mine) {
-      const full = await (await request.get(`https://mail.${HOST}/api/v1/message/${m.ID}`)).json();
+      const full = await (
+        await request.get(`https://mail.${HOST}/api/v1/message/${m.ID}`)
+      ).json();
       const found = wanted.exec(full.Text as string);
       if (found) return found[0];
     }
@@ -33,7 +47,10 @@ async function verifyLink(request: APIRequestContext, address: string): Promise<
   throw new Error(`no verify link mailed to ${address}`);
 }
 
-test("a new account is unverified until the emailed link is used", async ({ page, playwright }) => {
+test("a new account is unverified until the emailed link is used", async ({
+  page,
+  playwright,
+}) => {
   const user = newUser("emv");
   await signUp(page, user);
   await createFirstOrg(page, "Verified Co");

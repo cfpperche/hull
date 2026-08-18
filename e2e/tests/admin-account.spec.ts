@@ -26,7 +26,9 @@ test("an operator can reach their own account, and is not offered a close button
   await expect(page.getByTestId("account-email")).toHaveText(`admin@${HOST}`);
 
   // The list that matters here: an operator's support sessions show up in it.
-  await expect(page.getByTestId("session-row").filter({ hasText: "This device" })).toHaveCount(1);
+  await expect(
+    page.getByTestId("session-row").filter({ hasText: "This device" }),
+  ).toHaveCount(1);
 
   // close_account refuses a platform_admin outright, so offering the button
   // would only ever produce a 403.

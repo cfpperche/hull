@@ -4,6 +4,7 @@ import { errMsg } from "@hull/api-client";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Fill, useT } from "../LocaleProvider";
 
 /**
  * Move the address this login signs in with.
@@ -19,6 +20,7 @@ export function EmailSection({
   api: Pick<HullApi, "changeEmail">;
   email: string;
 }) {
+  const t = useT();
   const [newEmail, setNewEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -48,24 +50,36 @@ export function EmailSection({
 
   return (
     <form className="grid gap-4 border-t pt-8" onSubmit={(e) => void submit(e)}>
-      <h2 className="text-sm font-medium">Email</h2>
+      <h2 className="text-sm font-medium">{t("account.email.title")}</h2>
       <p className="text-muted-foreground text-sm">
-        You sign in with{" "}
-        <span className="text-foreground font-medium" data-testid="account-email">
-          {email}
-        </span>
-        , and it is where a password reset is sent.
+        {/* The address is a node inside the sentence, not two sentences glued
+            around it: word order around it is the translator's to change. */}
+        <Fill
+          parts={t.parts("account.email.blurb")}
+          nodes={{
+            email: (
+              <span
+                className="text-foreground font-medium"
+                data-testid="account-email"
+              >
+                {email}
+              </span>
+            ),
+          }}
+        />
       </p>
       {/* Above the fields, not instead of them: a second attempt with a
           different address must not need a page reload. */}
       {sent ? (
         <p className="text-sm" data-testid="email-sent">
-          Check <span className="font-medium">{sent}</span> for a link. Nothing has changed yet —{" "}
-          {email} keeps working until that link is used.
+          <Fill
+            parts={t.parts("account.email.sent", { email })}
+            nodes={{ newEmail: <span className="font-medium">{sent}</span> }}
+          />
         </p>
       ) : null}
       <div className="grid gap-1.5">
-        <Label htmlFor="new-email">New email</Label>
+        <Label htmlFor="new-email">{t("account.email.new")}</Label>
         <Input
           id="new-email"
           type="email"
@@ -75,7 +89,7 @@ export function EmailSection({
         />
       </div>
       <div className="grid gap-1.5">
-        <Label htmlFor="email-password">Password</Label>
+        <Label htmlFor="email-password">{t("account.email.password")}</Label>
         <Input
           id="email-password"
           type="password"
@@ -91,7 +105,7 @@ export function EmailSection({
         data-testid="email-submit"
         disabled={pending || !newEmail.trim() || !password}
       >
-        {pending ? "Sending…" : "Change email"}
+        {pending ? t("account.email.sending") : t("account.email.submit")}
       </Button>
     </form>
   );

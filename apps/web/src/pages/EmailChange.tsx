@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { errMsg } from "@hull/api-client";
-import { AuthScreen, Button, useBrand } from "@hull/ui";
+import { AuthScreen, Button, useBrand, useT } from "@hull/ui";
 import { api } from "../lib/api";
 
 /**
@@ -12,6 +12,7 @@ import { api } from "../lib/api";
  * reads the new address.
  */
 export function EmailChangePage() {
+  const t = useT();
   const { brand, mark } = useBrand();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -35,7 +36,7 @@ export function EmailChangePage() {
     started.current = true;
 
     if (!token.current) {
-      setError("This link has no token. Ask for a new one from your account.");
+      setError(t("verify.noToken"));
       return;
     }
     api
@@ -45,7 +46,11 @@ export function EmailChangePage() {
   }, []);
 
   if (!error && !done) {
-    return <div className="text-muted-foreground p-8 text-sm">Confirming…</div>;
+    return (
+      <div className="text-muted-foreground p-8 text-sm">
+        {t("verify.working")}
+      </div>
+    );
   }
 
   if (done) {
@@ -53,8 +58,8 @@ export function EmailChangePage() {
       <AuthScreen
         brand={brand}
         mark={mark}
-        title="Email changed"
-        description="This is the address you sign in with now, and the one that resets your password."
+        title={t("emailChange.doneTitle")}
+        description={t("emailChange.doneDescription")}
       >
         {/* A full load, not a route change: the session in memory still holds
             the old address, and every other tab holds it too. */}
@@ -64,7 +69,7 @@ export function EmailChangePage() {
           data-testid="email-change-continue"
           onClick={() => window.location.replace("/")}
         >
-          Continue
+          {t("common.continue")}
         </Button>
       </AuthScreen>
     );
@@ -74,15 +79,22 @@ export function EmailChangePage() {
     <AuthScreen
       brand={brand}
       mark={mark}
-      title="Could not change that address"
-      description="These links are single use and expire after two hours. Changing your password cancels them."
+      title={t("emailChange.failedTitle")}
+      description={t("emailChange.failedDescription")}
     >
       <div className="grid gap-4">
-        <p className="text-destructive text-sm" data-testid="email-change-error">
+        <p
+          className="text-destructive text-sm"
+          data-testid="email-change-error"
+        >
           {error}
         </p>
-        <Button type="button" className="w-fit" onClick={() => window.location.replace("/")}>
-          Go to sign in
+        <Button
+          type="button"
+          className="w-fit"
+          onClick={() => window.location.replace("/")}
+        >
+          {t("auth.goToSignIn")}
         </Button>
       </div>
     </AuthScreen>

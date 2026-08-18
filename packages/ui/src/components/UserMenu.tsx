@@ -32,7 +32,13 @@ export type UserMenuProps = {
  * out" — and an operator whose name is written into every support event has a
  * particular reason to be able to see which operator they are.
  */
-export function UserMenu({ name, handle, avatarUrl, initial, items }: UserMenuProps) {
+export function UserMenu({
+  name,
+  handle,
+  avatarUrl,
+  initial,
+  items,
+}: UserMenuProps) {
   const root = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
 
@@ -54,7 +60,11 @@ export function UserMenu({ name, handle, avatarUrl, initial, items }: UserMenuPr
         onClick={() => setOpen((v) => !v)}
       >
         <span className="bg-foreground text-background flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-semibold">
-          {avatarUrl ? <img src={avatarUrl} alt="" className="size-7 object-cover" /> : initial}
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" className="size-7 object-cover" />
+          ) : (
+            initial
+          )}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm leading-tight">{name}</span>

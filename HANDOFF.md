@@ -137,7 +137,10 @@ browser test asserting its absence.
 ## Gates
 
 `scripts/test.sh` runs `ruff check`, `ruff format --check`, then pytest (133).
-`e2e/` holds 18 browser specs. Keep the split the three mail flows use: what only
+`e2e/` holds 18 browser specs, pinned to `en-US` in `playwright.config.ts` —
+several find a control by the words on it, and without the pin a developer whose
+machine is set to Portuguese would watch the suite fail for a reason unrelated to
+the code. Keep the split the three mail flows use: what only
 a browser shows goes in `e2e/`, and single use, expiry, collisions and the
 enumeration guard stay in pytest — cheaper, deterministic, and they do not spend
 credential calls out of the suite's shared rate-limit budget. Each of those flows

@@ -4,7 +4,7 @@ import { LOCALES, LOCALE_NAMES, type Locale } from "@hull/i18n";
 import type { HullApi } from "@hull/api-client";
 import { errMsg } from "@hull/api-client";
 import { cn } from "../../lib/utils";
-import { useLocale } from "../LocaleProvider";
+import { useLocale, useT } from "../LocaleProvider";
 
 /**
  * The account's language. Beside Appearance, and deliberately not the same kind
@@ -18,6 +18,7 @@ export function LanguagePreference({
   api: Pick<HullApi, "updateMe">;
   onSaved?: () => void | Promise<void>;
 }) {
+  const t = useT();
   const current = useLocale();
   const [pending, setPending] = useState<Locale | null>(null);
 
@@ -39,7 +40,11 @@ export function LanguagePreference({
 
   return (
     <div className="grid gap-2">
-      <div className="flex rounded-lg border p-0.5" role="radiogroup" aria-label="Language">
+      <div
+        className="flex rounded-lg border p-0.5"
+        role="radiogroup"
+        aria-label={t("account.language.title")}
+      >
         {LOCALES.map((l) => (
           <button
             key={l}

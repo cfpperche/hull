@@ -71,17 +71,47 @@ export function segments(template: string): Segment[] {
   return out;
 }
 
+/**
+ * A key whose phrase changes with a count. Written as two keys, `…one` and
+ * `…other`, and looked up with `t.plural`.
+ *
+ * The suffixes are CLDR's own category names, chosen so the day a locale needs
+ * a third — Polish has `few`, Russian has `many` — it is a key, not a rewrite.
+ * Only `one` and `other` are required, and anything else falls back to `other`:
+ * pt-BR technically has a `many` for compact numbers like "1,2 milhão", and
+ * demanding a separate translation of "session" for it would be ceremony.
+ */
+type StemOf<K> = K extends `${infer B}.one` ? B : never;
+
+/** Distributed through `StemOf` deliberately: a conditional applied to a union
+ *  directly tests the whole union at once and quietly resolves to `never`. */
+export type PluralKey = StemOf<MessageKey>;
+
 export type T = {
   (key: MessageKey, values?: Values): string;
   /** The phrase, split at its holes, for a caller that fills them with nodes. */
   parts(key: MessageKey, values?: Values): Segment[];
+  /**
+   * The phrase for this count. `n` is passed through as `{n}` so the sentence
+   * can put the number where its own grammar wants it.
+   */
+  plural(key: PluralKey, n: number, values?: Values): string;
   locale: Locale;
 };
 
 export function createT(locale: Locale): T {
   const strings = catalog(locale);
-  const t = ((key: MessageKey, values?: Values) => fill(strings[key], values)) as T;
-  t.parts = (key: MessageKey, values?: Values) => segments(fill(strings[key], values));
+  const rules = new Intl.PluralRules(locale);
+  const t = ((key: MessageKey, values?: Values) =>
+    fill(strings[key], values)) as T;
+  t.parts = (key: MessageKey, values?: Values) =>
+    segments(fill(strings[key], values));
+  t.plural = (key: PluralKey, n: number, values?: Values) => {
+    const category = rules.select(n);
+    const exact = `${key}.${category}` as MessageKey;
+    const chosen = exact in strings ? exact : (`${key}.other` as MessageKey);
+    return fill(strings[chosen], { n, ...values });
+  };
   t.locale = locale;
   return t;
 }

@@ -5,6 +5,7 @@ import { errMsg } from "@hull/api-client";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { useT } from "../LocaleProvider";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -24,6 +25,7 @@ export function ProfileForm({
   me: HullMe | null;
   onSaved?: () => void | Promise<void>;
 }) {
+  const t = useT();
   const [name, setName] = useState(me?.user.name ?? "");
   const [username, setUsername] = useState(me?.user.username ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function ProfileForm({
       if (username.trim()) body.username = username.trim();
       await api.updateMe(body);
       await onSaved?.();
-      toast.success("Profile saved");
+      toast.success(t("account.saved"));
     } catch (err) {
       setError(errMsg(err));
     } finally {
@@ -65,12 +67,12 @@ export function ProfileForm({
     // Reject locally first: the inline slot is on-screen, and a rejected upload
     // should not cost a round trip.
     if (!PHOTO_TYPES.includes(file.type)) {
-      setAvatarError("Photo must be a JPEG, PNG, or WebP.");
+      setAvatarError(t("account.photo.wrongType"));
       e.target.value = "";
       return;
     }
     if (file.size > MAX_PHOTO_BYTES) {
-      setAvatarError("Photo must be 5 MB or smaller.");
+      setAvatarError(t("account.photo.tooBig"));
       e.target.value = "";
       return;
     }
@@ -78,7 +80,7 @@ export function ProfileForm({
     try {
       await api.uploadAvatar(file);
       await onSaved?.();
-      toast.success("Photo updated");
+      toast.success(t("account.photo.updated"));
     } catch (err) {
       setAvatarError(errMsg(err));
     } finally {
@@ -90,9 +92,11 @@ export function ProfileForm({
   return (
     <form className="grid gap-4" onSubmit={(e) => void save(e)}>
       <div className="grid gap-1.5">
-        <Label>Photo</Label>
+        <Label>{t("account.photo.label")}</Label>
         <label className="border-input hover:bg-muted inline-flex h-8 w-fit cursor-pointer items-center rounded-lg border px-2.5 text-sm">
-          {avatarPending ? "Uploading…" : "Upload photo"}
+          {avatarPending
+            ? t("account.photo.uploading")
+            : t("account.photo.upload")}
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"
@@ -101,14 +105,21 @@ export function ProfileForm({
             onChange={(e) => void onAvatar(e)}
           />
         </label>
-        {avatarError ? <p className="text-destructive text-sm">{avatarError}</p> : null}
+        {avatarError ? (
+          <p className="text-destructive text-sm">{avatarError}</p>
+        ) : null}
       </div>
       <div className="grid gap-1.5">
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" data-testid="profile-name" value={name} onChange={(e) => setName(e.target.value)} />
+        <Label htmlFor="name">{t("account.name")}</Label>
+        <Input
+          id="name"
+          data-testid="profile-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
       </div>
       <div className="grid gap-1.5">
-        <Label htmlFor="username">Username</Label>
+        <Label htmlFor="username">{t("account.username")}</Label>
         <Input
           id="username"
           data-testid="profile-username"
@@ -117,8 +128,13 @@ export function ProfileForm({
         />
       </div>
       {error ? <p className="text-destructive text-sm">{error}</p> : null}
-      <Button type="submit" className="w-fit" data-testid="profile-save" disabled={pending}>
-        {pending ? "Saving…" : "Save profile"}
+      <Button
+        type="submit"
+        className="w-fit"
+        data-testid="profile-save"
+        disabled={pending}
+      >
+        {pending ? t("account.saving") : t("account.save")}
       </Button>
     </form>
   );

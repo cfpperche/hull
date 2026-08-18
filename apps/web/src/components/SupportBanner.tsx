@@ -2,9 +2,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { originFor } from "@hull/config";
 import { errMsg } from "@hull/api-client";
+import { Fill, useT } from "@hull/ui";
 import { api } from "../lib/api";
 
 export function SupportBanner({ orgName }: { orgName: string }) {
+  const t = useT();
   const [stopping, setStopping] = useState(false);
 
   // This is the only exit from impersonation. A swallowed rejection left the
@@ -29,7 +31,10 @@ export function SupportBanner({ orgName }: { orgName: string }) {
       className="flex items-center justify-between gap-3 border-b bg-foreground px-4 py-2 text-sm text-background"
     >
       <p>
-        Viewing as <span className="font-medium">{orgName}</span>
+        <Fill
+          parts={t.parts("support.viewingAs")}
+          nodes={{ org: <span className="font-medium">{orgName}</span> }}
+        />
       </p>
       <button
         type="button"
@@ -38,7 +43,7 @@ export function SupportBanner({ orgName }: { orgName: string }) {
         className="rounded-md bg-background px-2 py-1 text-xs font-medium text-foreground disabled:opacity-60"
         onClick={() => void stop()}
       >
-        {stopping ? "Stopping…" : "Stop"}
+        {stopping ? t("support.stopping") : t("support.stop")}
       </button>
     </div>
   );

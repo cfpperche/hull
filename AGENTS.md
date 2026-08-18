@@ -60,7 +60,9 @@ the mechanism is the same one every time.
   runtime editor, no Node behind SMTP. A message goes in the **recipient's** language.
 - Every user-visible string lives in `packages/i18n`, one catalog per locale. The server
   **never translates** — it picks a pre-rendered file. No i18n library; completeness is a
-  build gate. A key names a whole phrase, not a fragment. → [0016](./docs/adr/0016-one-catalog-per-locale-the-server-never-translates.md)
+  build gate, and so is text typed straight into a screen (`// i18n-ignore` is the escape
+  hatch). A key names a whole phrase, not a fragment; a count takes `t.plural`, not a
+  ternary. → [0016](./docs/adr/0016-one-catalog-per-locale-the-server-never-translates.md)
 - Compose project name is **`hull`**. Never `docker run` a Hull process.
 - Windows Chrome does not use WSL `/etc/hosts`. `setup-local.sh` on WSL must open UAC (`setup-windows-from-wsl.sh`).
 

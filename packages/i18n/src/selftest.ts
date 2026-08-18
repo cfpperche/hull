@@ -36,9 +36,21 @@ export function selftest(): number {
   // exact pass exists at all.
   const PT = ["pt-PT", "pt-BR"] as const;
   is(best("pt-BR", PT, "pt-PT"), "pt-BR", "an exact match is taken");
-  is(best("pt-BR,pt-PT;q=0.9", PT, "pt-PT"), "pt-BR", "even when a near match is listed first");
-  is(best("pt-PT,pt-BR;q=0.9", PT, "pt-BR"), "pt-PT", "and the other way round");
-  is(best("pt", PT, "pt-BR"), "pt-PT", "no exact match: the first available base match");
+  is(
+    best("pt-BR,pt-PT;q=0.9", PT, "pt-PT"),
+    "pt-BR",
+    "even when a near match is listed first",
+  );
+  is(
+    best("pt-PT,pt-BR;q=0.9", PT, "pt-BR"),
+    "pt-PT",
+    "and the other way round",
+  );
+  is(
+    best("pt", PT, "pt-BR"),
+    "pt-PT",
+    "no exact match: the first available base match",
+  );
   is(best("de", PT, "pt-BR"), "pt-BR", "nothing: the fallback given");
 
   // --- negotiate: the navigator shape ------------------------------------
@@ -48,14 +60,30 @@ export function selftest(): number {
   // --- interpolation -----------------------------------------------------
   is(fill("Hello {name}", { name: "Ada" }), "Hello Ada", "a hole is filled");
   is(fill("{a} and {a}", { a: "x" }), "x and x", "every occurrence");
-  is(fill("Expires in {n} minutes", { n: 30 }), "Expires in 30 minutes", "numbers");
+  is(
+    fill("Expires in {n} minutes", { n: 30 }),
+    "Expires in 30 minutes",
+    "numbers",
+  );
   // Standing, not blanked: "Hello {name}" gets reported, "Hello " ships.
   is(fill("Hello {name}", {}), "Hello {name}", "an unfilled hole survives");
-  is(fill("{{link}} stays", {}), "{{link}} stays", "the sender's holes are a different layer");
+  is(
+    fill("{{link}} stays", {}),
+    "{{link}} stays",
+    "the sender's holes are a different layer",
+  );
   // The nested case, which is the ordinary one for mail: a catalog hole filled
   // with a value that is itself a hole for the adapter.
-  is(fill("so {brand} can", { brand: "{{brand}}" }), "so {{brand}} can", "a hole filled with a hole");
-  is(holes("{{brand}} and {name}"), ["name"], "a doubled brace is not a catalog hole");
+  is(
+    fill("so {brand} can", { brand: "{{brand}}" }),
+    "so {{brand}} can",
+    "a hole filled with a hole",
+  );
+  is(
+    holes("{{brand}} and {name}"),
+    ["name"],
+    "a doubled brace is not a catalog hole",
+  );
   is(
     segments("so {{brand}} can move {oldEmail}"),
     ["so {{brand}} can move ", { hole: "oldEmail" }],
@@ -74,7 +102,11 @@ export function selftest(): number {
   const pt = createT("pt-BR");
   is(en("mail.verify.button"), "Confirm email", "English");
   is(pt("mail.verify.button"), "Confirmar e-mail", "Portuguese");
-  assert.notEqual(en("mail.reset.title"), pt("mail.reset.title"), "the locales are not aliases");
+  assert.notEqual(
+    en("mail.reset.title"),
+    pt("mail.reset.title"),
+    "the locales are not aliases",
+  );
   n += 1;
 
   // Holes survive translation, including reordered ones.

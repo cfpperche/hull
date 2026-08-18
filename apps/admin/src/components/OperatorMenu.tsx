@@ -1,6 +1,6 @@
 import { LogOut, UserRound } from "lucide-react";
 import { useNavigate } from "react-router";
-import { UserMenu } from "@hull/ui";
+import { UserMenu, useT } from "@hull/ui";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
@@ -17,24 +17,30 @@ import { useSession } from "../lib/session";
  * product surface: it is not one of this console's jobs, it is who is doing them.
  */
 export function OperatorMenu() {
+  const t = useT();
   const { me, signOut } = useSession();
   const navigate = useNavigate();
   const email = me?.user.email ?? "";
 
   return (
     <UserMenu
-      name={me?.user.name?.trim() || email || "Operator"}
+      name={me?.user.name?.trim() || email || t("admin.operator")}
       handle={me?.user.username ? `@${me.user.username}` : email}
       avatarUrl={me?.user.has_avatar ? api.avatarUrl() : null}
       initial={(email[0] ?? "?").toUpperCase()}
       items={[
         {
-          label: "Account",
+          label: t("account.title"),
           icon: UserRound,
           testId: "menu-account",
           onSelect: () => navigate("/account"),
         },
-        { label: "Sign out", icon: LogOut, testId: "sign-out", onSelect: () => void signOut() },
+        {
+          label: t("auth.signOut"),
+          icon: LogOut,
+          testId: "sign-out",
+          onSelect: () => void signOut(),
+        },
       ]}
     />
   );

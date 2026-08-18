@@ -15,6 +15,7 @@ import { ptBR } from "./catalogs/pt-BR";
 import { LOCALES, DEFAULT_LOCALE, type Locale } from "./locales";
 import { holes } from "./translate";
 import { MANIFEST, current } from "./manifest";
+import { scan } from "./scan";
 import { selftest } from "./selftest";
 
 const assertions = selftest();
@@ -36,7 +37,9 @@ for (const locale of LOCALES) {
   // left to crash on the first lookup: the stack trace names `check.ts`, which
   // is the one file that is not the problem.
   if (!strings) {
-    problems.push(`${locale}: listed in LOCALES but has no catalog in src/catalogs/`);
+    problems.push(
+      `${locale}: listed in LOCALES but has no catalog in src/catalogs/`,
+    );
     continue;
   }
 
@@ -62,20 +65,58 @@ for (const locale of LOCALES) {
   }
 
   for (const key of Object.keys(strings)) {
-    if (!(key in base)) problems.push(`${locale}: ${key} is not a key in ${DEFAULT_LOCALE}`);
+    if (!(key in base))
+      problems.push(`${locale}: ${key} is not a key in ${DEFAULT_LOCALE}`);
+  }
+}
+
+// A count-dependent phrase needs both forms in every language, and needs them
+// to *be* different: `one` and `other` spelled identically is a translation
+// somebody started and did not finish, and it reads as a bug in exactly the
+// case the key exists for.
+for (const locale of LOCALES) {
+  const strings = CATALOGS[locale];
+  if (!strings) continue;
+  for (const key of baseKeys) {
+    if (!key.endsWith(".one")) continue;
+    const stem = key.slice(0, -".one".length);
+    if (!(`${stem}.other` in strings)) {
+      problems.push(`${locale}: ${stem}.one has no ${stem}.other`);
+    } else if (strings[key] === strings[`${stem}.other`]) {
+      problems.push(
+        `${locale}: ${stem}.one and ${stem}.other are the same phrase`,
+      );
+    }
   }
 }
 
 // The list Python reads. Generated, so the two cannot disagree — but only if
 // somebody reran the build after adding a locale.
 if (!current()) {
-  problems.push(`${MANIFEST} is out of date — run: pnpm --filter @hull/i18n build`);
+  problems.push(
+    `${MANIFEST} is out of date — run: pnpm --filter @hull/i18n build`,
+  );
 }
+
+// Text typed straight into a screen. Not a catalog problem — a screen problem —
+// so it is reported separately and just as fatally.
+const loose = scan();
 
 if (problems.length) {
   console.error("✗ catalogs disagree:\n");
   for (const p of problems) console.error(`  ${p}`);
-  console.error(`\n${problems.length} problem(s). Fix packages/i18n/src/catalogs/.`);
+  console.error(
+    `\n${problems.length} problem(s). Fix packages/i18n/src/catalogs/.`,
+  );
+  process.exit(1);
+}
+
+if (loose.length) {
+  console.error("✗ text that never reached the catalog:\n");
+  for (const f of loose) console.error(`  ${f.file}:${f.line}  ${f.text}`);
+  console.error(
+    `\n${loose.length} string(s). Add a key, or put \`// i18n-ignore\` above the line.`,
+  );
   process.exit(1);
 }
 

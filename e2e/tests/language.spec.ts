@@ -16,22 +16,35 @@ import { APP, HOST, createFirstOrg, newUser, signIn, signUp } from "./helpers";
  * the whole reason they are separate. Negotiation itself is asserted on both
  * sides in `packages/i18n/src/selftest.ts` and `tests/test_locale.py`.
  */
-test("the language follows the account, not the browser", async ({ page, browser }) => {
+test("the language follows the account, not the browser", async ({
+  page,
+  browser,
+}) => {
   const user = newUser("lang");
   await signUp(page, user);
   await createFirstOrg(page, "Idiomas Ltda");
 
   await page.goto(`${APP}/account`);
-  // A browser with no stated preference: English, and the document says so.
+  // The suite is pinned to en-US, so this is the negotiated answer rather than
+  // a coincidence of the machine it runs on.
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  // `exact` because "Close account" is also a heading on this page.
+  await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
 
   await page.getByTestId("locale-pt-BR").click();
   await expect(page.locator("html")).toHaveAttribute("lang", "pt-BR");
+  // The screens move with it. Found by role and name rather than by testid,
+  // because the words are the thing under test here.
+  await expect(page.getByRole("heading", { name: "Conta", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Account", exact: true })).toHaveCount(0);
   // Not just a class on the button: the account was actually written to, so a
   // reload with no client state left has to come back in Portuguese.
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "pt-BR");
-  await expect(page.getByTestId("locale-pt-BR")).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByTestId("locale-pt-BR")).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
 
   // The one thing already localised before any string moved: the session list
   // formats "last used" through Intl, and it now takes the account's language
@@ -45,6 +58,9 @@ test("the language follows the account, not the browser", async ({ page, browser
   // A different browser entirely, carrying no choice of its own. The stored one
   // still wins.
   await expect(other.locator("html")).toHaveAttribute("lang", "pt-BR");
+  await expect(
+    other.getByRole("heading", { name: "Onde você está conectado" }),
+  ).toBeVisible();
   await second.close();
 
   // And back, so the account is left as it was found.
@@ -52,18 +68,25 @@ test("the language follows the account, not the browser", async ({ page, browser
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
 });
 
-
 /** The newest mail to this address, once one has arrived. Mailpit ingests a
  *  moment after the API answers, so a single read is a race. */
 async function mailFor(request: APIRequestContext, address: string) {
   for (let attempt = 0; attempt < 20; attempt++) {
-    const list = await (await request.get(`https://mail.${HOST}/api/v1/messages?limit=50`)).json();
+    const list = await (
+      await request.get(`https://mail.${HOST}/api/v1/messages?limit=50`)
+    ).json();
     const mine = list.messages.find((m: { To: { Address: string }[] }) =>
       m.To.some((t) => t.Address.toLowerCase() === address.toLowerCase()),
     );
     if (mine) {
-      const full = await (await request.get(`https://mail.${HOST}/api/v1/message/${mine.ID}`)).json();
-      return { subject: mine.Subject as string, text: full.Text as string, html: full.HTML as string };
+      const full = await (
+        await request.get(`https://mail.${HOST}/api/v1/message/${mine.ID}`)
+      ).json();
+      return {
+        subject: mine.Subject as string,
+        text: full.Text as string,
+        html: full.HTML as string,
+      };
     }
     await new Promise((r) => setTimeout(r, 250));
   }
@@ -78,14 +101,27 @@ async function mailFor(request: APIRequestContext, address: string) {
  * locale: the header is the browser's, the account row is the server's, the
  * template was chosen at build time, and the delivery is SMTP.
  */
-test("a Portuguese browser is welcomed in Portuguese", async ({ browser, playwright }) => {
-  const context = await browser.newContext({ ignoreHTTPSErrors: true, locale: "pt-BR" });
+test("a Portuguese browser is welcomed in Portuguese", async ({
+  browser,
+  playwright,
+}) => {
+  const context = await browser.newContext({
+    ignoreHTTPSErrors: true,
+    locale: "pt-BR",
+  });
   const page = await context.newPage();
   const user = newUser("mail");
   await signUp(page, user);
   await expect(page.locator("html")).toHaveAttribute("lang", "pt-BR");
+  // Straight off the header, with no account choice made yet: the signup screen
+  // hands this browser a Portuguese workspace prompt.
+  await expect(
+    page.getByRole("heading", { name: "Dê um nome ao seu espaço de trabalho" }),
+  ).toBeVisible();
 
-  const request = await playwright.request.newContext({ ignoreHTTPSErrors: true });
+  const request = await playwright.request.newContext({
+    ignoreHTTPSErrors: true,
+  });
   const mail = await mailFor(request, user.email);
 
   expect(mail.subject).toContain("Bem-vindo");

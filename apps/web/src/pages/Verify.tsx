@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { errMsg } from "@hull/api-client";
-import { AuthScreen, Button, useBrand } from "@hull/ui";
+import { AuthScreen, Button, useBrand, useT } from "@hull/ui";
 import { api } from "../lib/api";
 
 /**
@@ -11,6 +11,7 @@ import { api } from "../lib/api";
  * would strand exactly the person it is meant to confirm.
  */
 export function VerifyPage() {
+  const t = useT();
   const { brand, mark } = useBrand();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -35,7 +36,7 @@ export function VerifyPage() {
     started.current = true;
 
     if (!token.current) {
-      setError("This link has no token. Ask for a new one from your account.");
+      setError(t("verify.noToken"));
       return;
     }
     api
@@ -45,7 +46,11 @@ export function VerifyPage() {
   }, []);
 
   if (!error && !done) {
-    return <div className="text-muted-foreground p-8 text-sm">Confirming…</div>;
+    return (
+      <div className="text-muted-foreground p-8 text-sm">
+        {t("verify.working")}
+      </div>
+    );
   }
 
   if (done) {
@@ -53,8 +58,8 @@ export function VerifyPage() {
       <AuthScreen
         brand={brand}
         mark={mark}
-        title="Email confirmed"
-        description="That address is now the one we use to reach you."
+        title={t("verify.doneTitle")}
+        description={t("verify.doneDescription")}
       >
         <Button
           type="button"
@@ -62,7 +67,7 @@ export function VerifyPage() {
           data-testid="verify-continue"
           onClick={() => window.location.replace("/")}
         >
-          Continue
+          {t("common.continue")}
         </Button>
       </AuthScreen>
     );
@@ -72,15 +77,19 @@ export function VerifyPage() {
     <AuthScreen
       brand={brand}
       mark={mark}
-      title="Could not confirm that address"
-      description="Confirmation links are single use and expire after three days."
+      title={t("verify.failedTitle")}
+      description={t("verify.failedDescription")}
     >
       <div className="grid gap-4">
         <p className="text-destructive text-sm" data-testid="verify-error">
           {error}
         </p>
-        <Button type="button" className="w-fit" onClick={() => window.location.replace("/")}>
-          Go to sign in
+        <Button
+          type="button"
+          className="w-fit"
+          onClick={() => window.location.replace("/")}
+        >
+          {t("auth.goToSignIn")}
         </Button>
       </div>
     </AuthScreen>

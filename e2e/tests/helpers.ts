@@ -15,8 +15,13 @@ export function unique(tag: string) {
 }
 
 export function newUser(tag: string) {
-  const id = `${tag}${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`.toLowerCase();
-  return { username: id.slice(0, 24), email: `${id}@${HOST}`, password: LAB_PASSWORD };
+  const id =
+    `${tag}${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`.toLowerCase();
+  return {
+    username: id.slice(0, 24),
+    email: `${id}@${HOST}`,
+    password: LAB_PASSWORD,
+  };
 }
 
 export async function signUp(page: Page, user: ReturnType<typeof newUser>) {
@@ -32,7 +37,12 @@ export async function signUp(page: Page, user: ReturnType<typeof newUser>) {
  * The admin app has no /signin route — it renders the sign-in screen at whatever
  * path when there is no session — so sign in at the origin root, not /signin.
  */
-export async function signIn(page: Page, origin: string, email: string, password: string) {
+export async function signIn(
+  page: Page,
+  origin: string,
+  email: string,
+  password: string,
+) {
   await page.goto(`${origin}/`);
   await page.getByTestId("auth-email").fill(email);
   await page.getByTestId("auth-password").fill(password);
@@ -71,7 +81,9 @@ export async function signInExpectingFailure(
  * in Reset.tsx, Verify.tsx and EmailChange.tsx are where it is kept.
  */
 export async function expectTokenStripped(page: Page) {
-  await expect.poll(() => new URL(page.url()).hash, { timeout: 5_000 }).toBe("");
+  await expect
+    .poll(() => new URL(page.url()).hash, { timeout: 5_000 })
+    .toBe("");
 }
 
 /** Name the first workspace — the step signup hands you straight into. */

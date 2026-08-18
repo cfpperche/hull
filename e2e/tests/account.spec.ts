@@ -1,15 +1,26 @@
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import { APP, createFirstOrg, newUser, signInExpectingFailure, signUp } from "./helpers";
+import {
+  APP,
+  createFirstOrg,
+  newUser,
+  signInExpectingFailure,
+  signUp,
+} from "./helpers";
 
-const AVATAR = fileURLToPath(new URL("../fixtures/avatar.png", import.meta.url));
+const AVATAR = fileURLToPath(
+  new URL("../fixtures/avatar.png", import.meta.url),
+);
 
 test.beforeEach(async ({ page }) => {
   const user = newUser("ac");
   await signUp(page, user);
   await createFirstOrg(page, "Account");
   // Carry the identity into the test body.
-  await page.evaluate((e) => sessionStorage.setItem("e2e-email", e), user.email);
+  await page.evaluate(
+    (e) => sessionStorage.setItem("e2e-email", e),
+    user.email,
+  );
   await page.goto(`${APP}/account`);
 });
 
@@ -19,7 +30,9 @@ test.beforeEach(async ({ page }) => {
  * multipart boundary. The API was correct and every API test passed.
  */
 test("uploading a photo works and the chrome shows it", async ({ page }) => {
-  await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Account", exact: true }),
+  ).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles(AVATAR);
 
   await expect(page.getByText("Photo updated")).toBeVisible();
@@ -32,7 +45,9 @@ test("uploading a photo works and the chrome shows it", async ({ page }) => {
   expect(res.headers()["content-type"]).toContain("image/webp");
 });
 
-test("saving the profile confirms, and clearing a name clears it", async ({ page }) => {
+test("saving the profile confirms, and clearing a name clears it", async ({
+  page,
+}) => {
   await page.getByTestId("profile-name").fill("Ada Lovelace");
   await page.getByTestId("profile-save").click();
   await expect(page.getByText("Profile saved")).toBeVisible();
@@ -47,7 +62,9 @@ test("saving the profile confirms, and clearing a name clears it", async ({ page
   await expect(page.getByTestId("profile-name")).toHaveValue("");
 });
 
-test("changing the password keeps this session and invalidates the old one", async ({ page }) => {
+test("changing the password keeps this session and invalidates the old one", async ({
+  page,
+}) => {
   const email = await page.evaluate(() => sessionStorage.getItem("e2e-email"));
   await page.getByLabel("Current").fill("demodemo1");
   // Exact: the page also carries a "New email" field now, and a substring match
@@ -77,5 +94,7 @@ test("closing an account asks first", async ({ page }) => {
 
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Account", exact: true }),
+  ).toBeVisible();
 });

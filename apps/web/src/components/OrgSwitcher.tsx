@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { Button, Input, cn, initial, useBrand } from "@hull/ui";
+import { Button, Input, cn, initial, useBrand, useT } from "@hull/ui";
 import { errMsg } from "@hull/api-client";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export function OrgSwitcher() {
+  const t = useT();
   const { brand } = useBrand();
   const { me, refreshMe } = useSession();
   const [open, setOpen] = useState(false);
@@ -54,7 +55,7 @@ export function OrgSwitcher() {
     e.preventDefault();
     setError(null);
     if (!name.trim()) {
-      setError("Name is required");
+      setError(t("org.nameRequired"));
       return;
     }
     setPending(true);
@@ -64,7 +65,7 @@ export function OrgSwitcher() {
       setAdding(false);
       setOpen(false);
       await refreshMe();
-      toast.success("Workspace created");
+      toast.success(t("org.created"));
     } catch (err) {
       setError(errMsg(err));
     } finally {
@@ -88,8 +89,12 @@ export function OrgSwitcher() {
           {initial(current?.name ?? "H")}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold tracking-tight">{brand}</span>
-          <span className="text-muted-foreground block truncate text-xs">{current?.name ?? "Workspace"}</span>
+          <span className="block truncate text-sm font-semibold tracking-tight">
+            {brand}
+          </span>
+          <span className="text-muted-foreground block truncate text-xs">
+            {current?.name ?? t("org.fallback")}
+          </span>
         </span>
         <ChevronsUpDown className="text-muted-foreground size-3.5 shrink-0" />
       </button>
@@ -106,7 +111,9 @@ export function OrgSwitcher() {
             >
               <span className="flex-1 truncate">{org.name}</span>
               {switching === org.id ? (
-                <span className="text-muted-foreground text-xs">Switching…</span>
+                <span className="text-muted-foreground text-xs">
+                  {t("org.switching")}
+                </span>
               ) : org.id === current?.id ? (
                 <Check className="size-3.5" />
               ) : null}
@@ -115,21 +122,31 @@ export function OrgSwitcher() {
           <div className="my-1 border-t" />
           {adding ? (
             <form className="grid gap-1.5 p-1" onSubmit={(e) => void addOrg(e)}>
-              <Input data-testid="org-new-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Workspace name" autoFocus />
-              {error ? <p className="text-destructive text-xs">{error}</p> : null}
+              <Input
+                data-testid="org-new-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t("org.name")}
+                autoFocus
+              />
+              {error ? (
+                <p className="text-destructive text-xs">{error}</p>
+              ) : null}
               <Button type="submit" size="sm" disabled={pending}>
-                {pending ? "Adding…" : "Add"}
+                {pending ? t("org.adding") : t("org.add")}
               </Button>
             </form>
           ) : (
             <button
               type="button"
               data-testid="org-add"
-              className={cn("text-muted-foreground hover:bg-muted flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm")}
+              className={cn(
+                "text-muted-foreground hover:bg-muted flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+              )}
               onClick={() => setAdding(true)}
             >
               <Plus className="size-3.5" />
-              New workspace
+              {t("org.new")}
             </button>
           )}
         </div>

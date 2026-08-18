@@ -9,7 +9,12 @@ import "./index.css";
 function Themed({ children }: { children: React.ReactNode }) {
   const { brand } = useBrand();
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey={`${themeStorageKey(brand)}-www`}>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      storageKey={`${themeStorageKey(brand)}-www`}
+    >
       {children}
     </ThemeProvider>
   );
@@ -20,14 +25,14 @@ if (!root) throw new Error("#root missing");
 
 createRoot(root).render(
   <StrictMode>
-    <BrandGate>
-      <Themed>
-        {/* No session on this host, so there is nothing above the browser's own
-            preference to read. */}
-        <LocaleProvider>
+    {/* No session on this host, so the browser's own preference is the only rung
+        below English — but BrandGate still renders text, so this sits above it. */}
+    <LocaleProvider>
+      <BrandGate>
+        <Themed>
           <App />
-        </LocaleProvider>
-      </Themed>
-    </BrandGate>
+        </Themed>
+      </BrandGate>
+    </LocaleProvider>
   </StrictMode>,
 );

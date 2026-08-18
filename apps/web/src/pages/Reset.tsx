@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { errMsg } from "@hull/api-client";
-import { AuthScreen, Button, Input, Label, useBrand } from "@hull/ui";
+import { AuthScreen, Button, Input, Label, useBrand, useT } from "@hull/ui";
 import { api } from "../lib/api";
 
 /**
@@ -13,6 +13,7 @@ import { api } from "../lib/api";
  * render, and stripped from the address bar before the form is drawn.
  */
 export function ResetPage() {
+  const t = useT();
   const { brand, mark } = useBrand();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -33,7 +34,7 @@ export function ResetPage() {
     setError(null);
     if (password !== confirm) {
       // Inline next to the form, not a toast — this is field validation.
-      setError("Those two passwords are different.");
+      setError(t("reset.mismatch"));
       return;
     }
     setPending(true);
@@ -41,7 +42,7 @@ export function ResetPage() {
       await api.resetPassword({ token: token.current ?? "", password });
       // Every session died with the reset, so there is nowhere to land but the
       // door. The destination plus the toast is the confirmation.
-      toast.success("Password changed");
+      toast.success(t("reset.done"));
       window.location.replace("/signin");
     } catch (err) {
       setError(errMsg(err));
@@ -54,11 +55,15 @@ export function ResetPage() {
       <AuthScreen
         brand={brand}
         mark={mark}
-        title="That link is incomplete"
-        description="Reset links carry a token. Ask for a new one."
+        title={t("reset.noTokenTitle")}
+        description={t("reset.noTokenDescription")}
       >
-        <Button type="button" className="w-fit" onClick={() => window.location.replace("/forgot")}>
-          Send a new link
+        <Button
+          type="button"
+          className="w-fit"
+          onClick={() => window.location.replace("/forgot")}
+        >
+          {t("reset.newLink")}
         </Button>
       </AuthScreen>
     );
@@ -68,12 +73,12 @@ export function ResetPage() {
     <AuthScreen
       brand={brand}
       mark={mark}
-      title="Choose a new password"
-      description="At least 8 characters. This ends every signed-in session."
+      title={t("reset.title")}
+      description={t("reset.description")}
     >
       <form className="grid gap-4" onSubmit={(e) => void onSubmit(e)}>
         <div className="grid gap-1.5">
-          <Label htmlFor="password">New password</Label>
+          <Label htmlFor="password">{t("reset.password")}</Label>
           <Input
             id="password"
             data-testid="reset-password"
@@ -84,7 +89,7 @@ export function ResetPage() {
           />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="confirm">Repeat it</Label>
+          <Label htmlFor="confirm">{t("reset.confirm")}</Label>
           <Input
             id="confirm"
             data-testid="reset-confirm"
@@ -96,7 +101,7 @@ export function ResetPage() {
         </div>
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
         <Button type="submit" data-testid="reset-submit" disabled={pending}>
-          {pending ? "Saving…" : "Set the password"}
+          {pending ? t("reset.pending") : t("reset.submit")}
         </Button>
       </form>
     </AuthScreen>

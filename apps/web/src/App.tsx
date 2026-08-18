@@ -1,7 +1,7 @@
 import { Home } from "lucide-react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { originFor } from "@hull/config";
-import { ProductShell, useBrand } from "@hull/ui";
+import { ProductShell, useBrand, useT } from "@hull/ui";
 import { AvatarMenu } from "./components/AvatarMenu";
 import { OrgSwitcher } from "./components/OrgSwitcher";
 import { SupportBanner } from "./components/SupportBanner";
@@ -28,6 +28,7 @@ export function App() {
 }
 
 function ClientApp() {
+  const t = useT();
   const { brand, mark } = useBrand();
   const { ready, signedIn, me } = useSession();
 
@@ -59,12 +60,18 @@ function ClientApp() {
   }
 
   if (!ready) {
-    return <div className="text-muted-foreground p-8 text-sm">Loading…</div>;
+    return (
+      <div className="text-muted-foreground p-8 text-sm">
+        {t("app.loading")}
+      </div>
+    );
   }
 
   if (signedIn && me?.platform_role === "platform_admin" && !me.acting) {
     window.location.assign(originFor("admin"));
-    return <div className="text-muted-foreground p-8 text-sm">Redirecting…</div>;
+    return (
+      <div className="text-muted-foreground p-8 text-sm">Redirecting…</div>
+    );
   }
 
   if (!signedIn) {
@@ -91,7 +98,13 @@ function ClientApp() {
           <ProductShell
             brand={brand}
             mark={mark}
-            lead={acting ? <ActingChip brand={brand} name={acting.name} /> : <OrgSwitcher />}
+            lead={
+              acting ? (
+                <ActingChip brand={brand} name={acting.name} />
+              ) : (
+                <OrgSwitcher />
+              )
+            }
             banner={
               acting ? (
                 <SupportBanner orgName={acting.name} />
@@ -106,7 +119,7 @@ function ClientApp() {
             // and Supabase all put it, and where a person already looks for
             // "things about me" because Sign out lives there too. Listing it
             // twice made the nav look like the product had two features.
-            nav={[{ to: "/", label: "Home", icon: Home, end: true }]}
+            nav={[{ to: "/", label: t("home.title"), icon: Home, end: true }]}
             footer={<AvatarMenu />}
           />
         }

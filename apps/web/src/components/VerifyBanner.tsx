@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { errMsg } from "@hull/api-client";
+import { Fill, useT } from "@hull/ui";
 import { api } from "../lib/api";
 
 /**
@@ -11,13 +12,14 @@ import { api } from "../lib/api";
  * the first thing that will genuinely need it is changing your email.
  */
 export function VerifyBanner({ email }: { email: string }) {
+  const t = useT();
   const [sending, setSending] = useState(false);
 
   async function resend() {
     setSending(true);
     try {
       await api.resendVerification();
-      toast.success("Confirmation sent");
+      toast.success(t("verify.resent"));
     } catch (err) {
       // Not `void api.resend()`: a swallowed rejection leaves the button back at
       // idle and the operator with no idea whether anything was sent.
@@ -33,7 +35,12 @@ export function VerifyBanner({ email }: { email: string }) {
       className="flex items-center justify-between gap-3 border-b bg-muted px-4 py-2 text-sm"
     >
       <p className="text-muted-foreground truncate">
-        Confirm <span className="text-foreground font-medium">{email}</span> — check your inbox.
+        <Fill
+          parts={t.parts("verify.banner")}
+          nodes={{
+            email: <span className="text-foreground font-medium">{email}</span>,
+          }}
+        />
       </p>
       <button
         type="button"
@@ -42,7 +49,7 @@ export function VerifyBanner({ email }: { email: string }) {
         className="border-input hover:bg-background shrink-0 rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-60"
         onClick={() => void resend()}
       >
-        {sending ? "Sending…" : "Send again"}
+        {sending ? t("verify.resending") : t("verify.resend")}
       </button>
     </div>
   );

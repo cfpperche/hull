@@ -6,6 +6,7 @@ import {
   ProfileForm,
   SessionList,
   ThemePreference,
+  useT,
 } from "@hull/ui";
 import { api } from "../lib/api";
 import { useSession } from "../lib/session";
@@ -24,22 +25,35 @@ import { useSession } from "../lib/session";
  * here would exist only to answer 403.
  */
 export function AccountPage() {
+  const t = useT();
   const { me, refreshMe } = useSession();
 
   return (
-    <Page title="Account" description="This operator's login. Theme is this browser only.">
+    <Page
+      title={t("account.title")}
+      description={t("account.operatorDescription")}
+    >
       <div className="grid max-w-md gap-10">
-        <ProfileForm api={api} me={me} onSaved={async () => void (await refreshMe())} />
+        <ProfileForm
+          api={api}
+          me={me}
+          onSaved={async () => void (await refreshMe())}
+        />
 
         <EmailSection api={api} email={me?.user.email ?? ""} />
 
         <div className="grid gap-2 border-t pt-8">
-          <h2 className="text-sm font-medium">Language</h2>
-          <LanguagePreference api={api} onSaved={async () => void (await refreshMe())} />
+          <h2 className="text-sm font-medium">{t("account.language.title")}</h2>
+          <LanguagePreference
+            api={api}
+            onSaved={async () => void (await refreshMe())}
+          />
         </div>
 
         <div className="grid gap-2 border-t pt-8">
-          <h2 className="text-sm font-medium">Appearance</h2>
+          <h2 className="text-sm font-medium">
+            {t("account.appearance.title")}
+          </h2>
           <ThemePreference />
         </div>
 

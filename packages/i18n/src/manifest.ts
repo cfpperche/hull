@@ -18,7 +18,10 @@ import { fileURLToPath } from "node:url";
 import { DEFAULT_LOCALE, LOCALES, LOCALE_NAMES } from "./locales";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-export const MANIFEST = join(HERE, "../../../adapters/fastapi/src/hull_fastapi/locales.json");
+export const MANIFEST = join(
+  HERE,
+  "../../../adapters/fastapi/src/hull_fastapi/locales.json",
+);
 
 export function render(): string {
   return `${JSON.stringify(

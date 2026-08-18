@@ -22,7 +22,8 @@ export const en = {
   "mail.welcome.title": "Your account is ready",
   "mail.welcome.preview": "Name a workspace to continue.",
   "mail.welcome.lead": "Name a workspace to continue.",
-  "mail.welcome.confirm": "Confirm this is your address so we can reach you about the account.",
+  "mail.welcome.confirm":
+    "Confirm this is your address so we can reach you about the account.",
 
   "mail.verify.subject": "Confirm your {brand} email",
   "mail.verify.title": "Confirm your email",
@@ -35,20 +36,25 @@ export const en = {
   "mail.reset.preview": "The link works once and expires in {minutes} minutes.",
   "mail.reset.button": "Choose a new password",
   "mail.reset.expiry": "It expires in {minutes} minutes and works once.",
-  "mail.reset.ignore": "If you did not ask for it, nothing has changed and you can ignore this.",
+  "mail.reset.ignore":
+    "If you did not ask for it, nothing has changed and you can ignore this.",
 
   "mail.changeConfirm.subject": "Confirm your new {brand} email",
   "mail.changeConfirm.title": "Confirm your new email",
-  "mail.changeConfirm.preview": "Until this is used, {oldEmail} is still the address on the account.",
-  "mail.changeConfirm.lead": "Confirm this address so {brand} can move {oldEmail} to it.",
+  "mail.changeConfirm.preview":
+    "Until this is used, {oldEmail} is still the address on the account.",
+  "mail.changeConfirm.lead":
+    "Confirm this address so {brand} can move {oldEmail} to it.",
   "mail.changeConfirm.button": "Confirm this address",
   "mail.changeConfirm.expiry":
     "The link works once and expires in {hours} hours. Until then {oldEmail} is still the address on the account.",
 
   "mail.changeNotice.subject": "Your {brand} email is being changed",
   "mail.changeNotice.title": "Your email is being changed",
-  "mail.changeNotice.preview": "Nothing has changed yet. {oldEmail} still signs in.",
-  "mail.changeNotice.lead": "Someone asked to change this account's email to {newEmail}.",
+  "mail.changeNotice.preview":
+    "Nothing has changed yet. {oldEmail} still signs in.",
+  "mail.changeNotice.lead":
+    "Someone asked to change this account's email to {newEmail}.",
   "mail.changeNotice.body":
     "Nothing has changed yet — {oldEmail} still signs in, and the change only happens if the new address confirms it.",
   "mail.changeNotice.warn":
@@ -58,9 +64,247 @@ export const en = {
   "mail.changed.title": "Your email was changed",
   "mail.changed.preview": "This account now signs in as {newEmail}.",
   "mail.changed.lead": "This account now signs in as {newEmail}.",
-  "mail.changed.body": "{oldEmail} no longer reaches it, including for password reset.",
+  "mail.changed.body":
+    "{oldEmail} no longer reaches it, including for password reset.",
   "mail.changed.warn":
     "If this was not you, contact support — you cannot undo it from here any more.",
+  // ---- The shell ---------------------------------------------------------
+
+  "app.loading": "Loading…",
+  "app.configMissing": "config.json missing — run scripts/render-brand.sh",
+  "app.broke": "Something broke",
+  "nav.open": "Open menu",
+  "nav.close": "Close menu",
+  "dialog.cancel": "Cancel",
+
+  // ---- Account -----------------------------------------------------------
+
+  "account.title": "Account",
+  "account.description": "This login. Theme is this browser only.",
+  "account.operatorDescription":
+    "This operator's login. Theme is this browser only.",
+
+  "account.photo.label": "Photo",
+  "account.photo.upload": "Upload photo",
+  "account.photo.uploading": "Uploading…",
+  "account.photo.updated": "Photo updated",
+  "account.photo.wrongType": "Photo must be a JPEG, PNG, or WebP.",
+  "account.photo.tooBig": "Photo must be 5 MB or smaller.",
+  "account.name": "Name",
+  "account.username": "Username",
+  "account.save": "Save profile",
+  "account.saving": "Saving…",
+  "account.saved": "Profile saved",
+
+  "account.email.title": "Email",
+  "account.email.blurb":
+    "You sign in with {email}, and it is where a password reset is sent.",
+  "account.email.sent":
+    "Check {newEmail} for a link. Nothing has changed yet — {email} keeps working until that link is used.",
+  "account.email.new": "New email",
+  "account.email.password": "Password",
+  "account.email.submit": "Change email",
+  "account.email.sending": "Sending…",
+
+  "account.password.title": "Password",
+  "account.password.current": "Current",
+  "account.password.new": "New",
+  "account.password.submit": "Update password",
+  "account.password.pending": "Updating…",
+  "account.password.updated": "Password updated",
+
+  "account.language.title": "Language",
+  "account.appearance.title": "Appearance",
+  "theme.light": "Light",
+  "theme.system": "System",
+  "theme.dark": "Dark",
+  "theme.hint": "This browser. Default follows the device.",
+
+  "account.close.title": "Close account",
+  "account.close.blurb": "Deletes this login and workspaces only you own.",
+  "account.close.password": "Password",
+  "account.close.confirmTitle": "Close this account?",
+  "account.close.confirmBody":
+    "This deletes {email} and every workspace you are the only owner of. Workspaces with other members are kept. It cannot be undone.",
+  "account.close.pending": "Closing…",
+
+  // ---- Sessions ----------------------------------------------------------
+
+  "sessions.title": "Where you are signed in",
+  "sessions.blurb":
+    "Signing in on another device does not end this one. End anything you do not recognise.",
+  "sessions.support": " · support",
+  "sessions.thisDevice": "This device",
+  "sessions.lastUsed": "Last used {ago}",
+  "sessions.justNow": "just now",
+  "sessions.end": "End",
+  "sessions.ending": "Ending…",
+  "sessions.ended": "Session ended",
+  "sessions.revokeOthers": "Sign out everywhere else",
+  "sessions.revokeOthers.done": "Signed out everywhere else",
+  "sessions.revokeOthers.confirmTitle": "Sign out everywhere else?",
+  "sessions.revokeOthers.confirmBody.one":
+    "This ends {n} other session. This device stays signed in. Anyone using that device will have to sign in again.",
+  "sessions.revokeOthers.confirmBody.other":
+    "This ends {n} other sessions. This device stays signed in. Anyone using those devices will have to sign in again.",
+
+  // ---- Auth --------------------------------------------------------------
+
+  "auth.signIn": "Sign in",
+  "auth.signIn.description": "Email and password.",
+  "auth.signIn.pending": "Signing in…",
+  "auth.signOut": "Sign out",
+  "auth.email": "Email",
+  "auth.password": "Password",
+  "auth.noAccount": "No account?",
+  "auth.createOne": "Create one",
+  "auth.haveAccount": "Already have an account?",
+  "auth.forgot": "Forgot?",
+  "auth.backToSignIn": "Back to sign in",
+  "auth.goToSignIn": "Go to sign in",
+
+  "signup.title": "Create account",
+  "signup.description":
+    "Username, email, password. You name the workspace next.",
+  "signup.username": "Username",
+  "signup.submit": "Create account",
+  "signup.pending": "Creating…",
+  "signup.invalid": "Username, email, and a password of at least 8 characters.",
+
+  "forgot.title": "Reset your password",
+  "forgot.description": "We'll email you a link.",
+  "forgot.submit": "Send the link",
+  "forgot.pending": "Sending…",
+  "forgot.sentTitle": "Check your email",
+  "forgot.sentDescription":
+    "If that address has an account, a reset link is on its way.",
+  "forgot.sentBody":
+    "The link works once and expires in 30 minutes. Nothing has changed until you use it.",
+
+  "reset.title": "Choose a new password",
+  "reset.description":
+    "At least 8 characters. This ends every signed-in session.",
+  "reset.password": "New password",
+  "reset.confirm": "Repeat it",
+  "reset.submit": "Set the password",
+  "reset.pending": "Saving…",
+  "reset.mismatch": "Those two passwords are different.",
+  "reset.done": "Password changed",
+  "reset.noTokenTitle": "That link is incomplete",
+  "reset.noTokenDescription": "Reset links carry a token. Ask for a new one.",
+  "reset.newLink": "Send a new link",
+
+  "verify.working": "Confirming…",
+  "verify.doneTitle": "Email confirmed",
+  "verify.doneDescription": "That address is now the one we use to reach you.",
+  "verify.failedTitle": "Could not confirm that address",
+  "verify.failedDescription":
+    "Confirmation links are single use and expire after three days.",
+  "verify.noToken":
+    "This link has no token. Ask for a new one from your account.",
+  "verify.banner": "Confirm {email} — check your inbox.",
+  "verify.resend": "Send again",
+  "verify.resending": "Sending…",
+  "verify.resent": "Confirmation sent",
+
+  "emailChange.doneTitle": "Email changed",
+  "emailChange.doneDescription":
+    "This is the address you sign in with now, and the one that resets your password.",
+  "emailChange.failedTitle": "Could not change that address",
+  "emailChange.failedDescription":
+    "These links are single use and expire after two hours. Changing your password cancels them.",
+
+  "handoff.working": "Opening workspace…",
+  "handoff.failedTitle": "Could not open that workspace",
+  "handoff.failedDescription":
+    "Hand-off links are single use and expire after a minute.",
+  "handoff.noToken":
+    "This link has no hand-off token. Start again from the admin console.",
+
+  "common.continue": "Continue",
+
+  // ---- Workspaces --------------------------------------------------------
+
+  "org.createTitle": "Name your workspace",
+  "org.createDescription": "One field. You can add more later.",
+  "org.name": "Workspace name",
+  "org.creating": "Creating…",
+  "org.nameRequired": "Name is required",
+  "org.fallback": "Workspace",
+  "org.switching": "Switching…",
+  "org.new": "New workspace",
+  "org.add": "Add",
+  "org.adding": "Adding…",
+  "org.created": "Workspace created",
+
+  "home.title": "Home",
+  "home.empty": "Nothing in this workspace yet.",
+  "notFound.title": "Not found",
+  "notFound.back": "Back home",
+
+  "support.viewingAs": "Viewing as {org}",
+  "support.stop": "Stop",
+  "support.stopping": "Stopping…",
+
+  // ---- The console -------------------------------------------------------
+
+  "admin.title": "Admin",
+  "admin.signIn.description": "Platform operators only.",
+  "admin.redirecting": "Redirecting…",
+  "admin.operator": "Operator",
+  "admin.nav.overview": "Overview",
+  "admin.nav.users": "Users",
+  "admin.nav.orgs": "Workspaces",
+  "admin.nav.lab": "Lab",
+  "admin.nav.mail": "Mail",
+  "admin.nav.objects": "Objects",
+  "admin.nav.db": "Database",
+
+  "admin.overview.title": "Overview",
+  "admin.overview.description": "This install.",
+
+  "admin.users.title": "Users",
+  "admin.users.description": "Every login on this install.",
+  "admin.users.error": "Could not load users.",
+  "admin.users.email": "Email",
+  "admin.users.username": "Username",
+  "admin.users.role": "Role",
+  "admin.users.roleAdmin": "Admin",
+  "admin.users.roleMember": "Member",
+
+  "admin.orgs.title": "Workspaces",
+  "admin.orgs.description":
+    "Support views a workspace without taking the owner's session.",
+  "admin.orgs.error": "Could not load workspaces.",
+  "admin.orgs.name": "Name",
+  "admin.orgs.viewAs": "View as",
+  "admin.orgs.opening": "Opening…",
+  "admin.notFound.back": "Back to overview",
+
+  // ---- The marketing site ------------------------------------------------
+
+  "www.nav.product": "Product",
+  "www.nav.surfaces": "Surfaces",
+  "www.getStarted": "Get started",
+  "www.eyebrow": "Standalone scaffold",
+  "www.headline": "App shell and chrome. No business attached.",
+  "www.sub":
+    "Clone, run the setup script, Docker does the rest. Signup is username, email, and password. Then one workspace name.",
+  "www.seeSurfaces": "See surfaces",
+  "www.edge.title": "Own edge",
+  "www.edge.body":
+    "Traefik, certificates, and hosts live in this repo. Nothing on the machine except Docker.",
+  "www.userOrg.title": "User + org",
+  "www.userOrg.body":
+    "One login, many workspaces. Isolation is org_id. Support views an org without stealing the session.",
+  "www.module.title": "Module slot",
+  "www.module.body":
+    "The home page is empty on purpose. A product module fills it. The hull does not know what you sell.",
+  "www.surfaces.title": "Three hosts",
+  "www.surfaces.www": "This page. No cookie.",
+  "www.surfaces.app": "Product shell.",
+  "www.surfaces.admin": "Install operators.",
+  "www.open": "Open",
 } as const;
 
 export type MessageKey = keyof typeof en;

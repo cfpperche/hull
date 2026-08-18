@@ -21,7 +21,9 @@ export const LOCALE_NAMES: Record<Locale, string> = {
 };
 
 export function isLocale(value: unknown): value is Locale {
-  return typeof value === "string" && (LOCALES as readonly string[]).includes(value);
+  return (
+    typeof value === "string" && (LOCALES as readonly string[]).includes(value)
+  );
 }
 
 /**
@@ -31,7 +33,9 @@ export function isLocale(value: unknown): value is Locale {
  * because those are the two shapes this is ever handed and normalising them at
  * the call site would mean writing the q-value parser twice.
  */
-export function negotiate(wanted: string | readonly string[] | null | undefined): Locale {
+export function negotiate(
+  wanted: string | readonly string[] | null | undefined,
+): Locale {
   return best(wanted, LOCALES, DEFAULT_LOCALE);
 }
 
@@ -68,21 +72,28 @@ export function best<T extends string>(
 
 /** Lowercased tags, best first. `*` is dropped: it means "anything", which is
  *  what the fallback already is. */
-function parseWanted(wanted: string | readonly string[] | null | undefined): string[] {
+function parseWanted(
+  wanted: string | readonly string[] | null | undefined,
+): string[] {
   if (!wanted) return [];
   const raw = typeof wanted === "string" ? wanted.split(",") : [...wanted];
-  return raw
-    .map((part) => {
-      const [tag, ...params] = part.trim().split(";");
-      const q = params
-        .map((p) => p.trim())
-        .find((p) => p.startsWith("q="))
-        ?.slice(2);
-      const weight = q === undefined ? 1 : Number.parseFloat(q);
-      return { tag: tag.trim().toLowerCase(), q: Number.isFinite(weight) ? weight : 0 };
-    })
-    .filter((e) => e.tag && e.tag !== "*" && e.q > 0)
-    // Stable within equal weights, so the header's own order still decides.
-    .sort((a, b) => b.q - a.q)
-    .map((e) => e.tag);
+  return (
+    raw
+      .map((part) => {
+        const [tag, ...params] = part.trim().split(";");
+        const q = params
+          .map((p) => p.trim())
+          .find((p) => p.startsWith("q="))
+          ?.slice(2);
+        const weight = q === undefined ? 1 : Number.parseFloat(q);
+        return {
+          tag: tag.trim().toLowerCase(),
+          q: Number.isFinite(weight) ? weight : 0,
+        };
+      })
+      .filter((e) => e.tag && e.tag !== "*" && e.q > 0)
+      // Stable within equal weights, so the header's own order still decides.
+      .sort((a, b) => b.q - a.q)
+      .map((e) => e.tag)
+  );
 }
