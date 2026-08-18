@@ -397,6 +397,33 @@ Org isolation, Traefik-in-compose, `config.json` runtime brand, and the session 
 
 ## Open, and owned by the operator
 
+- **A red `test` job is not always a red gate: the runner pulls images anonymously
+  and gets rate-limited.** Hit on 2026-08-18, on the signup-flow merge. The whole
+  job reads as a failure and the only line that says why is four words deep in the
+  log:
+
+  ```
+  ── lint, format, adapter tests ─────────
+  DEPS_OK mode=up
+   testdb Pulling
+  toomanyrequests: Rate exceeded
+  ```
+
+  Nothing had run yet — typecheck, the three surface builds and the frontend
+  image had all passed, and pytest never started. `scripts/test.sh` brings up
+  `testdb` from `public.ecr.aws/docker/library/postgres:16`, and the public ECR
+  mirror throttles anonymous pulls like Docker Hub does.
+
+  **The move is `gh run rerun <id> --failed`, not a look at the diff.** Note that
+  it is refused while any job in the run is still going — the e2e job was still
+  finishing, and the CLI answers "This workflow is already running" rather than
+  queuing. Wait for the run to complete, then re-run only the failed job; the
+  green ones are not repeated.
+
+  If it becomes routine rather than occasional, the fixes are to authenticate the
+  pull or to cache the postgres image on the runner. Neither is worth doing for a
+  first occurrence, and both are cheaper than the half hour it costs to work out
+  that a green diff produced a red gate.
 - **Docker will fill this disk, and the default configuration is why.** Hit on
   2026-08-17: 90 GB reclaimed, of which **71.7 GB was BuildKit cache alone**.
   `docker buildx inspect default` shows the reason in one line — the stock GC
